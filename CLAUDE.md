@@ -60,6 +60,14 @@ pnpm db:seed       # load DEMO data (development only)
 - `eslint` is pinned to **9.x**. ESLint 10 breaks `eslint-plugin-react`, which
   `eslint-config-next@16` depends on.
 - `vitest` is pinned to **4.x**, the range `better-auth` supports.
+- `pnpm` is pinned to **11.x** via `packageManager`. pnpm 11 no longer reads the
+  `pnpm` field in package.json — project settings live in `pnpm-workspace.yaml`,
+  and the install-scripts allowlist is `allowBuilds`, not `onlyBuiltDependencies`.
+- pnpm 11 rejects lockfile entries published within the last 24 hours
+  (`minimumReleaseAge`). Never work around it by relaxing the policy: rebuild
+  the lockfile so it resolves a version that has been public long enough.
+- `postinstall` runs `prisma generate`. Without it a fresh clone fails
+  typecheck and tests, because the enums live in the generated client.
 
 ## Product model
 

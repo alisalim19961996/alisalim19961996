@@ -1,0 +1,17 @@
+# pnpm 11 reads project settings from here. The "pnpm" field in package.json is
+# no longer read at all, which is why this file exists.
+#
+# Dependencies allowed to run install scripts. pnpm blocks them by default —
+# a postinstall script is the main way a compromised package executes code on a
+# developer's machine — so each one is listed deliberately.
+#
+# Prisma is the one that actually matters: without it, its engine binaries are
+# never downloaded and `prisma generate` fails. The rest are native builds
+# (esbuild, SWC, file watchers) needed by the build and test toolchain.
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true

@@ -21,7 +21,7 @@ node -v
 ### ٢. pnpm
 
 ```bash
-npm install -g pnpm
+npm install -g pnpm@11
 ```
 
 للتأكد:
@@ -29,6 +29,9 @@ npm install -g pnpm
 ```bash
 pnpm -v
 ```
+
+لازم يطلع **11.x**. المشروع يثبّت نسخة pnpm في `package.json`، فإذا كانت
+نسختك مختلفة راح ينزّل الصحيحة تلقائيًا.
 
 ---
 
