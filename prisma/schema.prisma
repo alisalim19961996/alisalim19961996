@@ -1,0 +1,949 @@
+// =============================================================================
+// MPS — Modern Phone Store
+// PostgreSQL schema.
+//
+// MONEY RULE: every monetary column is an Int holding WHOLE IRAQI DINARS.
+// Iraq does not transact in fils, so there is no fractional unit to lose.
+// No Float, no Decimal, no currency maths in JavaScript numbers of unknown
+// precision. Int overflow ceiling is ~2.1bn IQD per row, far above any order.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NOTE: pg_trgm and unaccent are created explicitly in the initial migration
+// rather than via the `postgresqlExtensions` preview feature, so the schema
+// stays free of preview flags while fresh databases still get the extensions.
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+/// Order lifecycle. Legal transitions are enforced in the order service,
+/// never in the UI alone. See server/services/order-state.ts
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY_FOR_SHIPMENT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Every change to stock writes one of these. Stock is never silently mutated.
+enum InventoryMovementType {
+  STOCK_ADDED
+  STOCK_REMOVED
+  ORDER_RESERVED
+  ORDER_RELEASED
+  ORDER_FULFILLED
+  MANUAL_ADJUSTMENT
+  RETURNED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum OfferScope {
+  PRODUCT
+  CATEGORY
+  BRAND
+  ALL
+}
+
+/// The 19 governorates of Iraq.
+enum Governorate {
+  BAGHDAD
+  BASRA
+  NINAWA
+  ERBIL
+  SULAYMANIYAH
+  DUHOK
+  KIRKUK
+  DIYALA
+  ANBAR
+  BABIL
+  KARBALA
+  NAJAF
+  WASIT
+  MAYSAN
+  DHI_QAR
+  MUTHANNA
+  QADISIYYAH
+  SALAH_AL_DIN
+  HALABJA
+}
+
+// =============================================================================
+// AUTH  (schema shape required by better-auth's Prisma adapter)
+// =============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+
+  // MPS additions
+  role          Role      @default(CUSTOMER)
+  phone         String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  wishlist      Wishlist?
+  couponUsages  CouponUsage[]
+  auditLogs     AuditLog[]
+  productViews  ProductView[]
+  carts         Cart[]
+
+  @@index([role])
+  @@index([createdAt])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Address {
+  id          String      @id @default(cuid())
+  userId      String
+  fullName    String
+  phone       String
+  governorate Governorate
+  city        String
+  addressLine String
+  landmark    String?
+  notes       String?
+  isDefault   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("address")
+}
+
+// =============================================================================
+// CATALOGUE
+// =============================================================================
+
+model Brand {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  nameAr       String
+  nameEn       String
+  descriptionAr String?
+  descriptionEn String?
+  logoUrl      String?
+  /// Accent colour used only for small identity chips, never as a background.
+  accentColor  String?
+  isActive     Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  products Product[]
+  offers   Offer[]
+
+  @@index([isActive, sortOrder])
+  @@map("brand")
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  slug          String     @unique
+  nameAr        String
+  nameEn        String
+  descriptionAr String?
+  descriptionEn String?
+  imageUrl      String?
+  /// Self-referencing tree: "Phones > Gaming Phones".
+  parentId      String?
+  isActive      Boolean    @default(true)
+  sortOrder     Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+  offers   Offer[]
+
+  @@index([parentId])
+  @@index([isActive, sortOrder])
+  @@map("category")
+}
+
+model Product {
+  id         String  @id @default(cuid())
+  /// Per-locale slugs so both /ar and /en URLs are meaningful and indexable.
+  slugAr     String  @unique
+  slugEn     String  @unique
+
+  nameAr     String
+  nameEn     String
+  /// Short line under the product name in cards and hero.
+  taglineAr  String?
+  taglineEn  String?
+
+  // -- Long-form content (§15: honest, never invented) ----------------------
+  overviewAr      String?
+  overviewEn      String?
+  keyFeaturesAr   String[] @default([])
+  keyFeaturesEn   String[] @default([])
+  prosAr          String[] @default([])
+  prosEn          String[] @default([])
+  consAr          String[] @default([])
+  consEn          String[] @default([])
+  whoIsItForAr    String?
+  whoIsItForEn    String?
+  thingsToKnowAr  String?
+  thingsToKnowEn  String?
+  /// Practical gaming notes. Left empty until real, sourced figures exist —
+  /// benchmarks are never generated.
+  gamingNotesAr   String?
+  gamingNotesEn   String?
+
+  brandId    String
+  categoryId String
+
+  // -- Merchandising flags --------------------------------------------------
+  isPublished  Boolean @default(false)
+  isFeatured   Boolean @default(false)
+  isNewArrival Boolean @default(false)
+  isBestSeller Boolean @default(false)
+  isGaming     Boolean @default(false)
+
+  /// Denormalised from the cheapest active variant so catalogue sorting and
+  /// price filtering stay a single indexed query. Recomputed by the product
+  /// service whenever a variant price changes.
+  minPriceIqd  Int?
+
+  warrantyMonths Int    @default(12)
+  warrantyNoteAr String?
+  warrantyNoteEn String?
+
+  // -- SEO ------------------------------------------------------------------
+  metaTitleAr       String?
+  metaTitleEn       String?
+  metaDescriptionAr String?
+  metaDescriptionEn String?
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  brand    Brand            @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants ProductVariant[]
+  images   ProductImage[]
+  spec     ProductSpec?
+  reviews  Review[]
+  views    ProductView[]
+  offers   Offer[]
+
+  @@index([brandId, categoryId, isPublished])
+  @@index([isPublished, isFeatured])
+  @@index([isPublished, isNewArrival])
+  @@index([isPublished, isBestSeller])
+  @@index([isPublished, minPriceIqd])
+  @@index([createdAt])
+  @@map("product")
+}
+
+/// Typed columns for everything that is filtered or compared; free-form extras
+/// live in `extra` so an unusual spec never forces a migration.
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String  @unique
+
+  displaySizeInch  Float?
+  displayType      String?
+  displayRefreshHz Int?
+  displayResolution String?
+
+  chipset          String?
+  chipsetBrand     String?
+  cpuCores         Int?
+
+  batteryMah       Int?
+  chargingWatt     Int?
+
+  mainCameraMp     Int?
+  frontCameraMp    Int?
+  cameraNoteAr     String?
+  cameraNoteEn     String?
+
+  os               String?
+  osVersion        String?
+  simSlots         Int?
+  has5g            Boolean @default(false)
+  hasNfc           Boolean @default(false)
+  hasHeadphoneJack Boolean @default(false)
+  waterResistance  String?
+  weightGrams      Int?
+
+  extra Json?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([chipsetBrand])
+  @@index([batteryMah])
+  @@map("product_spec")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  altAr     String?
+  altEn     String?
+  sortOrder Int     @default(0)
+  /// Marks placeholder artwork so demo imagery is never mistaken for real
+  /// product photography (§59).
+  isDemo    Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@map("product_image")
+}
+
+model ProductVariant {
+  id        String @id @default(cuid())
+  productId String
+  sku       String @unique
+
+  ramGb     Int
+  storageGb Int
+  colorAr   String
+  colorEn   String
+  colorHex  String?
+  region    String?
+
+  /// Selling price in whole IQD.
+  priceIqd        Int
+  /// Was-price for showing a discount. Must be > priceIqd or null.
+  comparePriceIqd Int?
+
+  imageUrl  String?
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory  Inventory?
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, ramGb, storageGb, colorEn, region])
+  @@index([productId, isActive])
+  @@index([priceIqd])
+  @@map("product_variant")
+}
+
+// =============================================================================
+// INVENTORY
+//
+// `available` is never stored — it is always onHand - reserved, so the two can
+// never drift apart. Checkout locks this row (SELECT ... FOR UPDATE) inside a
+// transaction before reserving, which is what actually prevents overselling.
+// A CHECK constraint (added in migration SQL) is the last line of defence.
+// =============================================================================
+
+model Inventory {
+  id        String @id @default(cuid())
+  variantId String @unique
+
+  onHand   Int @default(0)
+  reserved Int @default(0)
+
+  lowStockThreshold Int @default(3)
+
+  updatedAt DateTime @updatedAt
+
+  variant   ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  movements InventoryMovement[]
+
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id          String                @id @default(cuid())
+  inventoryId String
+  type        InventoryMovementType
+  /// Signed change applied to onHand (or to reserved for reservation types).
+  quantity    Int
+  onHandAfter   Int
+  reservedAfter Int
+  orderId     String?
+  note        String?
+  /// User who caused it; null for automated transitions.
+  actorId     String?
+  createdAt   DateTime              @default(now())
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId, createdAt])
+  @@index([orderId])
+  @@map("inventory_movement")
+}
+
+// =============================================================================
+// CART  (server-owned: the client sends variantId + quantity and nothing else)
+// =============================================================================
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String?
+  /// Anonymous carts are keyed by an httpOnly cookie token.
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([userId])
+  @@map("cart")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  variantId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+  @@map("cart_item")
+}
+
+// =============================================================================
+// ORDERS
+// =============================================================================
+
+model Order {
+  id          String      @id @default(cuid())
+  /// Human-facing reference shown to the customer, e.g. MPS-25091-0042.
+  orderNumber String      @unique
+  userId      String?
+  status      OrderStatus @default(PENDING)
+
+  // -- Delivery address, snapshotted (an order is a historical record) -------
+  fullName    String
+  phone       String
+  governorate Governorate
+  city        String
+  addressLine String
+  landmark    String?
+  notes       String?
+
+  // -- Money, all whole IQD, all computed server-side -----------------------
+  subtotalIqd Int
+  discountIqd Int @default(0)
+  deliveryIqd Int @default(0)
+  totalIqd    Int
+
+  couponCode String?
+
+  placedAt    DateTime  @default(now())
+  confirmedAt DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items    OrderItem[]
+  events   OrderEvent[]
+  payment  Payment?
+  shipment Shipment?
+  couponUsage CouponUsage?
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([phone])
+  @@map("order")
+}
+
+/// Prices and names are SNAPSHOT at purchase time. Editing a product tomorrow
+/// must never change what last week's invoice says.
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  variantId String?
+
+  productNameAr String
+  productNameEn String
+  brandName     String
+  sku           String
+  ramGb         Int
+  storageGb     Int
+  colorAr       String
+  colorEn       String
+  imageUrl      String?
+
+  unitPriceIqd Int
+  quantity     Int
+  lineTotalIqd Int
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_item")
+}
+
+/// Immutable timeline. One row per transition, never updated or deleted.
+model OrderEvent {
+  id        String       @id @default(cuid())
+  orderId   String
+  fromStatus OrderStatus?
+  toStatus  OrderStatus
+  note      String?
+  actorId   String?
+  createdAt DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_event")
+}
+
+/// Provider-agnostic by design: COD today, an Iraqi gateway later, without
+/// touching order code. See server/services/payment/provider.ts
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  method     PaymentMethod @default(CASH_ON_DELIVERY)
+  status     PaymentStatus @default(PENDING)
+  amountIqd  Int
+  providerRef String?
+  providerPayload Json?
+  paidAt     DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("payment")
+}
+
+model Shipment {
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  carrierName String?
+  trackingRef String?
+  dispatchedAt DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("shipment")
+}
+
+// =============================================================================
+// ENGAGEMENT
+// =============================================================================
+
+model Review {
+  id        String       @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  titleAr   String?
+  body      String
+  status    ReviewStatus @default(PENDING)
+  /// True only when this user actually has a DELIVERED order for the product.
+  isVerifiedPurchase Boolean @default(false)
+  moderatedById String?
+  moderatedAt   DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId, status])
+  @@index([status, createdAt])
+  @@map("review")
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+
+  @@map("wishlist")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  productId  String
+  createdAt  DateTime @default(now())
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, productId])
+  @@map("wishlist_item")
+}
+
+// =============================================================================
+// PROMOTIONS
+// =============================================================================
+
+model Offer {
+  id            String       @id @default(cuid())
+  nameAr        String
+  nameEn        String
+  scope         OfferScope
+  discountType  DiscountType
+  /// Percent (1-100) or a whole-IQD amount, depending on discountType.
+  discountValue Int
+
+  productId  String?
+  categoryId String?
+  brandId    String?
+
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([isActive, startsAt, endsAt])
+  @@index([productId])
+  @@map("offer")
+}
+
+model Coupon {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  discountType  DiscountType
+  discountValue Int
+  minOrderIqd   Int          @default(0)
+  maxDiscountIqd Int?
+  /// null means unlimited.
+  usageLimit     Int?
+  usageCount     Int         @default(0)
+  perUserLimit   Int         @default(1)
+  startsAt       DateTime
+  endsAt         DateTime
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  usages CouponUsage[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("coupon")
+}
+
+model CouponUsage {
+  id         String   @id @default(cuid())
+  couponId   String
+  userId     String?
+  orderId    String   @unique
+  discountIqd Int
+  createdAt  DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, userId])
+  @@map("coupon_usage")
+}
+
+// =============================================================================
+// CONTENT  (admin-managed: no commercial copy is hard-coded — §61)
+// =============================================================================
+
+model SiteSetting {
+  /// Single-row table guarded by a fixed id.
+  id String @id @default("singleton")
+
+  storeNameAr String @default("متجر الهواتف الحديث")
+  storeNameEn String @default("Modern Phone Store")
+  logoUrl     String?
+
+  contactPhone   String?
+  whatsappNumber String?
+  contactEmail   String?
+
+  facebookUrl  String?
+  instagramUrl String?
+  tiktokUrl    String?
+
+  /// Flat fallback used when a governorate has no explicit rate.
+  defaultDeliveryIqd Int @default(5000)
+  freeDeliveryOverIqd Int?
+
+  warrantyNoteAr String?
+  warrantyNoteEn String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("site_setting")
+}
+
+model DeliveryRate {
+  id           String      @id @default(cuid())
+  governorate  Governorate @unique
+  feeIqd       Int
+  etaMinDays   Int         @default(1)
+  etaMaxDays   Int         @default(3)
+  isActive     Boolean     @default(true)
+  updatedAt    DateTime    @updatedAt
+
+  @@map("delivery_rate")
+}
+
+model HomepageSection {
+  id        String   @id @default(cuid())
+  /// Stable key the renderer switches on, e.g. "featured", "brands", "trust".
+  key       String   @unique
+  titleAr   String?
+  titleEn   String?
+  subtitleAr String?
+  subtitleEn String?
+  isVisible Boolean  @default(true)
+  sortOrder Int      @default(0)
+  config    Json?
+  updatedAt DateTime @updatedAt
+
+  @@index([isVisible, sortOrder])
+  @@map("homepage_section")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  titleAr   String?
+  titleEn   String?
+  subtitleAr String?
+  subtitleEn String?
+  imageUrl  String
+  imageMobileUrl String?
+  linkUrl   String?
+  ctaLabelAr String?
+  ctaLabelEn String?
+  placement String   @default("home_hero")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placement, isActive, sortOrder])
+  @@map("banner")
+}
+
+model Faq {
+  id         String   @id @default(cuid())
+  questionAr String
+  questionEn String
+  answerAr   String
+  answerEn   String
+  category   String?
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("faq")
+}
+
+model BlogPost {
+  id       String @id @default(cuid())
+  slugAr   String @unique
+  slugEn   String @unique
+  titleAr  String
+  titleEn  String
+  excerptAr String?
+  excerptEn String?
+  bodyAr   String
+  bodyEn   String
+  coverImageUrl String?
+  tags     String[] @default([])
+  category String?
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+  authorName  String?
+  metaTitleAr String?
+  metaTitleEn String?
+  metaDescriptionAr String?
+  metaDescriptionEn String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
+  @@map("blog_post")
+}
+
+// =============================================================================
+// OBSERVABILITY
+// =============================================================================
+
+/// Append-only record of every privileged mutation. Never updated or deleted.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  entityType String
+  entityId   String?
+  /// Before/after snapshot, secrets stripped by the audit service.
+  changes    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model ProductView {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  /// Anonymous, rotating identifier. No PII is recorded here (§53).
+  sessionKey String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([userId, createdAt])
+  @@map("product_view")
+}
+
+model SearchEvent {
+  id          String   @id @default(cuid())
+  query       String
+  locale      String
+  resultCount Int
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("search_event")
+}

@@ -1,0 +1,138 @@
+{
+  "brand": {
+    "name": "MPS",
+    "fullName": "Modern Phone Store",
+    "tagline": "Your smart choice starts here"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Phones",
+    "brands": "Brands",
+    "categories": "Categories",
+    "offers": "Offers",
+    "guides": "Buying Guides",
+    "about": "About",
+    "contact": "Contact",
+    "search": "Search",
+    "cart": "Cart",
+    "wishlist": "Wishlist",
+    "account": "Account",
+    "menu": "Menu",
+    "closeMenu": "Close menu",
+    "language": "Language"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "viewAll": "View all",
+    "readMore": "Read more",
+    "required": "Required",
+    "optional": "Optional",
+    "yes": "Yes",
+    "no": "No",
+    "currency": "IQD",
+    "skipToContent": "Skip to content"
+  },
+  "home": {
+    "heroTitle": "Your smart choice starts here",
+    "heroSubtitle": "Genuine phones with a clear warranty and published prices, delivered across every Iraqi governorate.",
+    "heroCta": "Browse phones",
+    "heroCtaSecondary": "How to choose a phone"
+  },
+  "product": {
+    "addToCart": "Add to cart",
+    "buyNow": "Buy now",
+    "outOfStock": "Out of stock",
+    "inStock": "In stock",
+    "lowStock": "Only a few left",
+    "price": "Price",
+    "oldPrice": "Was",
+    "sku": "SKU",
+    "warranty": "Warranty",
+    "brand": "Brand",
+    "specifications": "Specifications",
+    "overview": "Overview",
+    "keyFeatures": "Key features",
+    "pros": "Pros",
+    "cons": "Cons",
+    "whoIsItFor": "Who is it for?",
+    "thingsToKnow": "Things you should know",
+    "ram": "RAM",
+    "storage": "Storage",
+    "color": "Colour",
+    "display": "Display",
+    "processor": "Processor",
+    "battery": "Battery",
+    "camera": "Camera",
+    "charging": "Charging",
+    "os": "Operating system"
+  },
+  "cart": {
+    "title": "Shopping cart",
+    "empty": "Your cart is empty",
+    "emptyHint": "Browse the catalogue and add what suits you.",
+    "subtotal": "Subtotal",
+    "delivery": "Delivery",
+    "total": "Total",
+    "checkout": "Checkout",
+    "quantity": "Quantity",
+    "remove": "Remove",
+    "continueShopping": "Continue shopping"
+  },
+  "auth": {
+    "login": "Sign in",
+    "register": "Create account",
+    "logout": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "name": "Full name",
+    "phone": "Phone number",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset password",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "invalidCredentials": "Incorrect email or password."
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Enter a valid email address",
+    "invalidPhone": "Enter a valid phone number. Example: 07701234567",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordMismatch": "Passwords do not match",
+    "tooLong": "This value is too long",
+    "invalidQuantity": "Invalid quantity"
+  },
+  "empty": {
+    "noProducts": "No matching products right now.",
+    "noProductsHint": "Try changing the filters or searching for something else.",
+    "noResults": "No results found.",
+    "clearFilters": "Clear filters"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "generic": "An unexpected error occurred. Please try again.",
+    "tryAgain": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundMessage": "The page you opened doesn't exist or has moved.",
+    "backHome": "Back to home"
+  },
+  "a11y": {
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "Switch to Arabic",
+    "cartItemCount": "{count, plural, =0 {Cart is empty} one {# item in cart} other {# items in cart}}"
+  },
+  "footer": {
+    "shop": "Shop",
+    "company": "Company",
+    "support": "Customer service"
+  }
+}

@@ -1,0 +1,156 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   MPS Design System
+   Restrained on purpose: red is an accent that signals action, never a wash.
+   All colour is defined here as tokens so no component hard-codes a hex.
+   ========================================================================== */
+
+@theme {
+  /* --- Brand ------------------------------------------------------------ */
+  --color-primary: #e11b22;
+  --color-primary-hover: #c4141b;
+  --color-primary-soft: #fdecec;
+
+  /* --- Neutrals --------------------------------------------------------- */
+  --color-ink: #0a0a0b;
+  --color-ink-soft: #2c2c30;
+  --color-muted: #6b7280;
+  --color-subtle: #9ca3af;
+  --color-surface: #ffffff;
+  --color-canvas: #fafafa;
+  --color-border: #e7e7e9;
+  --color-border-strong: #d3d3d7;
+
+  /* --- Semantic --------------------------------------------------------- */
+  --color-success: #0f8a4a;
+  --color-success-soft: #e7f6ee;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf3e7;
+  --color-danger: #c4141b;
+  --color-danger-soft: #fdecec;
+
+  /* --- Typography ------------------------------------------------------- */
+  --font-sans: var(--font-latin), var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  /* --- Radius ----------------------------------------------------------- */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+
+  /* --- Elevation: one shadow, used sparingly --------------------------- */
+  --shadow-card: 0 1px 2px rgb(10 10 11 / 0.04), 0 4px 12px rgb(10 10 11 / 0.05);
+  --shadow-raised: 0 2px 4px rgb(10 10 11 / 0.05), 0 12px 28px rgb(10 10 11 / 0.09);
+
+  /* --- Layout ----------------------------------------------------------- */
+  --spacing-section: 4rem;
+  --spacing-section-lg: 6rem;
+  --container-page: 80rem;
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Arabic needs slightly more line-height to stay comfortable. */
+  html[lang='ar'] body {
+    line-height: 1.75;
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-border);
+  }
+
+  /* A single, visible, consistent focus ring — accessibility is not optional. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: #fff;
+  }
+
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* Arabic letterforms are harmed by negative tracking. */
+  html[lang='ar'] h1,
+  html[lang='ar'] h2,
+  html[lang='ar'] h3,
+  html[lang='ar'] h4 {
+    letter-spacing: 0;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilities
+   -------------------------------------------------------------------------- */
+
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-page);
+  padding-inline: 1rem;
+
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Prices and SKUs read as Latin digits in both locales — that is how Iraqi
+   commerce is written — and must never be reordered by bidi resolution. */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Directional icons (arrows, chevrons) mirror in RTL; logos and product
+   imagery must not. Opt in explicitly with this utility. */
+@utility flip-rtl {
+  :where([dir='rtl']) & {
+    transform: scaleX(-1);
+  }
+}

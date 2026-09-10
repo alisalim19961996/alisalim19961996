@@ -1,0 +1,138 @@
+{
+  "brand": {
+    "name": "MPS",
+    "fullName": "متجر الهواتف الحديث",
+    "tagline": "اختيارك الذكي يبدأ من هنا"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "products": "الهواتف",
+    "brands": "الشركات",
+    "categories": "الفئات",
+    "offers": "العروض",
+    "guides": "دليل الشراء",
+    "about": "من نحن",
+    "contact": "تواصل معنا",
+    "search": "بحث",
+    "cart": "السلة",
+    "wishlist": "المفضلة",
+    "account": "حسابي",
+    "menu": "القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "language": "اللغة"
+  },
+  "common": {
+    "loading": "جاري التحميل…",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "close": "إغلاق",
+    "viewAll": "عرض الكل",
+    "readMore": "اقرأ المزيد",
+    "required": "مطلوب",
+    "optional": "اختياري",
+    "yes": "نعم",
+    "no": "لا",
+    "currency": "د.ع",
+    "skipToContent": "تخطَّ إلى المحتوى"
+  },
+  "home": {
+    "heroTitle": "اختيارك الذكي يبدأ من هنا",
+    "heroSubtitle": "هواتف أصلية بضمان واضح وأسعار معلنة، مع توصيل لكل محافظات العراق.",
+    "heroCta": "تصفّح الهواتف",
+    "heroCtaSecondary": "كيف تختار هاتفك؟"
+  },
+  "product": {
+    "addToCart": "أضف إلى السلة",
+    "buyNow": "اشترِ الآن",
+    "outOfStock": "غير متوفر حاليًا",
+    "inStock": "متوفر",
+    "lowStock": "الكمية محدودة",
+    "price": "السعر",
+    "oldPrice": "السعر قبل الخصم",
+    "sku": "رمز المنتج",
+    "warranty": "الضمان",
+    "brand": "الشركة",
+    "specifications": "المواصفات",
+    "overview": "نظرة عامة",
+    "keyFeatures": "أبرز المزايا",
+    "pros": "المميزات",
+    "cons": "العيوب",
+    "whoIsItFor": "لمن يناسب؟",
+    "thingsToKnow": "أشياء يجب معرفتها",
+    "ram": "الذاكرة العشوائية",
+    "storage": "سعة التخزين",
+    "color": "اللون",
+    "display": "الشاشة",
+    "processor": "المعالج",
+    "battery": "البطارية",
+    "camera": "الكاميرا",
+    "charging": "الشحن",
+    "os": "نظام التشغيل"
+  },
+  "cart": {
+    "title": "سلة التسوق",
+    "empty": "سلتك فارغة",
+    "emptyHint": "ابدأ بتصفّح الهواتف وأضف ما يناسبك.",
+    "subtotal": "المجموع الفرعي",
+    "delivery": "التوصيل",
+    "total": "الإجمالي",
+    "checkout": "إتمام الطلب",
+    "quantity": "الكمية",
+    "remove": "إزالة",
+    "continueShopping": "متابعة التسوق"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "name": "الاسم الكامل",
+    "phone": "رقم الهاتف",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "invalidEmail": "صيغة البريد الإلكتروني غير صحيحة",
+    "invalidPhone": "رقم الهاتف غير صحيح. مثال: 07701234567",
+    "passwordTooShort": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين",
+    "tooLong": "النص أطول من المسموح",
+    "invalidQuantity": "الكمية غير صحيحة"
+  },
+  "empty": {
+    "noProducts": "ماكو منتجات مطابقة حاليًا.",
+    "noProductsHint": "جرّب تغيير الفلاتر أو ابحث بكلمة ثانية.",
+    "noResults": "ماكو نتائج للبحث.",
+    "clearFilters": "مسح الفلاتر"
+  },
+  "error": {
+    "title": "صار خطأ",
+    "generic": "صار خطأ غير متوقع. جرّب مرة ثانية.",
+    "tryAgain": "حاول مرة أخرى",
+    "notFoundTitle": "الصفحة غير موجودة",
+    "notFoundMessage": "الرابط الذي فتحته غير موجود أو تم نقله.",
+    "backHome": "العودة للرئيسية"
+  },
+  "a11y": {
+    "switchToEnglish": "التبديل إلى الإنجليزية",
+    "switchToArabic": "التبديل إلى العربية",
+    "cartItemCount": "{count, plural, =0 {السلة فارغة} one {منتج واحد في السلة} two {منتجان في السلة} few {# منتجات في السلة} other {# منتجًا في السلة}}"
+  },
+  "footer": {
+    "shop": "التسوق",
+    "company": "المتجر",
+    "support": "خدمة العملاء"
+  }
+}
