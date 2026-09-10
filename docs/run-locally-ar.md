@@ -210,14 +210,21 @@ pnpm db:studio   # واجهة لتصفح قاعدة البيانات
 
 ## إذا صارت مشكلة
 
-| المشكلة                                | الحل                                            |
-| -------------------------------------- | ----------------------------------------------- |
-| `command not found: pnpm`              | نفّذ `npm install -g pnpm` وأعد فتح Terminal    |
-| `Can't reach database server`          | تأكد أن Docker شغّال، أو أن `DATABASE_URL` صحيح |
-| `Invalid server environment variables` | ناقص شي في `.env` — راجع القسم أعلاه            |
-| `relation does not exist`              | نفّذ `pnpm db:deploy`                           |
-| `Port 3000 is in use`                  | شغّل على منفذ ثاني: `pnpm dev -p 3001`          |
-| `engine "node" is incompatible`        | نسخة Node قديمة — حدّثها من nodejs.org          |
+| المشكلة                                             | الحل                                                                                               |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `command not found: pnpm`                           | نفّذ `npm install -g pnpm@11` وأعد فتح Terminal                                                    |
+| `Can't reach database server`                       | تأكد أن Docker شغّال، أو أن `DATABASE_URL` صحيح                                                    |
+| `Invalid server environment variables`              | ناقص شي في `.env` — راجع القسم أعلاه                                                               |
+| `relation does not exist`                           | نفّذ `pnpm db:deploy`                                                                              |
+| `Port 3000 is in use`                               | شغّل على منفذ ثاني: `pnpm dev -p 3001`                                                             |
+| `engine "node" is incompatible`                     | نسخة Node قديمة — حدّثها من nodejs.org                                                             |
+| `BETTER_AUTH_SECRET must be at least 32 characters` | المفتاح فارغ في `.env` — نفّذ `pnpm setup`، أو ولّده يدويًا                                        |
+| `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`            | ملف القفل قديم — نفّذ `git pull`                                                                   |
+| `ERR_PNPM_IGNORED_BUILDS`                           | نفّذ `git pull` — الإعداد صار في `pnpm-workspace.yaml`                                             |
+| `has no exported member 'OrderStatus'`              | نفّذ `pnpm install` — يولّد عميل Prisma تلقائيًا                                                   |
+| `fatal: not a git repository`                       | إنت مو داخل مجلد المشروع (`cd mps`)، أو نزّلته ZIP                                                 |
+| `'wmic' is not recognized`                          | **تجاهله.** ويندوز 11 شال هذي الأداة، وNext يحاول يستخدمها ليفتح الملف بالمحرر. ماله علاقة بمشروعك |
+| `Could not open env.ts in the editor`               | نفس الشي أعلاه — تجاهله                                                                            |
 
 ---
 

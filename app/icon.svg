@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="MPS">
+  <!--
+    Browser-tab mark. Drawn as geometry rather than text so it does not depend
+    on a font being available, and reduced to two shapes because anything more
+    detailed is mud at 16px.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0A0A0B" />
+  <path
+    d="M7 22.5V10.5L14 18l7-7.5v12"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="25.5" cy="21.5" r="2.3" fill="#E11B22" />
+</svg>

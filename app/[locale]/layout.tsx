@@ -87,6 +87,9 @@ export default async function LocaleLayout({
       lang={locale}
       dir={direction}
       className={`${arabic.variable} ${latin.variable}`}
+      // globals.css sets scroll-behavior: smooth; this tells Next to suppress
+      // it during route transitions, which otherwise animate the scroll reset.
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <body className="min-h-dvh antialiased">
