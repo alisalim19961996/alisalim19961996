@@ -43,9 +43,22 @@ cd mps
 pnpm install
 ```
 
-> إذا ما عندك `git`، افتح صفحة المستودع على GitHub ← اختر الفرع
-> `claude/mps-ecommerce-platform-6wyqwn` ← **Code** ← **Download ZIP**،
-> ثم فك الضغط وافتح المجلد في Terminal.
+### ⚠️ استخدم `git clone`، لا Download ZIP
+
+الفرق مهم:
+
+|                      | `git clone`           | Download ZIP                     |
+| -------------------- | --------------------- | -------------------------------- |
+| تحديث المشروع لاحقًا | `git pull` — أمر واحد | تنزيل الملف كله من جديد          |
+| `git pull` يشتغل؟    | ✅ نعم                | ❌ `fatal: not a git repository` |
+
+**إذا ما عندك git**، نزّله من https://git-scm.com واضغط Next على كل الخطوات،
+ثم أعد فتح Terminal ونفّذ أمر `git clone` أعلاه.
+
+### إذا نزّلت ZIP من قبل
+
+امسح المجلد القديم ونزّله بـ `git clone` مرة وحدة، وبعدها كل تحديث يصير
+بأمر `git pull` بس.
 
 ---
 
