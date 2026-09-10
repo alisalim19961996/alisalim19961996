@@ -18,8 +18,12 @@ messages are in English.
    Prices, totals and discounts are always recomputed from the database.
 3. **Components never import Prisma.** The path is
    `UI → server/services/* → server/db/client`. Business logic lives in services.
-4. **Stock is never mutated silently.** Every change writes an
-   `InventoryMovement`, inside a transaction that locks the inventory row.
+4. **Availability is a status, not a count.** MPS does not track units.
+   `Inventory.status` is the whole truth; `trackQuantity` exists per variant so
+   counted stock can be switched on later without a migration. Both paths go
+   through `lib/domain/availability.ts` — never read `onHand` directly. When
+   counting is on, every change writes an `InventoryMovement` inside a
+   transaction that locks the inventory row.
 5. **No invented data.** No fabricated benchmarks, reviews, sales figures or
    stock levels. Demo data is clearly labelled and refuses to run in production.
 6. **No hard-coded commercial information.** Prices, delivery fees, warranty
@@ -28,6 +32,13 @@ messages are in English.
    `start-`, `end-`). Never `ml-`/`mr-`/`left-`/`right-` for layout.
 8. **Text lives in `messages/*.json`,** not inline in components. Both catalogues
    must stay at exactly the same key count.
+9. **The catalogue is not phone-only.** MPS sells phones, tablets and
+   accessories, and is built to sell anything later. Never add a phone-specific
+   column to `Product`. A new specification is a row in `AttributeDefinition`
+   plus a link in `ProductTypeAttribute` — data entry, never a migration.
+10. **Variants are option-driven.** `ProductOption` / `ProductOptionValue` /
+   `VariantOptionValue` define a variant. Never hard-code RAM, storage or
+   colour columns: a cable has length, a case has device fit.
 
 ## Commands
 
@@ -48,6 +59,21 @@ pnpm db:seed       # load DEMO data (development only)
 - `eslint` is pinned to **9.x**. ESLint 10 breaks `eslint-plugin-react`, which
   `eslint-config-next@16` depends on.
 - `vitest` is pinned to **4.x**, the range `better-auth` supports.
+
+## Product model
+
+```
+ProductType ──< ProductTypeAttribute >── AttributeDefinition ──< AttributeOption
+     │                                          │
+  Product ──< ProductAttributeValue >───────────┘
+     ├──< ProductOption ──< ProductOptionValue ──< VariantOptionValue
+     ├──< ProductVariant ──1:1── Inventory (status-based)
+     ├──< ProductImage
+     └──< ProductVideo   (YouTube id + click-to-play facade)
+```
+
+Adding "laptops" to the store is: one `ProductType` row, a handful of
+`AttributeDefinition` rows, and the links between them. No code change.
 
 ## Architecture
 

@@ -30,6 +30,31 @@ enum Role {
   ADMIN
 }
 
+/// How a variant's availability is decided.
+/// MPS does not count units today, so IN_STOCK / OUT_OF_STOCK is the whole
+/// truth. Quantity tracking exists behind Inventory.trackQuantity for the day
+/// the store wants it, without a migration.
+enum StockStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  PREORDER
+  DISCONTINUED
+}
+
+/// The shape of an attribute's value. Drives both the admin input control and
+/// the storefront filter control.
+enum AttributeDataType {
+  INT
+  DECIMAL
+  TEXT
+  BOOLEAN
+  ENUM
+}
+
+enum VideoProvider {
+  YOUTUBE
+}
+
 /// Order lifecycle. Legal transitions are enforced in the order service,
 /// never in the UI alone. See server/services/order-state.ts
 enum OrderStatus {
@@ -62,6 +87,7 @@ enum ReviewStatus {
 
 /// Every change to stock writes one of these. Stock is never silently mutated.
 enum InventoryMovementType {
+  STATUS_CHANGED
   STOCK_ADDED
   STOCK_REMOVED
   ORDER_RESERVED
@@ -263,6 +289,132 @@ model Category {
   @@map("category")
 }
 
+/// A kind of thing the store sells: phone, tablet, accessory, and whatever
+/// comes next. Adding a new type is data entry in the admin, not a migration —
+/// which is what lets MPS grow past phones without a rebuild.
+model ProductType {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  nameAr    String
+  nameEn    String
+  /// Lucide icon name rendered in the admin and category navigation.
+  icon      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products   Product[]
+  attributes ProductTypeAttribute[]
+
+  @@index([isActive, sortOrder])
+  @@map("product_type")
+}
+
+/// Visual grouping of attributes on the product page: "Display", "Battery".
+model AttributeGroup {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  nameAr    String
+  nameEn    String
+  sortOrder Int      @default(0)
+
+  definitions AttributeDefinition[]
+
+  @@map("attribute_group")
+}
+
+/// One specification field, defined once and reused across every product type
+/// that needs it. "RAM" means the same thing on a phone and a tablet, so it is
+/// defined once rather than duplicated per type.
+model AttributeDefinition {
+  id      String            @id @default(cuid())
+  key     String            @unique
+  labelAr String
+  labelEn String
+  type    AttributeDataType
+  /// Displayed after the value: "GB", "mAh", "inch". Never baked into the value.
+  unit    String?
+  groupId String?
+
+  /// Filterable attributes appear in catalogue filters and are indexed for it.
+  isFilterable Boolean @default(false)
+  /// Comparable attributes appear as rows in the product comparison table.
+  isComparable Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group    AttributeGroup?        @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  options  AttributeOption[]
+  values   ProductAttributeValue[]
+  typeLinks ProductTypeAttribute[]
+
+  @@index([isFilterable])
+  @@map("attribute_definition")
+}
+
+/// Allowed values for an ENUM attribute, e.g. AMOLED / IPS LCD for a display.
+/// Keeping these as rows rather than free text is what stops a catalogue
+/// filling up with "AMOLED", "amoled" and "Amoled" as three different values.
+model AttributeOption {
+  id           String @id @default(cuid())
+  definitionId String
+  value        String
+  labelAr      String
+  labelEn      String
+  sortOrder    Int    @default(0)
+
+  definition AttributeDefinition    @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  usedBy     ProductAttributeValue[]
+
+  @@unique([definitionId, value])
+  @@map("attribute_option")
+}
+
+/// Which attributes apply to which product type, and in what order the admin
+/// form shows them. A phone gets chipset and battery; a cable does not.
+model ProductTypeAttribute {
+  id            String  @id @default(cuid())
+  productTypeId String
+  definitionId  String
+  isRequired    Boolean @default(false)
+  sortOrder     Int     @default(0)
+
+  productType ProductType         @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  definition  AttributeDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([productTypeId, definitionId])
+  @@index([productTypeId, sortOrder])
+  @@map("product_type_attribute")
+}
+
+/// One product's value for one attribute. Typed columns rather than a single
+/// text column, so "8 GB RAM or more" is an indexed integer comparison instead
+/// of a string parse.
+model ProductAttributeValue {
+  id           String @id @default(cuid())
+  productId    String
+  definitionId String
+
+  valueInt     Int?
+  valueDecimal Decimal? @db.Decimal(10, 2)
+  valueText    String?
+  valueBool    Boolean?
+  optionId     String?
+
+  product    Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  definition AttributeDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  option     AttributeOption?    @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, definitionId])
+  @@index([definitionId, valueInt])
+  @@index([definitionId, optionId])
+  @@index([definitionId, valueBool])
+  @@map("product_attribute_value")
+}
+
 model Product {
   id         String  @id @default(cuid())
   /// Per-locale slugs so both /ar and /en URLs are meaningful and indexable.
@@ -275,7 +427,7 @@ model Product {
   taglineAr  String?
   taglineEn  String?
 
-  // -- Long-form content (§15: honest, never invented) ----------------------
+  // -- Long-form content (honest, never invented) ---------------------------
   overviewAr      String?
   overviewEn      String?
   keyFeaturesAr   String[] @default([])
@@ -288,20 +440,16 @@ model Product {
   whoIsItForEn    String?
   thingsToKnowAr  String?
   thingsToKnowEn  String?
-  /// Practical gaming notes. Left empty until real, sourced figures exist —
-  /// benchmarks are never generated.
-  gamingNotesAr   String?
-  gamingNotesEn   String?
 
-  brandId    String
-  categoryId String
+  productTypeId String
+  brandId       String
+  categoryId    String
 
   // -- Merchandising flags --------------------------------------------------
   isPublished  Boolean @default(false)
   isFeatured   Boolean @default(false)
   isNewArrival Boolean @default(false)
   isBestSeller Boolean @default(false)
-  isGaming     Boolean @default(false)
 
   /// Denormalised from the cheapest active variant so catalogue sorting and
   /// price filtering stay a single indexed query. Recomputed by the product
@@ -322,15 +470,19 @@ model Product {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  brand    Brand            @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  variants ProductVariant[]
-  images   ProductImage[]
-  spec     ProductSpec?
-  reviews  Review[]
-  views    ProductView[]
-  offers   Offer[]
+  productType     ProductType            @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+  brand           Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category        Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants        ProductVariant[]
+  images          ProductImage[]
+  videos          ProductVideo[]
+  options         ProductOption[]
+  attributeValues ProductAttributeValue[]
+  reviews         Review[]
+  views           ProductView[]
+  offers          Offer[]
 
+  @@index([productTypeId, isPublished])
   @@index([brandId, categoryId, isPublished])
   @@index([isPublished, isFeatured])
   @@index([isPublished, isNewArrival])
@@ -340,45 +492,25 @@ model Product {
   @@map("product")
 }
 
-/// Typed columns for everything that is filtered or compared; free-form extras
-/// live in `extra` so an unusual spec never forces a migration.
-model ProductSpec {
-  id        String  @id @default(cuid())
-  productId String  @unique
-
-  displaySizeInch  Float?
-  displayType      String?
-  displayRefreshHz Int?
-  displayResolution String?
-
-  chipset          String?
-  chipsetBrand     String?
-  cpuCores         Int?
-
-  batteryMah       Int?
-  chargingWatt     Int?
-
-  mainCameraMp     Int?
-  frontCameraMp    Int?
-  cameraNoteAr     String?
-  cameraNoteEn     String?
-
-  os               String?
-  osVersion        String?
-  simSlots         Int?
-  has5g            Boolean @default(false)
-  hasNfc           Boolean @default(false)
-  hasHeadphoneJack Boolean @default(false)
-  waterResistance  String?
-  weightGrams      Int?
-
-  extra Json?
+/// A review or hands-on video. Stored as a provider + id rather than an embed
+/// URL so the page can render a lightweight thumbnail facade and only load the
+/// player when the customer actually clicks it.
+model ProductVideo {
+  id        String        @id @default(cuid())
+  productId String
+  provider  VideoProvider @default(YOUTUBE)
+  /// Extracted at save time from whatever URL the admin pasted.
+  videoId   String
+  url       String
+  titleAr   String?
+  titleEn   String?
+  sortOrder Int           @default(0)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([chipsetBrand])
-  @@index([batteryMah])
-  @@map("product_spec")
+  @@unique([productId, provider, videoId])
+  @@index([productId, sortOrder])
+  @@map("product_video")
 }
 
 model ProductImage {
@@ -389,7 +521,7 @@ model ProductImage {
   altEn     String?
   sortOrder Int     @default(0)
   /// Marks placeholder artwork so demo imagery is never mistaken for real
-  /// product photography (§59).
+  /// product photography.
   isDemo    Boolean @default(false)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -398,17 +530,67 @@ model ProductImage {
   @@map("product_image")
 }
 
+/// A choice a customer makes on the product page: "Storage", "Colour", "Length".
+/// Which options exist is per-product, so a phone offers storage and colour
+/// while a cable offers length — with no schema change between them.
+model ProductOption {
+  id        String @id @default(cuid())
+  productId String
+  nameAr    String
+  nameEn    String
+  /// Rendered as swatches when true, as buttons otherwise.
+  isColor   Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  ProductOptionValue[]
+
+  @@unique([productId, nameEn])
+  @@index([productId, sortOrder])
+  @@map("product_option")
+}
+
+model ProductOptionValue {
+  id        String  @id @default(cuid())
+  optionId  String
+  valueAr   String
+  valueEn   String
+  /// Swatch colour for colour options.
+  hex       String?
+  sortOrder Int     @default(0)
+
+  option    ProductOption       @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variants  VariantOptionValue[]
+
+  @@unique([optionId, valueEn])
+  @@map("product_option_value")
+}
+
+/// Joins a variant to the option values that define it. A variant is the
+/// intersection of one value per option: 256GB + Black.
+model VariantOptionValue {
+  id            String @id @default(cuid())
+  variantId     String
+  optionValueId String
+
+  variant     ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, optionValueId])
+  @@index([optionValueId])
+  @@map("variant_option_value")
+}
+
 model ProductVariant {
   id        String @id @default(cuid())
   productId String
   sku       String @unique
 
-  ramGb     Int
-  storageGb Int
-  colorAr   String
-  colorEn   String
-  colorHex  String?
-  region    String?
+  /// Human-readable summary of this variant's options, e.g. "256GB / Black".
+  /// Denormalised so carts, orders and admin lists render without joining
+  /// three tables for a label.
+  labelAr String
+  labelEn String
 
   /// Selling price in whole IQD.
   priceIqd        Int
@@ -422,12 +604,12 @@ model ProductVariant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  inventory  Inventory?
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  optionValues VariantOptionValue[]
+  inventory    Inventory?
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
 
-  @@unique([productId, ramGb, storageGb, colorEn, region])
   @@index([productId, isActive])
   @@index([priceIqd])
   @@map("product_variant")
@@ -446,9 +628,15 @@ model Inventory {
   id        String @id @default(cuid())
   variantId String @unique
 
-  onHand   Int @default(0)
-  reserved Int @default(0)
+  /// MPS does not count units, so this is false and `status` is the whole
+  /// truth. Flip it per variant to switch that variant onto counted stock —
+  /// the checkout path already handles both, so no migration is needed.
+  trackQuantity Boolean     @default(false)
+  status        StockStatus @default(IN_STOCK)
 
+  /// Only meaningful while trackQuantity is true.
+  onHand            Int @default(0)
+  reserved          Int @default(0)
   lowStockThreshold Int @default(3)
 
   updatedAt DateTime @updatedAt
@@ -456,6 +644,7 @@ model Inventory {
   variant   ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
   movements InventoryMovement[]
 
+  @@index([status])
   @@map("inventory")
 }
 
@@ -576,10 +765,9 @@ model OrderItem {
   productNameEn String
   brandName     String
   sku           String
-  ramGb         Int
-  storageGb     Int
-  colorAr       String
-  colorEn       String
+  /// Snapshot of the variant label at purchase time, e.g. "256GB / Black".
+  variantLabelAr String
+  variantLabelEn String
   imageUrl      String?
 
   unitPriceIqd Int
