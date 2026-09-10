@@ -43,6 +43,7 @@ messages are in English.
 ## Commands
 
 ```bash
+pnpm setup         # guided first-time setup (env, db, migrations, seed)
 pnpm dev           # development server
 pnpm build         # production build
 pnpm typecheck     # tsc --noEmit
