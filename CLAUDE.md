@@ -49,6 +49,7 @@ pnpm build         # production build
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
 pnpm test          # vitest
+pnpm check         # everything above, in one command — run before pushing
 pnpm format        # prettier --write .
 pnpm db:migrate    # apply migrations
 pnpm db:seed       # load DEMO data (development only)
