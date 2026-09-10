@@ -13,12 +13,16 @@ PostgreSQL commerce core.
 - PostgreSQL 16
 - pnpm
 
+> **بالعربي:** دليل التشغيل خطوة بخطوة في `docs/run-locally-ar.md`،
+> ودليل ربط قاعدة البيانات في `docs/database-setup-ar.md`.
+
 ## Getting started
 
 ```bash
 pnpm install
+docker compose up -d      # optional: local PostgreSQL
 cp .env.example .env      # then fill in DATABASE_URL and BETTER_AUTH_SECRET
-pnpm db:migrate           # create the schema
+pnpm db:deploy            # create the schema
 pnpm db:seed              # load demo data (development only)
 pnpm dev
 ```

@@ -1,0 +1,182 @@
+# شلون تشغّل المشروع على جهازك
+
+دليل عملي من الصفر. اتبعه بالترتيب.
+
+---
+
+## المتطلبات (مرة وحدة بس)
+
+### ١. Node.js
+
+نزّله من: https://nodejs.org ← اختر نسخة **LTS**
+
+للتأكد أنه انثبّت، افتح **Terminal** (على ماك) أو **PowerShell** (على ويندوز) واكتب:
+
+```bash
+node -v
+```
+
+لازم يطلع رقم **22.12 أو أعلى**. إذا طلع أقل، حدّث Node.
+
+### ٢. pnpm
+
+```bash
+npm install -g pnpm
+```
+
+للتأكد:
+
+```bash
+pnpm -v
+```
+
+---
+
+## تنزيل المشروع
+
+```bash
+git clone -b claude/mps-ecommerce-platform-6wyqwn https://github.com/alisalim19961996/alisalim19961996.git mps
+cd mps
+pnpm install
+```
+
+> إذا ما عندك `git`، افتح صفحة المستودع على GitHub ← اختر الفرع
+> `claude/mps-ecommerce-platform-6wyqwn` ← **Code** ← **Download ZIP**،
+> ثم فك الضغط وافتح المجلد في Terminal.
+
+---
+
+## قاعدة البيانات — اختر طريقة وحدة
+
+### الطريقة الأولى (الأسهل): قاعدة بيانات على الإنترنت
+
+ما تحتاج تنصّب شي على جهازك.
+
+اتبع `docs/database-setup-ar.md` من الخطوة ١ إلى الخطوة ٤ فقط،
+وارجع لهنا بعد ما يصير عندك `DATABASE_URL`.
+
+### الطريقة الثانية: قاعدة بيانات على جهازك عبر Docker
+
+نزّل **Docker Desktop** من https://docker.com، شغّله، وبعدين:
+
+```bash
+docker compose up -d
+```
+
+هذا ينشئ قاعدة بيانات جاهزة على جهازك. رابطها:
+
+```
+postgresql://mps:mps_dev_password@127.0.0.1:5432/mps_dev?schema=public
+```
+
+---
+
+## إعداد ملف `.env`
+
+انسخ القالب:
+
+```bash
+cp .env.example .env
+```
+
+> على ويندوز في PowerShell استخدم: `copy .env.example .env`
+
+افتح ملف `.env` بأي محرر نصوص واملأه:
+
+```env
+DATABASE_URL="ضع_رابط_قاعدة_البيانات_هنا"
+BETTER_AUTH_SECRET="ضع_المفتاح_هنا"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+**لتوليد `BETTER_AUTH_SECRET`:**
+
+```bash
+openssl rand -base64 32
+```
+
+على ويندوز، إذا ما اشتغل الأمر أعلاه، استخدم:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+انسخ الناتج وحطه بين علامتي التنصيص.
+
+> ⚠️ ملف `.env` ما يُرفع على GitHub، وهذا مضبوط مسبقًا. لا تشارك محتواه.
+
+---
+
+## إنشاء الجداول والبيانات
+
+```bash
+pnpm db:deploy
+pnpm db:seed
+```
+
+- `db:deploy` ينشئ كل الجداول — ينفّذ مرة وحدة
+- `db:seed` يضيف بيانات تجريبية للتجربة (٣ منتجات: موبايل، تابلت، إكسسوار)
+
+---
+
+## التشغيل
+
+```bash
+pnpm dev
+```
+
+افتح المتصفح على:
+
+| الرابط | شنو تشوف |
+|---|---|
+| http://localhost:3000 | يحوّلك تلقائيًا للعربي |
+| http://localhost:3000/ar | النسخة العربية (RTL) |
+| http://localhost:3000/en | النسخة الإنجليزية (LTR) |
+
+لإيقاف الخادم: اضغط `Ctrl + C`.
+
+---
+
+## أوامر مفيدة
+
+```bash
+pnpm dev         # تشغيل للتطوير
+pnpm build       # بناء نسخة الإنتاج
+pnpm start       # تشغيل نسخة الإنتاج (بعد build)
+pnpm test        # تشغيل الاختبارات
+pnpm typecheck   # فحص الأنواع
+pnpm lint        # فحص جودة الكود
+pnpm db:studio   # واجهة لتصفح قاعدة البيانات
+```
+
+`pnpm db:studio` مفيد جدًا — يفتح واجهة بالمتصفح تشوف بيها كل الجداول والبيانات.
+
+---
+
+## إذا صارت مشكلة
+
+| المشكلة | الحل |
+|---|---|
+| `command not found: pnpm` | نفّذ `npm install -g pnpm` وأعد فتح Terminal |
+| `Can't reach database server` | تأكد أن Docker شغّال، أو أن `DATABASE_URL` صحيح |
+| `Invalid server environment variables` | ناقص شي في `.env` — راجع القسم أعلاه |
+| `relation does not exist` | نفّذ `pnpm db:deploy` |
+| `Port 3000 is in use` | شغّل على منفذ ثاني: `pnpm dev -p 3001` |
+| `engine "node" is incompatible` | نسخة Node قديمة — حدّثها من nodejs.org |
+
+---
+
+## شنو راح تشوف الآن
+
+المرحلة ١ فقط منجزة، يعني:
+
+✅ الصفحة الرئيسية بلغتين مع تبديل الاتجاه
+✅ الهيدر والفوتر ونظام التصميم
+✅ صفحة ٤٠٤ وحالات الخطأ والتحميل
+✅ قاعدة البيانات كاملة مع بيانات تجريبية
+
+❌ الكتالوج وصفحة المنتج والسلة والدفع ولوحة الإدارة — **المرحلة ٢ وما بعدها**
+
+الروابط في الهيدر (الهواتف، الشركات، العروض) راح تودي لصفحة ٤٠٤ حاليًا،
+لأن هذه الصفحات ما انبنت بعد. هذا متوقّع ومو خطأ.

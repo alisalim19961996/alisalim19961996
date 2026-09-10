@@ -1,0 +1,32 @@
+# Local PostgreSQL for development.
+#
+# Use this when you want the database on your own machine instead of a hosted
+# one. Start it with:  docker compose up -d
+#
+# The matching DATABASE_URL is:
+#   postgresql://mps:mps_dev_password@127.0.0.1:5432/mps_dev?schema=public
+#
+# These credentials are for local development only and are deliberately
+# committed. Never reuse them for a database reachable from the internet.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mps
+      POSTGRES_PASSWORD: mps_dev_password
+      POSTGRES_DB: mps_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - mps-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mps -d mps_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mps-postgres-data:
