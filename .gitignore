@@ -34,6 +34,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # editor
+# Shared workspace configuration IS committed: it is what makes the project
+# behave the same in every contributor's editor. Personal files are not.
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
 .idea/

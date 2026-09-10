@@ -11,9 +11,7 @@ const serverEnvSchema = z.object({
     .string()
     .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   BETTER_AUTH_URL: z.url(),
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
 const publicEnvSchema = z.object({

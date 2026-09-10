@@ -13,8 +13,8 @@ PostgreSQL commerce core.
 - PostgreSQL 16
 - pnpm
 
-> **بالعربي:** دليل التشغيل خطوة بخطوة في `docs/run-locally-ar.md`،
-> ودليل ربط قاعدة البيانات في `docs/database-setup-ar.md`.
+> **بالعربي:** دليل التشغيل في `docs/run-locally-ar.md`، إعداد VS Code في
+> `docs/vscode-setup-ar.md`، وربط قاعدة البيانات في `docs/database-setup-ar.md`.
 
 ## Getting started
 
@@ -32,16 +32,16 @@ English is at `/en`.
 
 ## Scripts
 
-| Command | Purpose |
-|---|---|
-| `pnpm dev` | Development server |
-| `pnpm build` | Production build |
-| `pnpm typecheck` | TypeScript, no emit |
-| `pnpm lint` | ESLint |
-| `pnpm test` | Unit tests |
-| `pnpm db:migrate` | Apply migrations |
-| `pnpm db:seed` | Load demo data |
-| `pnpm db:studio` | Browse the database |
+| Command           | Purpose             |
+| ----------------- | ------------------- |
+| `pnpm dev`        | Development server  |
+| `pnpm build`      | Production build    |
+| `pnpm typecheck`  | TypeScript, no emit |
+| `pnpm lint`       | ESLint              |
+| `pnpm test`       | Unit tests          |
+| `pnpm db:migrate` | Apply migrations    |
+| `pnpm db:seed`    | Load demo data      |
+| `pnpm db:studio`  | Browse the database |
 
 ## Demo data
 
@@ -51,14 +51,14 @@ information, and the seed refuses to run when `NODE_ENV=production`.
 
 ## Roadmap
 
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Foundation: design system, i18n/RTL, database, auth, RBAC | Complete |
-| 2 | Storefront: homepage, catalogue, filters, search, product page | Not started |
-| 3 | Commerce: cart, checkout, COD, orders, inventory, tracking | Not started |
-| 4 | Admin: dashboard, products, inventory, orders, customers | Not started |
-| 5 | Advanced: wishlist, compare, reviews, blog, offers, analytics | Not started |
-| 6 | QA: responsive, accessibility, security, performance, SEO | Not started |
+| Phase | Scope                                                          | Status      |
+| ----- | -------------------------------------------------------------- | ----------- |
+| 1     | Foundation: design system, i18n/RTL, database, auth, RBAC      | Complete    |
+| 2     | Storefront: homepage, catalogue, filters, search, product page | Not started |
+| 3     | Commerce: cart, checkout, COD, orders, inventory, tracking     | Not started |
+| 4     | Admin: dashboard, products, inventory, orders, customers       | Not started |
+| 5     | Advanced: wishlist, compare, reviews, blog, offers, analytics  | Not started |
+| 6     | QA: responsive, accessibility, security, performance, SEO      | Not started |
 
 ## Licence
 

@@ -23,10 +23,7 @@ export async function SiteHeader() {
       <div className="container-page flex h-16 items-center gap-4">
         <Logo />
 
-        <nav
-          aria-label={t('menu')}
-          className="hidden items-center gap-1 md:flex"
-        >
+        <nav aria-label={t('menu')} className="hidden items-center gap-1 md:flex">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -44,10 +41,18 @@ export async function SiteHeader() {
           <IconLink href="/search" label={t('search')}>
             <Search />
           </IconLink>
-          <IconLink href="/wishlist" label={t('wishlist')} className="hidden sm:inline-flex">
+          <IconLink
+            href="/wishlist"
+            label={t('wishlist')}
+            className="hidden sm:inline-flex"
+          >
             <Heart />
           </IconLink>
-          <IconLink href="/account" label={t('account')} className="hidden sm:inline-flex">
+          <IconLink
+            href="/account"
+            label={t('account')}
+            className="hidden sm:inline-flex"
+          >
             <User />
           </IconLink>
           <IconLink href="/cart" label={t('cart')}>

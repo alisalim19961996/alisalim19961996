@@ -39,7 +39,9 @@ describe('availability without quantity tracking (how MPS runs today)', () => {
 
   it('allows preorder but reports it distinctly', () => {
     expect(isPurchasable(uncounted(StockStatus.PREORDER))).toBe(true);
-    expect(getAvailability(uncounted(StockStatus.PREORDER))).toEqual({ kind: 'preorder' });
+    expect(getAvailability(uncounted(StockStatus.PREORDER))).toEqual({
+      kind: 'preorder',
+    });
   });
 
   it('never sells a discontinued product', () => {
@@ -51,7 +53,9 @@ describe('availability without quantity tracking (how MPS runs today)', () => {
   });
 
   it('reports unbounded units so callers do not accidentally cap the cart', () => {
-    expect(availableUnits(uncounted(StockStatus.IN_STOCK))).toBe(Number.POSITIVE_INFINITY);
+    expect(availableUnits(uncounted(StockStatus.IN_STOCK))).toBe(
+      Number.POSITIVE_INFINITY,
+    );
   });
 });
 
@@ -61,7 +65,10 @@ describe('availability with quantity tracking (opt-in, no migration needed)', ()
   });
 
   it('refuses a quantity larger than what is uncommitted, and says how many remain', () => {
-    expect(getAvailability(counted(10, 8), 5)).toEqual({ kind: 'insufficient', available: 2 });
+    expect(getAvailability(counted(10, 8), 5)).toEqual({
+      kind: 'insufficient',
+      available: 2,
+    });
     expect(isPurchasable(counted(10, 8), 5)).toBe(false);
     expect(isPurchasable(counted(10, 8), 2)).toBe(true);
   });

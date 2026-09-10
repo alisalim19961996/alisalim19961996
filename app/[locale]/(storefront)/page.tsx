@@ -32,7 +32,7 @@ export default async function HomePage({
       <section className="border-b border-border bg-surface">
         <div className="container-page grid gap-12 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
           <div className="max-w-xl">
-            <h1 className="text-4xl font-bold leading-tight text-ink sm:text-5xl lg:text-6xl">
+            <h1 className="text-4xl leading-tight font-bold text-ink sm:text-5xl lg:text-6xl">
               {t('heroTitle')}
             </h1>
             <p className="mt-5 text-base leading-relaxed text-muted sm:text-lg">
@@ -62,7 +62,7 @@ export default async function HomePage({
             aria-hidden="true"
           >
             <div className="absolute inset-0 grid place-items-center">
-              <span className="text-xs font-medium uppercase tracking-widest text-subtle">
+              <span className="text-xs font-medium tracking-widest text-subtle uppercase">
                 {tNav('products')}
               </span>
             </div>

@@ -11,18 +11,12 @@ import { OrderStatus } from '@prisma/client';
 const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
   [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-  [OrderStatus.PROCESSING]: [
-    OrderStatus.READY_FOR_SHIPMENT,
-    OrderStatus.CANCELLED,
-  ],
+  [OrderStatus.PROCESSING]: [OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED],
   [OrderStatus.READY_FOR_SHIPMENT]: [
     OrderStatus.OUT_FOR_DELIVERY,
     OrderStatus.CANCELLED,
   ],
-  [OrderStatus.OUT_FOR_DELIVERY]: [
-    OrderStatus.DELIVERED,
-    OrderStatus.CANCELLED,
-  ],
+  [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
   // Terminal-ish: a delivered order can only come back as a return.
   [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
   [OrderStatus.CANCELLED]: [],
@@ -44,17 +38,12 @@ export const RESERVING_STATUSES: readonly OrderStatus[] = [
   OrderStatus.OUT_FOR_DELIVERY,
 ];
 
-export function canTransition(
-  from: OrderStatus,
-  to: OrderStatus,
-): boolean {
+export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
 /** Statuses an order may legally move to right now — drives admin UI options. */
-export function allowedTransitions(
-  from: OrderStatus,
-): readonly OrderStatus[] {
+export function allowedTransitions(from: OrderStatus): readonly OrderStatus[] {
   return TRANSITIONS[from];
 }
 
@@ -77,10 +66,7 @@ export class InvalidOrderTransitionError extends Error {
 }
 
 /** Throwing guard for the service layer. */
-export function assertTransition(
-  from: OrderStatus,
-  to: OrderStatus,
-): void {
+export function assertTransition(from: OrderStatus, to: OrderStatus): void {
   if (!canTransition(from, to)) {
     throw new InvalidOrderTransitionError(from, to);
   }

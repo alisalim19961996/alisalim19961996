@@ -34,11 +34,7 @@ export const quantitySchema = z
   .max(20, 'invalidQuantity');
 
 /** Whole Iraqi dinars. Never a float. */
-export const iqdSchema = z
-  .number()
-  .int()
-  .min(0)
-  .max(2_000_000_000);
+export const iqdSchema = z.number().int().min(0).max(2_000_000_000);
 
 export const cuidSchema = z.string().min(1).max(64);
 

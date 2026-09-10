@@ -21,12 +21,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary:
-          'bg-primary text-white hover:bg-primary-hover active:bg-primary-hover',
-        secondary:
-          'bg-ink text-white hover:bg-ink-soft active:bg-ink-soft',
-        outline:
-          'border border-border-strong bg-surface text-ink hover:bg-canvas',
+        primary: 'bg-primary text-white hover:bg-primary-hover active:bg-primary-hover',
+        secondary: 'bg-ink text-white hover:bg-ink-soft active:bg-ink-soft',
+        outline: 'border border-border-strong bg-surface text-ink hover:bg-canvas',
         ghost: 'text-ink hover:bg-canvas',
         danger: 'bg-danger text-white hover:bg-primary-hover',
         link: 'text-primary underline-offset-4 hover:underline',
@@ -49,8 +46,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ComponentProps<'button'>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ComponentProps<'button'>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 

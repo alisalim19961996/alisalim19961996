@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+coverage
+pnpm-lock.yaml
+prisma/migrations
+messages

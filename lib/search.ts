@@ -23,9 +23,7 @@ export function normalizeArabic(input: string): string {
 export function normalizeSearchTerm(input: string): string {
   return normalizeArabic(input)
     .toLowerCase()
-    .replace(/[٠-٩]/g, (char) =>
-      String(char.charCodeAt(0) - 0x0660),
-    )
+    .replace(/[٠-٩]/g, (char) => String(char.charCodeAt(0) - 0x0660))
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();

@@ -7,7 +7,7 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        neutral: 'bg-canvas text-muted border border-border',
+        neutral: 'border border-border bg-canvas text-muted',
         discount: 'bg-primary-soft text-primary',
         success: 'bg-success-soft text-success',
         warning: 'bg-warning-soft text-warning',
@@ -21,11 +21,8 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.ComponentProps<'span'>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.ComponentProps<'span'>, VariantProps<typeof badgeVariants> {}
 
 export function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <span className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }

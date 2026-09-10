@@ -63,9 +63,7 @@ export async function requireUser(): Promise<SessionUser> {
 }
 
 /** Require one of the given roles. */
-export async function requireRole(
-  ...roles: readonly Role[]
-): Promise<SessionUser> {
+export async function requireRole(...roles: readonly Role[]): Promise<SessionUser> {
   const user = await requireUser();
   if (!roles.includes(user.role)) throw new ForbiddenError(roles);
   return user;
@@ -75,9 +73,6 @@ export async function requireRole(
 export const requireStaff = () => requireRole(Role.STAFF, Role.ADMIN);
 export const requireAdmin = () => requireRole(Role.ADMIN);
 
-export function hasRole(
-  user: SessionUser | null,
-  ...roles: readonly Role[]
-): boolean {
+export function hasRole(user: SessionUser | null, ...roles: readonly Role[]): boolean {
   return user != null && roles.includes(user.role);
 }

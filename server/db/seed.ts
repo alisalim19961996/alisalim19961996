@@ -63,9 +63,19 @@ const BRANDS = [
 const CATEGORIES = [
   { slug: 'phones', nameAr: 'الهواتف', nameEn: 'Phones', parent: null },
   { slug: 'flagship', nameAr: 'الفئة الرائدة', nameEn: 'Flagship', parent: 'phones' },
-  { slug: 'mid-range', nameAr: 'الفئة المتوسطة', nameEn: 'Mid-range', parent: 'phones' },
+  {
+    slug: 'mid-range',
+    nameAr: 'الفئة المتوسطة',
+    nameEn: 'Mid-range',
+    parent: 'phones',
+  },
   { slug: 'budget', nameAr: 'الفئة الاقتصادية', nameEn: 'Budget', parent: 'phones' },
-  { slug: 'gaming', nameAr: 'هواتف الألعاب', nameEn: 'Gaming phones', parent: 'phones' },
+  {
+    slug: 'gaming',
+    nameAr: 'هواتف الألعاب',
+    nameEn: 'Gaming phones',
+    parent: 'phones',
+  },
   { slug: 'accessories', nameAr: 'الملحقات', nameEn: 'Accessories', parent: null },
 ];
 
@@ -197,7 +207,11 @@ async function seedAttributeSystem() {
   for (const group of ATTRIBUTE_GROUPS) {
     await db.attributeGroup.upsert({
       where: { key: group.key },
-      update: { nameAr: group.nameAr, nameEn: group.nameEn, sortOrder: group.sortOrder },
+      update: {
+        nameAr: group.nameAr,
+        nameEn: group.nameEn,
+        sortOrder: group.sortOrder,
+      },
       create: group,
     });
   }
@@ -237,7 +251,11 @@ async function seedAttributeSystem() {
         where: {
           definitionId_value: { definitionId: definition.id, value: option.value },
         },
-        update: { labelAr: option.labelAr, labelEn: option.labelEn, sortOrder: optionIndex },
+        update: {
+          labelAr: option.labelAr,
+          labelEn: option.labelEn,
+          sortOrder: optionIndex,
+        },
         create: {
           definitionId: definition.id,
           value: option.value,
@@ -252,7 +270,12 @@ async function seedAttributeSystem() {
   for (const [typeIndex, type] of PRODUCT_TYPES.entries()) {
     const productType = await db.productType.upsert({
       where: { key: type.key },
-      update: { nameAr: type.nameAr, nameEn: type.nameEn, icon: type.icon, sortOrder: typeIndex },
+      update: {
+        nameAr: type.nameAr,
+        nameEn: type.nameEn,
+        icon: type.icon,
+        sortOrder: typeIndex,
+      },
       create: {
         key: type.key,
         nameAr: type.nameAr,
@@ -376,7 +399,10 @@ async function seedDemoProducts() {
 
       await db.productAttributeValue.upsert({
         where: {
-          productId_definitionId: { productId: product.id, definitionId: definition.id },
+          productId_definitionId: {
+            productId: product.id,
+            definitionId: definition.id,
+          },
         },
         update: data,
         create: { productId: product.id, definitionId: definition.id, ...data },
@@ -389,7 +415,11 @@ async function seedDemoProducts() {
     for (const [optionIndex, option] of demo.options.entries()) {
       const productOption = await db.productOption.upsert({
         where: { productId_nameEn: { productId: product.id, nameEn: option.nameEn } },
-        update: { nameAr: option.nameAr, isColor: option.isColor ?? false, sortOrder: optionIndex },
+        update: {
+          nameAr: option.nameAr,
+          isColor: option.isColor ?? false,
+          sortOrder: optionIndex,
+        },
         create: {
           productId: product.id,
           nameAr: option.nameAr,
@@ -404,7 +434,11 @@ async function seedDemoProducts() {
           where: {
             optionId_valueEn: { optionId: productOption.id, valueEn: value.valueEn },
           },
-          update: { valueAr: value.valueAr, hex: value.hex ?? null, sortOrder: valueIndex },
+          update: {
+            valueAr: value.valueAr,
+            hex: value.hex ?? null,
+            sortOrder: valueIndex,
+          },
           create: {
             optionId: productOption.id,
             valueAr: value.valueAr,
@@ -436,7 +470,9 @@ async function seedDemoProducts() {
       for (const label of variant.optionValues) {
         const optionValueId = valueIdByLabel.get(label);
         if (!optionValueId) {
-          throw new Error(`Variant ${variant.sku} references unknown option "${label}"`);
+          throw new Error(
+            `Variant ${variant.sku} references unknown option "${label}"`,
+          );
         }
         await db.variantOptionValue.upsert({
           where: {
@@ -462,7 +498,8 @@ async function seedDemoProducts() {
     // -- Videos --------------------------------------------------------------
     for (const [videoIndex, video] of (demo.videos ?? []).entries()) {
       const videoId = extractYoutubeId(video.url);
-      if (!videoId) throw new Error(`Invalid video URL for ${demo.slugEn}: ${video.url}`);
+      if (!videoId)
+        throw new Error(`Invalid video URL for ${demo.slugEn}: ${video.url}`);
 
       await db.productVideo.upsert({
         where: {
@@ -472,7 +509,11 @@ async function seedDemoProducts() {
             videoId,
           },
         },
-        update: { titleAr: video.titleAr, titleEn: video.titleEn, sortOrder: videoIndex },
+        update: {
+          titleAr: video.titleAr,
+          titleEn: video.titleEn,
+          sortOrder: videoIndex,
+        },
         create: {
           productId: product.id,
           provider: 'YOUTUBE',

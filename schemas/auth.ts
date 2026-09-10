@@ -6,10 +6,7 @@ import { iraqiPhoneSchema } from './common';
  * next-intl so a validation failure is never English-only in an Arabic form.
  */
 
-export const passwordSchema = z
-  .string()
-  .min(8, 'passwordTooShort')
-  .max(128, 'tooLong');
+export const passwordSchema = z.string().min(8, 'passwordTooShort').max(128, 'tooLong');
 
 export const loginSchema = z.object({
   email: z.email('invalidEmail').trim().toLowerCase(),

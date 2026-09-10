@@ -37,8 +37,8 @@ messages are in English.
    column to `Product`. A new specification is a row in `AttributeDefinition`
    plus a link in `ProductTypeAttribute` — data entry, never a migration.
 10. **Variants are option-driven.** `ProductOption` / `ProductOptionValue` /
-   `VariantOptionValue` define a variant. Never hard-code RAM, storage or
-   colour columns: a cable has length, a case has device fit.
+    `VariantOptionValue` define a variant. Never hard-code RAM, storage or
+    colour columns: a cable has length, a case has device fit.
 
 ## Commands
 
@@ -48,6 +48,7 @@ pnpm build         # production build
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
 pnpm test          # vitest
+pnpm format        # prettier --write .
 pnpm db:migrate    # apply migrations
 pnpm db:seed       # load DEMO data (development only)
 ```

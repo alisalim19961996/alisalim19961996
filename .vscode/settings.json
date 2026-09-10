@@ -1,0 +1,45 @@
+{
+  // Format on save with Prettier, and let ESLint fix what it can.
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // Use the TypeScript version from the project, not the one bundled with the
+  // editor — otherwise errors here and errors in `pnpm typecheck` can disagree.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+
+  // Tailwind IntelliSense needs to know about our helpers, or class names
+  // inside cn() and cva() get no autocomplete and no warnings.
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "tailwindCSS.classAttributes": ["class", "className", "ngClass"],
+
+  // Tailwind 4 uses at-rules the built-in CSS language server flags as unknown.
+  "css.lint.unknownAtRules": "ignore",
+
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+
+  // Arabic message files read far better when not word-wrapped mid-string.
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/pnpm-lock.yaml": true
+  },
+
+  "files.eol": "\n"
+}

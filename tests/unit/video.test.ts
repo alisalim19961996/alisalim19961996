@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  extractYoutubeId,
-  youtubeEmbedUrl,
-  youtubeThumbnailUrl,
-} from '@/lib/video';
+import { extractYoutubeId, youtubeEmbedUrl, youtubeThumbnailUrl } from '@/lib/video';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -21,7 +17,9 @@ describe('extractYoutubeId', () => {
   it('ignores extra query parameters like timestamps and playlists', () => {
     expect(extractYoutubeId(`https://www.youtube.com/watch?v=${ID}&t=42s`)).toBe(ID);
     expect(extractYoutubeId(`https://youtu.be/${ID}?t=90`)).toBe(ID);
-    expect(extractYoutubeId(`https://www.youtube.com/watch?list=PL123&v=${ID}`)).toBe(ID);
+    expect(extractYoutubeId(`https://www.youtube.com/watch?list=PL123&v=${ID}`)).toBe(
+      ID,
+    );
   });
 
   it('tolerates surrounding whitespace from a careless paste', () => {

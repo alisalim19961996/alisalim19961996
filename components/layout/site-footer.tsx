@@ -42,7 +42,7 @@ export async function SiteFooter() {
           <div className="flex gap-12">
             {columns.map((column) => (
               <div key={column.title}>
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-subtle">
+                <h2 className="text-xs font-semibold tracking-wide text-subtle uppercase">
                   {column.title}
                 </h2>
                 <ul className="mt-3 space-y-2">

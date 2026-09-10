@@ -52,19 +52,13 @@ export function getAvailability(
 }
 
 /** Can this quantity be added to a cart or ordered right now? */
-export function isPurchasable(
-  inventory: InventorySnapshot,
-  quantity = 1,
-): boolean {
+export function isPurchasable(inventory: InventorySnapshot, quantity = 1): boolean {
   const availability = getAvailability(inventory, quantity);
   return availability.kind === 'available' || availability.kind === 'preorder';
 }
 
 /** Should the storefront show a "only a few left" hint? Never when uncounted. */
-export function isLowStock(
-  inventory: InventorySnapshot,
-  threshold: number,
-): boolean {
+export function isLowStock(inventory: InventorySnapshot, threshold: number): boolean {
   if (!inventory.trackQuantity) return false;
   const available = availableUnits(inventory);
   return available > 0 && available <= threshold;

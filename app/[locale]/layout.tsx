@@ -92,7 +92,7 @@ export default async function LocaleLayout({
       <body className="min-h-dvh antialiased">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:start-4 focus:z-50 focus:rounded-[--radius-control] focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+          className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:rounded-[--radius-control] focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white"
         >
           {t('skipToContent')}
         </a>

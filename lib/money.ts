@@ -49,10 +49,7 @@ export function formatIqd(
  * Apply a percentage discount, rounding DOWN so the displayed saving is never
  * smaller than what the customer actually receives.
  */
-export function applyPercentageDiscount(
-  amount: number,
-  percentage: number,
-): number {
+export function applyPercentageDiscount(amount: number, percentage: number): number {
   assertWholeDinars(amount);
   if (percentage < 0 || percentage > 100) {
     throw new MoneyError(`percentage must be between 0 and 100, got ${percentage}`);

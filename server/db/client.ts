@@ -12,10 +12,7 @@ import { serverEnv } from '@/config/env';
 const createPrismaClient = () =>
   new PrismaClient({
     adapter: new PrismaPg({ connectionString: serverEnv.DATABASE_URL }),
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['warn', 'error']
-        : ['error'],
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 
 type PrismaClientSingleton = ReturnType<typeof createPrismaClient>;

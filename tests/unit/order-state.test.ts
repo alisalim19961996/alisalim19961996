@@ -28,12 +28,16 @@ describe('order state machine', () => {
   it('refuses to move an order backwards', () => {
     expect(canTransition(OrderStatus.DELIVERED, OrderStatus.PENDING)).toBe(false);
     expect(canTransition(OrderStatus.PROCESSING, OrderStatus.CONFIRMED)).toBe(false);
-    expect(canTransition(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.PROCESSING)).toBe(false);
+    expect(canTransition(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.PROCESSING)).toBe(
+      false,
+    );
   });
 
   it('refuses to skip stages', () => {
     expect(canTransition(OrderStatus.PENDING, OrderStatus.DELIVERED)).toBe(false);
-    expect(canTransition(OrderStatus.CONFIRMED, OrderStatus.OUT_FOR_DELIVERY)).toBe(false);
+    expect(canTransition(OrderStatus.CONFIRMED, OrderStatus.OUT_FOR_DELIVERY)).toBe(
+      false,
+    );
   });
 
   it('allows cancelling at any point before delivery', () => {
@@ -70,9 +74,9 @@ describe('order state machine', () => {
   });
 
   it('throws a typed error on an illegal transition', () => {
-    expect(() =>
-      assertTransition(OrderStatus.DELIVERED, OrderStatus.PENDING),
-    ).toThrow(InvalidOrderTransitionError);
+    expect(() => assertTransition(OrderStatus.DELIVERED, OrderStatus.PENDING)).toThrow(
+      InvalidOrderTransitionError,
+    );
     expect(() =>
       assertTransition(OrderStatus.PENDING, OrderStatus.CONFIRMED),
     ).not.toThrow();

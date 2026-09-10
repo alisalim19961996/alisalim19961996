@@ -52,9 +52,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             aria-current={isActive ? 'true' : undefined}
             className={cn(
               'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-              isActive
-                ? 'bg-ink text-white'
-                : 'text-muted hover:text-ink',
+              isActive ? 'bg-ink text-white' : 'text-muted hover:text-ink',
             )}
           >
             {locale === 'ar' ? 'ع' : 'EN'}
