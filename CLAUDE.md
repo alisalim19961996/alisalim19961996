@@ -1,103 +1,546 @@
 # MPS — Modern Phone Store
 
-Bilingual (Arabic/English) e-commerce platform for the Iraqi phone market.
+Bilingual (Arabic/English) e-commerce platform for the Iraqi market.
 
-## Working language
+> **This file is the project's memory.** It is written so that after a context
+> compaction you can read it and continue development without re-deriving
+> decisions or repeating mistakes already paid for. Keep it current: when a
+> phase completes or a decision changes, update the relevant section in the
+> same commit.
 
-**All explanations, reports and discussion with the project owner are written in
-Arabic.** Technical terms — package names, file paths, code identifiers — stay in
-English, because translating them harms clarity. Code, comments and commit
-messages are in English.
+---
 
-## Non-negotiable rules
+## 1. Purpose and scope
 
-1. **Money is an `Int` of whole Iraqi dinars.** Never a float, never a Decimal.
-   Iraq does not transact in fils. All money helpers live in `lib/money.ts` and
-   throw on a fractional input rather than rounding silently.
-2. **Never trust the client.** Server Actions accept ids and quantities only.
-   Prices, totals and discounts are always recomputed from the database.
-3. **Components never import Prisma.** The path is
-   `UI → server/services/* → server/db/client`. Business logic lives in services.
-4. **Availability is a status, not a count.** MPS does not track units.
-   `Inventory.status` is the whole truth; `trackQuantity` exists per variant so
-   counted stock can be switched on later without a migration. Both paths go
-   through `lib/domain/availability.ts` — never read `onHand` directly. When
-   counting is on, every change writes an `InventoryMovement` inside a
-   transaction that locks the inventory row.
-5. **No invented data.** No fabricated benchmarks, reviews, sales figures or
-   stock levels. Demo data is clearly labelled and refuses to run in production.
-6. **No hard-coded commercial information.** Prices, delivery fees, warranty
-   terms and contact details come from `SiteSetting` / `DeliveryRate`.
-7. **RTL is real.** Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`,
-   `start-`, `end-`). Never `ml-`/`mr-`/`left-`/`right-` for layout.
-8. **Text lives in `messages/*.json`,** not inline in components. Both catalogues
-   must stay at exactly the same key count.
-9. **The catalogue is not phone-only.** MPS sells phones, tablets and
-   accessories, and is built to sell anything later. Never add a phone-specific
-   column to `Product`. A new specification is a row in `AttributeDefinition`
-   plus a link in `ProductTypeAttribute` — data entry, never a migration.
-10. **Variants are option-driven.** `ProductOption` / `ProductOptionValue` /
-    `VariantOptionValue` define a variant. Never hard-code RAM, storage or
-    colour columns: a cable has length, a case has device fit.
+MPS sells **phones, tablets and accessories** to customers in Iraq, and is
+built to sell other categories later without a rewrite. It is a real commercial
+storefront, not a demo: Arabic-first, mobile-first, cash on delivery, delivery
+across all 19 governorates.
 
-## Commands
+The owner's priorities, in order: **UX → design → commerce correctness →
+security → performance → SEO → maintainability.** Design quality is treated as
+a requirement, not a finish.
+
+---
+
+## 2. Working language
+
+**All explanations, reports and discussion with the project owner are written
+in Arabic.** Technical terms — package names, file paths, code identifiers —
+stay in English, because translating them harms clarity. Code, comments, commit
+messages and this file are in English.
+
+---
+
+## 3. Tech stack (versions are pinned for reasons — see §13)
+
+| Package                 | Version         | Notes                                                |
+| ----------------------- | --------------- | ---------------------------------------------------- |
+| next                    | 16.3.4          | App Router. Uses `proxy.ts`, **not** `middleware.ts` |
+| react / react-dom       | 19.3.0          |                                                      |
+| typescript              | 5.9.3           | Not 7.x — lint ecosystem lags                        |
+| tailwindcss             | 4.3.3           | CSS-first `@theme`, no `tailwind.config.js`          |
+| prisma / @prisma/client | 7.10.0          | URL lives in `prisma.config.ts`, not the schema      |
+| @prisma/adapter-pg + pg | 7.10.0 / 8.16.3 | Prisma 7 connects via driver adapter                 |
+| better-auth             | 1.7.3           |                                                      |
+| next-intl               | 4.14.2          |                                                      |
+| zod                     | 4.6.0           |                                                      |
+| eslint                  | 9.39.5          | Not 10 — breaks `eslint-plugin-react`                |
+| vitest                  | 4.1.11          | Not 5 — outside `better-auth`'s peer range           |
+| pnpm                    | 11.15.1         | Pinned via `packageManager`                          |
+
+Runtime: Node ≥ 22.12, PostgreSQL 16.
+
+---
+
+## 4. Commands
 
 ```bash
 pnpm setup         # guided first-time setup (env, db, migrations, seed)
 pnpm dev           # development server
+pnpm check         # typecheck + lint + format + tests + build — run before pushing
 pnpm build         # production build
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
-pnpm test          # vitest
-pnpm check         # everything above, in one command — run before pushing
+pnpm test          # vitest run
 pnpm format        # prettier --write .
-pnpm db:migrate    # apply migrations
+pnpm db:deploy     # apply migrations (production)
+pnpm db:migrate    # create a migration (development)
 pnpm db:seed       # load DEMO data (development only)
+pnpm db:studio     # browse the database
 ```
 
-## Version pins that matter
+`postinstall` runs `prisma generate`. Without it a fresh clone fails typecheck
+and tests, because Prisma's enums only exist in the generated client.
 
-- `prisma` / `@prisma/client` are pinned to **7.10.0**. `npm i prisma@latest`
-  installs an **8.0.0 release candidate** — do not take it.
-- `eslint` is pinned to **9.x**. ESLint 10 breaks `eslint-plugin-react`, which
-  `eslint-config-next@16` depends on.
-- `vitest` is pinned to **4.x**, the range `better-auth` supports.
-- `pnpm` is pinned to **11.x** via `packageManager`. pnpm 11 no longer reads the
-  `pnpm` field in package.json — project settings live in `pnpm-workspace.yaml`,
-  and the install-scripts allowlist is `allowBuilds`, not `onlyBuiltDependencies`.
-- pnpm 11 rejects lockfile entries published within the last 24 hours
-  (`minimumReleaseAge`). Never work around it by relaxing the policy: rebuild
-  the lockfile so it resolves a version that has been public long enough.
-- `postinstall` runs `prisma generate`. Without it a fresh clone fails
-  typecheck and tests, because the enums live in the generated client.
+Arabic guides for the owner live in `docs/`: `run-locally-ar.md`,
+`database-setup-ar.md`, `vscode-setup-ar.md`.
 
-## Product model
+---
+
+## 5. Architecture
+
+Modular monolith, server-first, with hard layer boundaries:
 
 ```
-ProductType ──< ProductTypeAttribute >── AttributeDefinition ──< AttributeOption
-     │                                          │
-  Product ──< ProductAttributeValue >───────────┘
-     ├──< ProductOption ──< ProductOptionValue ──< VariantOptionValue
-     ├──< ProductVariant ──1:1── Inventory (status-based)
-     ├──< ProductImage
-     └──< ProductVideo   (YouTube id + click-to-play facade)
+UI (app/, components/, features/)
+   ↓  Server Components read · Server Actions write (Phase 3+)
+server/queries/    read models, shaped for one screen
+server/services/   business rules, transactions, authorization
+server/db/client   Prisma
+   ↓
+PostgreSQL
 ```
 
-Adding "laptops" to the store is: one `ProductType` row, a handful of
-`AttributeDefinition` rows, and the links between them. No code change.
+```
+app/[locale]/(storefront)   storefront routes
+app/[locale]/(admin)        admin routes          — NOT BUILT YET (Phase 4)
+components/ui               design-system primitives
+components/layout           header, footer, nav, language switcher
+features/<domain>/components  domain UI (product, catalogue, search)
+server/queries              catalogue + product reads
+server/services             business logic — the only place rules live
+server/db                   Prisma client, seed, seed-data
+schemas/                    Zod, shared between client and server
+lib/                        framework-free helpers
+lib/domain/                 pure business logic, no imports from Next or Prisma runtime
+i18n/                       locale routing and navigation
+messages/                   ar.json / en.json — all UI text
+```
 
-## Architecture
+**Rules that are never bent:**
+
+- Components never import Prisma. Path is `UI → server/queries|services → server/db/client`.
+- `server/queries/*` and `server/services/*` start with `import 'server-only'`.
+- Filtering, sorting and pagination happen in SQL, never in JavaScript after fetching.
+- Every query names its columns with `select`. No `include: { everything }`.
+
+---
+
+## 6. Database
+
+45 tables, 28 CHECK constraints, 2 migrations. Schema: `prisma/schema.prisma`.
+
+### Core relationships
 
 ```
-app/[locale]/(storefront)  storefront routes
-app/[locale]/(admin)       admin routes
-components/ui              design system primitives
-features/                  domain UI, one folder per domain
-server/services            business logic — the only place rules live
-server/db                  Prisma client and seed
-schemas/                   Zod, shared between client and server
-i18n/                      locale routing and navigation
+User(role) ─< Address, Order, Review, Cart, AuditLog, ProductView
+           ─1 Wishlist ─< WishlistItem
+Session / Account / Verification    → better-auth's required shape
+
+ProductType ─< ProductTypeAttribute >─ AttributeDefinition ─< AttributeOption
+     │                                        │
+  Product ─< ProductAttributeValue >──────────┘
+     ├─< ProductOption ─< ProductOptionValue ─< VariantOptionValue
+     ├─< ProductVariant ─1:1 Inventory ─< InventoryMovement
+     ├─< ProductImage
+     ├─< ProductVideo        (YouTube id + click-to-play facade)
+     ├── Brand, Category(self-referencing tree)
+     └─< Review, ProductView, Offer
+
+Cart ─< CartItem ─ ProductVariant
+Order ─< OrderItem (price/name SNAPSHOT) ─< OrderEvent (timeline) ─1 Payment ─0:1 Shipment
+Offer ─ Product|Category|Brand    Coupon ─< CouponUsage
+Content: SiteSetting, DeliveryRate, HomepageSection, Banner, Faq, BlogPost
+Ops: AuditLog, ProductView, SearchEvent
 ```
+
+### Decisions encoded in the schema
+
+- **Money is `Int` of whole Iraqi dinars.** No Float, no Decimal. Iraq does not
+  transact in fils, so there is no minor unit. Helpers in `lib/money.ts` throw
+  on a fractional input rather than rounding.
+- **Availability is a status, not a count.** `Inventory.status` (IN_STOCK /
+  OUT_OF_STOCK / PREORDER / DISCONTINUED) is the whole truth. MPS does not
+  track units. `Inventory.trackQuantity` exists per variant so counted stock
+  can be switched on later **without a migration** — both paths already work.
+- **Specifications are data, not columns.** A new spec is an
+  `AttributeDefinition` row plus a `ProductTypeAttribute` link. Adding
+  "laptops" is one `ProductType` row and some attribute rows — **no code**.
+- **Variants are option-driven.** `ProductOption` / `ProductOptionValue` /
+  `VariantOptionValue`. A phone has storage and colour, a cable has length.
+- **`OrderItem` snapshots price, name, SKU and variant label.** Editing a
+  product tomorrow must never change last week's invoice.
+- **Slugs**: one latin slug in both `slugAr` and `slugEn`, so
+  `/ar/products/<slug>` and `/en/products/<slug>` stay stable for hreflang.
+
+### CHECK constraints (in migration SQL, not expressible in Prisma)
+
+`reserved <= onHand` · non-negative stock · `comparePriceIqd > priceIqd` (no
+fake discounts) · `lineTotalIqd = unitPriceIqd * quantity` ·
+`totalIqd = subtotal - discount + delivery` · rating 1–5 · coupon percentage
+≤ 100 · non-empty attribute values, video ids and variant labels · single-row
+`site_setting`.
+
+Extensions `pg_trgm` and `unaccent` are created in the initial migration (not
+via the `postgresqlExtensions` preview feature). Trigram indexes exist on
+product and brand names and on SKU.
+
+---
+
+## 7. Authentication and authorization
+
+`better-auth` behind `server/auth/auth.ts`; guards in `server/auth/guards.ts`.
+Application code never imports better-auth directly, so the provider is
+swappable.
+
+- Email + password, minimum 8 characters. Email verification is **off** until a
+  mail provider is configured.
+- Sessions in the database, 30 days, cookie prefix `mps`, `httpOnly` +
+  `sameSite=lax`, `Secure` in production.
+- Rate limits: 5 sign-ins/minute, 3 sign-ups/5 min, 3 password resets/5 min,
+  20 requests/minute globally.
+- Roles: `CUSTOMER` | `STAFF` | `ADMIN`. **Role is server-owned** — declared
+  with `input: false`, never accepted from a client payload.
+- Guards: `getCurrentUser()` (never throws), `requireUser()`, `requireRole()`,
+  `requireStaff()` (STAFF+ADMIN), `requireAdmin()`, `hasRole()`.
+- A deactivated account (`isActive: false`) is rejected even with a valid
+  session cookie.
+- **Middleware protects the route; the guard protects the data.** Every admin
+  service call re-checks. Route protection alone is bypassed the moment a
+  Server Action is invoked directly.
+
+---
+
+## 8. Routes
+
+Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
+
+| Route                                      | Rendering    | Purpose                                                                 |
+| ------------------------------------------ | ------------ | ----------------------------------------------------------------------- |
+| `/[locale]`                                | SSG          | Homepage: hero, shop-by-type, trust, 3 product rails, brands, final CTA |
+| `/[locale]/products`                       | Dynamic      | Catalogue: filters, sort, pagination, search results (`?q=`)            |
+| `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                          |
+| `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                         |
+
+Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
+catalogue-shaped `products/loading.tsx`.
+
+**Linked but not built yet** (header/footer point at them, they 404 today):
+`/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/cart`, `/account`,
+`/wishlist`.
+
+### Catalogue URL contract
+
+State lives in the URL so results are shareable, back-button-correct and
+indexable. Parsed and clamped in `schemas/catalogue.ts` — params come from the
+address bar, so they come from anyone.
+
+```
+?type=phone            product type key
+&brand=tecno,samsung   csv
+&category=flagship     csv
+&ram=8,12  &storage=256   csv of integers
+&min=200000 &max=900000   whole IQD (reversed range is swapped, not emptied)
+&stock=1  &offer=1        strictly "1"
+&q=سامسونج              search term
+&sort=newest|price_asc|price_desc|best_selling
+&page=1
+```
+
+Changing any filter resets to page 1. Invalid values fall back instead of
+throwing.
+
+---
+
+## 9. Reusable components
+
+**Primitives** — `components/ui/`: `Button` (variants primary/secondary/outline/
+ghost/danger/link; sizes sm/md/lg/icon, 44px touch target), `Badge`, `Card`,
+`Input`, `Skeleton`.
+
+**Layout** — `components/layout/`: `SiteHeader` (server; only search, language
+switcher and mobile nav ship JS), `SiteFooter` (reserves bottom space for the
+mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
+`Logo`.
+
+**Product** — `features/product/components/`:
+
+- `ProductPrice` — **the only place a price is rendered.** Wraps prices in
+  `.numeric` (LTR isolation) so Arabic bidi cannot reorder digits.
+- `ProductCard` — server component; image, brand, name, tagline, price.
+- `VariantPicker` — client; keeps price, SKU and availability in sync;
+  unreachable combinations are dimmed, never hidden.
+- `ProductGallery` — client; images + videos in one strip, player created on
+  click only.
+- `MobileBuyBar` — client; appears after 520px of scroll, `lg:hidden`.
+
+**Catalogue** — `features/catalogue/components/`: `FilterPanel`,
+`ActiveFilters`, `SortSelect`, `MobileFilterButton`, `Pagination`.
+
+**Search** — `features/search/components/search-box.tsx`: `SearchBox`,
+`HeaderSearch`.
+
+**Domain helpers** — `lib/`: `money.ts`, `phone.ts` (Iraqi E.164 normalisation),
+`search.ts` (Arabic folding + transliteration), `video.ts` (YouTube id
+extraction), `domain/availability.ts`.
+
+---
+
+## 10. Design system
+
+Tokens are defined once in `app/globals.css` under `@theme`. **No component
+hard-codes a hex value.**
+
+```
+--color-primary       #e11b22   CTA, sale, active state — ONLY
+--color-primary-hover #c4141b
+--color-primary-soft  #fdecec
+--color-ink           #0a0a0b   headings, primary text
+--color-ink-soft      #2c2c30
+--color-muted         #6b7280   secondary text
+--color-subtle        #9ca3af
+--color-surface       #ffffff   cards
+--color-canvas        #fafafa   page ground
+--color-border        #e7e7e9
+--color-border-strong #d3d3d7
+--color-success #0f8a4a   --color-warning #b45309   --color-danger #c4141b
+                (each with a -soft companion)
+--radius-control 0.5rem   --radius-card 0.75rem   --radius-panel 1rem
+--shadow-card, --shadow-raised     (two shadows only, used sparingly)
+--container-page 80rem
+```
+
+Brand colours (TECNO blue, Infinix green …) appear **only** as small identity
+dots. They never become backgrounds.
+
+**Typography**: IBM Plex Sans Arabic (Arabic) + Inter (Latin), self-hosted via
+`next/font`. Arabic gets `line-height: 1.75` and **never** negative
+letter-spacing — that is the detail that makes Arabic type look cheap.
+
+**Custom utilities**: `container-page` (responsive gutters), `numeric` (tabular
+figures + LTR isolation for prices/SKUs/phones), `flip-rtl` (mirrors
+directional icons).
+
+**Responsive**: mobile-first. Grid is 2 columns on phones, 3 at `md`, 4 at `xl`.
+Filters are a sidebar at `lg`, a bottom drawer below it. Every page must have
+**zero horizontal overflow** at 390px and 1440px — verified with Playwright, not
+assumed.
+
+**Motion**: 150–250ms, ease-out, `prefers-reduced-motion` respected.
+
+---
+
+## 11. Bilingual / RTL
+
+- Locales `ar` (default) and `en`, prefix **always** present.
+- `dir` is set on `<html>` in `app/[locale]/layout.tsx`.
+- **Layout uses logical properties only** — `ms-`, `me-`, `ps-`, `pe-`,
+  `start-`, `end-`. Never `ml-`/`mr-`/`left-`/`right-`.
+- Directional icons use `flip-rtl`. Logos and product images never flip.
+- **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
+  in both locales — that is how Iraqi commerce is written, and bidi would
+  otherwise reorder them.
+- **All UI text lives in `messages/*.json`.** Currently **159 keys, identical
+  in both files.** Parity is enforced by inspection before every commit; a key
+  added to one file must be added to the other.
+- Arabic copy is written natively, never machine-translated from English.
+- `setRequestLocale(locale)` must be called in **every** layout and page that
+  renders translated content, or the whole subtree opts out of static
+  rendering.
+
+---
+
+## 12. Business logic
+
+**Pricing** — `lib/money.ts`. Whole IQD integers. Percentage discounts round
+**down** so the customer never pays more than the advertised saving.
+`discountPercentage()` returns 0 when `comparePrice <= price`, so a fake
+discount cannot render.
+
+**Availability** — `lib/domain/availability.ts` is the single answer to "can
+this be bought". Never read `onHand` directly. A product card shows "out of
+stock" only when **no** variant is purchasable.
+
+**Orders** — `server/services/order-state.ts`:
+
+```
+PENDING → CONFIRMED → PROCESSING → READY_FOR_SHIPMENT → OUT_FOR_DELIVERY → DELIVERED → RETURNED
+   └──────────── CANCELLED from any pre-delivery state ────────────┘
+```
+
+Backwards and skipped transitions are rejected. DELIVERED cannot be cancelled —
+only RETURNED. CANCELLED and RETURNED are terminal.
+
+**Iraq specifics** — 19 governorates in the `Governorate` enum; per-governorate
+`DeliveryRate` with fee and ETA; phone numbers normalised to E.164
+(`+9647XXXXXXXX`), accepting `07…`, `+964…`, `00964…`, spaced, dashed and
+Arabic-Indic digits; prefixes 75–79.
+
+**Search** — `lib/search.ts` folds Arabic variants (أ إ آ → ا, ة → ه, ى → ي,
+strips diacritics and tatweel) and maps common transliterations
+(سامسونج → samsung, تكنو → tecno, ايفون → iphone …). Verified live: سامسونج
+returns 4 products, تكنو returns 2.
+
+**Cart / checkout / payment** — schema exists, **logic not built** (Phase 3).
+When built: the client sends `variantId` and `quantity` only; every price and
+total is recomputed on the server; COD first, behind a payment-provider
+abstraction so an Iraqi gateway can be added without touching order code.
+
+---
+
+## 13. DO NOT CHANGE without explicit owner approval
+
+1. **Money as `Int` whole IQD.** Not Decimal, not Float, not fils.
+2. **Availability is a status.** Do not reintroduce quantity as the primary
+   mechanism; `trackQuantity` is the opt-in path.
+3. **No phone-specific columns on `Product`.** New specs are
+   `AttributeDefinition` rows.
+4. **Variants stay option-driven.** No `ramGb` / `storageGb` / `colorAr`
+   columns — those were removed once already.
+5. **All text in `messages/*.json`**, both files at equal key count.
+6. **Logical CSS properties only** for layout.
+7. **Server recomputes every price.** The client never sends money.
+8. **Components never import Prisma.**
+9. **Version pins**: prisma 7 (8.x is a release candidate), eslint 9 (10 breaks
+   `eslint-plugin-react` via `eslint-config-next`), vitest 4 (`better-auth`
+   peer range), pnpm 11 via `packageManager`.
+10. **pnpm 11 config lives in `pnpm-workspace.yaml`**, and the install-scripts
+    allowlist is `allowBuilds` — the `pnpm` field in package.json is ignored.
+11. **pnpm 11's `minimumReleaseAge` policy is never relaxed.** If the lockfile
+    holds a package published in the last 24 hours, rebuild the lockfile.
+12. **No invented data.** No fabricated benchmarks, reviews, sales figures or
+    stock levels. Demo data is labelled and refuses to run in production.
+13. **No hard-coded commercial information.** Prices, delivery fees, warranty
+    terms and contact details come from `SiteSetting` / `DeliveryRate`.
+14. **Next 16 uses `proxy.ts`**, not `middleware.ts`.
+
+---
+
+## 14. Implementation status
+
+### Complete
+
+**Phase 1 — Foundation**: project setup, design tokens, i18n + RTL, full
+database schema with constraints, better-auth + RBAC, seed, guided `pnpm setup`,
+editor config, Arabic docs.
+
+**Phase 2 — Storefront**: homepage (hero, shop-by-type, trust, featured / new /
+best-seller rails, brands, final CTA); catalogue with 6 filter dimensions,
+4 sorts, facet counts and pagination; Arabic + English search; product detail
+with dynamic per-type specification table, variant picker, gallery with video,
+sticky mobile buy bar, related products; Product JSON-LD; dynamic sitemap and
+robots; 32 product pages pre-generated.
+
+### Partially complete
+
+- **Buy buttons render but are disabled** — deliberate, so the page's real
+  layout and mobile bar height are honest before Phase 3.
+- **Demo imagery** — generated device silhouettes
+  (`scripts/generate-demo-images.mjs` → `public/demo/products/*.jpg`), flagged
+  `isDemo` and badged in the UI. The owner will supply real photography; the
+  pipeline is ready for it.
+- **Offers / coupons** — schema and constraints exist, no UI or service.
+- **Reviews, wishlist, blog, banners, FAQ, homepage CMS** — schema only.
+
+### Not started
+
+Cart, checkout, orders, order tracking (Phase 3) · admin dashboard (Phase 4) ·
+wishlist, compare, reviews, recommendations, blog, analytics (Phase 5) ·
+accessibility audit, security review, performance pass, e2e tests (Phase 6).
+
+---
+
+## 15. Known issues and technical debt
+
+| Item                                               | Impact                                        | Plan                                             |
+| -------------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
+| No e2e tests                                       | Filter/variant behaviour verified manually    | Playwright in Phase 6                            |
+| No cache layer                                     | Catalogue runs 2 queries per visit            | `unstable_cache` + tags when the catalogue grows |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                 | Split to JSON if it grows                        |
+| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/cart`… 404 | Built in Phases 3–5                              |
+| No mail provider                                   | Password reset cannot send                    | `MailProvider` abstraction before launch         |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                 | Consider sticky panel                            |
+| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                 | Keep                                             |
+
+**Zero `any`. Zero type suppressions.**
+
+---
+
+## 16. Conventions
+
+- TypeScript `strict` plus `noUncheckedIndexedAccess`, `noImplicitOverride`,
+  `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`.
+- ESLint: `no-explicit-any: error`, `consistent-type-imports` (inline type
+  imports), unused vars must be `_`-prefixed.
+- Prettier: single quotes, semicolons, trailing commas, 88 columns,
+  `prettier-plugin-tailwindcss` sorts classes (knows `cn()` and `cva()`).
+  `messages/` and `prisma/migrations/` are ignored.
+- Comments explain **why**, not what. Document the decision and the failure it
+  prevents.
+- Server Components by default; `'use client'` only for genuine interaction.
+  Currently 9 client files to 21 server files.
+- No `as never` / `as any` to silence the compiler. Dynamic hrefs are typed
+  template literals.
+- Never mark a script's edit "done" without asserting the change actually
+  landed — silent no-op replacements have happened here before.
+
+---
+
+## 17. Testing
+
+`pnpm test` — 72 unit tests in `tests/unit/`, covering money, Iraqi phones,
+Arabic search, order transitions, availability (both modes), YouTube parsing
+and catalogue param parsing.
+
+**Anything touching money, stock, order state or permissions needs a test
+before it ships.** Tests target pure functions in `lib/` and `server/services/`,
+which is why that logic is framework-free.
+
+Missing: e2e (Phase 6). `@playwright/test` is installed and Chromium is
+available at `/opt/pw-browsers/chromium`.
+
+---
+
+## 18. Environment and deployment
+
+`.env` is gitignored and must never be committed, pasted into chat, or shared.
+`.env.example` lists the variables with placeholder values.
+
+| Variable              | Purpose                                      |
+| --------------------- | -------------------------------------------- |
+| `DATABASE_URL`        | PostgreSQL connection string                 |
+| `BETTER_AUTH_SECRET`  | Session signing key, ≥32 chars               |
+| `BETTER_AUTH_URL`     | Full site URL                                |
+| `NEXT_PUBLIC_APP_URL` | Full site URL, used for canonical/OG/JSON-LD |
+
+`config/env.ts` validates these at boot with Zod and fails loudly, with each
+error naming its own fix.
+
+**Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
+production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
+**session pooler** connection string, not a direct connection; security headers
+are set in `next.config.ts`; `dangerouslyAllowSVG` is deliberately **off**, so
+admin image uploads must reject SVG.
+
+**The repository is public.** Treat every commit as world-readable.
+
+---
+
+## 19. NEXT STEPS
+
+**Phase 3 — Commerce (next):**
+
+1. `Cart` + `CartItem` service — anonymous cart keyed by an httpOnly token,
+   merged into the user's cart on login.
+2. Server Actions for add / update / remove — accept `variantId` + `quantity`
+   only, recompute everything server-side.
+3. Cart page and header cart count; enable the currently disabled buy buttons
+   and the mobile buy bar.
+4. Checkout: 6 fields (name, phone, governorate, city, address, notes), guest
+   and account, delivery fee from `DeliveryRate`.
+5. Order creation in a transaction: snapshot prices into `OrderItem`, write
+   `Payment` (COD), emit the first `OrderEvent`, generate the order number.
+   Reserve stock only for variants with `trackQuantity` on.
+6. Order confirmation and public tracking by order number + phone.
+7. Tests: cart maths, delivery fee, order creation, state transitions,
+   concurrent checkout.
+
+Then Phase 4 (admin), 5 (wishlist/compare/reviews/blog), 6 (QA).
+
+**Owner inputs still needed before launch:** real product photography, WhatsApp
+and contact number, delivery fees per governorate, warranty policy text, a
+production `DATABASE_URL`, and a mail provider for password reset.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
