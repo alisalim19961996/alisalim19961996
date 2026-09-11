@@ -3,31 +3,31 @@
 import { useTransition } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { localeLabel, locales, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
 /**
- * Switching locale keeps the visitor on the same page rather than dumping them
- * on the homepage — losing your place is the fastest way to make a bilingual
- * store feel broken.
+ * Switching locale keeps the visitor exactly where they were — same page, same
+ * filters, same search. Landing on the homepage, or on an unfiltered catalogue
+ * after carefully narrowing one, is the fastest way to make a bilingual store
+ * feel like two separate sites.
  */
 export function LanguageSwitcher({ className }: { className?: string }) {
   const router = useRouter();
+  // next-intl's usePathname returns the path without the locale prefix, which
+  // is exactly what its router wants back alongside the new locale.
   const pathname = usePathname();
-  const params = useParams();
+  const searchParams = useSearchParams();
   const activeLocale = useLocale() as Locale;
   const [isPending, startTransition] = useTransition();
 
   function switchTo(next: Locale) {
     if (next === activeLocale) return;
+
+    const query = searchParams.toString();
     startTransition(() => {
-      router.replace(
-        // @ts-expect-error -- pathname is a known route; params carry the
-        // dynamic segments for the current one.
-        { pathname, params },
-        { locale: next },
-      );
+      router.replace(`${pathname}${query ? `?${query}` : ''}`, { locale: next });
     });
   }
 
