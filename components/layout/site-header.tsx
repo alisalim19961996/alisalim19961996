@@ -1,29 +1,36 @@
 import { getTranslations } from 'next-intl/server';
-import { Search, ShoppingBag, Heart, User } from 'lucide-react';
+import { ShoppingBag, Heart, User } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Logo } from './logo';
 import { LanguageSwitcher } from './language-switcher';
+import { MobileNav } from './mobile-nav';
+import { HeaderSearch } from '@/features/search/components/search-box';
 
 /**
- * Header is a Server Component: only the language switcher ships JavaScript.
- * The full navigation, search overlay and cart drawer arrive in Phase 2.
+ * Header.
+ *
+ * A Server Component; only search, the language switcher and the mobile menu
+ * ship JavaScript. Navigation itself is plain links, so it works before
+ * hydration and costs nothing.
  */
 export async function SiteHeader() {
   const t = await getTranslations('nav');
 
   const links = [
-    { href: '/products', label: t('products') },
+    { href: '/products?type=phone', label: t('phones') },
+    { href: '/products?type=tablet', label: t('tablets') },
+    { href: '/products?type=accessory', label: t('accessories') },
     { href: '/brands', label: t('brands') },
     { href: '/offers', label: t('offers') },
-    { href: '/guides', label: t('guides') },
   ] as const;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/85 backdrop-blur">
-      <div className="container-page flex h-16 items-center gap-4">
+      <div className="container-page flex h-16 items-center gap-3">
+        <MobileNav links={links} />
         <Logo />
 
-        <nav aria-label={t('menu')} className="hidden items-center gap-1 md:flex">
+        <nav aria-label={t('menu')} className="hidden items-center gap-0.5 lg:flex">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -36,11 +43,9 @@ export async function SiteHeader() {
         </nav>
 
         <div className="ms-auto flex items-center gap-1">
-          <LanguageSwitcher className="me-1" />
+          <HeaderSearch />
+          <LanguageSwitcher className="mx-1" />
 
-          <IconLink href="/search" label={t('search')}>
-            <Search />
-          </IconLink>
           <IconLink
             href="/wishlist"
             label={t('wishlist')}
@@ -70,7 +75,7 @@ function IconLink({
   children,
   className,
 }: {
-  href: '/search' | '/wishlist' | '/account' | '/cart';
+  href: '/wishlist' | '/account' | '/cart';
   label: string;
   children: React.ReactNode;
   className?: string;

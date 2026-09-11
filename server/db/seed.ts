@@ -327,6 +327,30 @@ async function seedAttributeSystem() {
  * phones, tablets and accessories without special cases.
  */
 async function seedDemoProducts() {
+  // Converge to the declared set rather than accumulate: renaming a demo
+  // product's slug would otherwise leave the old row behind forever, and the
+  // catalogue would slowly fill with products no file describes.
+  // Scoped to rows that carry a demo marker — a demo image, or the DEMO- SKU
+  // prefix every seeded variant uses — so it can never touch a real product.
+  const declaredSlugs = DEMO_PRODUCTS.map((demo) => demo.slug);
+  const stale = await db.product.findMany({
+    where: {
+      slugEn: { notIn: declaredSlugs },
+      OR: [
+        { images: { some: { isDemo: true } } },
+        { variants: { some: { sku: { startsWith: 'DEMO-' } } } },
+      ],
+    },
+    select: { id: true, slugEn: true },
+  });
+
+  if (stale.length > 0) {
+    await db.product.deleteMany({ where: { id: { in: stale.map((p) => p.id) } } });
+    console.log(
+      `  removed ${stale.length} stale demo product(s): ${stale.map((p) => p.slugEn).join(', ')}`,
+    );
+  }
+
   for (const demo of DEMO_PRODUCTS) {
     const [productType, brand, category] = await Promise.all([
       db.productType.findUnique({ where: { key: demo.productType } }),
@@ -335,29 +359,64 @@ async function seedDemoProducts() {
     ]);
 
     if (!productType || !brand || !category) {
-      throw new Error(`Demo product "${demo.slugEn}" references missing taxonomy`);
+      throw new Error(`Demo product "${demo.slug}" references missing taxonomy`);
     }
 
+    // One latin slug serves both locales: /ar/products/<slug> and
+    // /en/products/<slug> stay stable and hreflang has a clean pair to point at.
+    const content = {
+      nameAr: demo.nameAr,
+      nameEn: demo.nameEn,
+      taglineAr: demo.taglineAr,
+      taglineEn: demo.taglineEn,
+      overviewAr: demo.overviewAr ?? null,
+      overviewEn: demo.overviewEn ?? null,
+      prosAr: demo.prosAr ?? [],
+      prosEn: demo.prosEn ?? [],
+      consAr: demo.consAr ?? [],
+      consEn: demo.consEn ?? [],
+      whoIsItForAr: demo.whoIsItForAr ?? null,
+      whoIsItForEn: demo.whoIsItForEn ?? null,
+      productTypeId: productType.id,
+      brandId: brand.id,
+      categoryId: category.id,
+      warrantyMonths: demo.warrantyMonths,
+      isPublished: true,
+      isFeatured: demo.isFeatured ?? false,
+      isNewArrival: demo.isNewArrival ?? false,
+      isBestSeller: demo.isBestSeller ?? false,
+    };
+
     const product = await db.product.upsert({
-      where: { slugEn: demo.slugEn },
-      update: {},
+      where: { slugEn: demo.slug },
+      update: content,
       create: {
-        slugAr: demo.slugAr,
-        slugEn: demo.slugEn,
-        nameAr: demo.nameAr,
-        nameEn: demo.nameEn,
-        taglineAr: demo.taglineAr,
-        taglineEn: demo.taglineEn,
-        productTypeId: productType.id,
-        brandId: brand.id,
-        categoryId: category.id,
-        warrantyMonths: demo.warrantyMonths,
-        isPublished: true,
-        isFeatured: demo.isFeatured ?? false,
-        isNewArrival: demo.isNewArrival ?? false,
+        slugAr: demo.slug,
+        slugEn: demo.slug,
         publishedAt: new Date(),
+        ...content,
       },
     });
+
+    // Images are generated placeholders (scripts/generate-demo-images.mjs) and
+    // flagged so the UI can badge them as demo rather than pass them off as
+    // product photography.
+    const imageUrl = `/demo/products/${demo.image}.jpg`;
+    const existingImage = await db.productImage.findFirst({
+      where: { productId: product.id, url: imageUrl },
+    });
+    if (!existingImage) {
+      await db.productImage.create({
+        data: {
+          productId: product.id,
+          url: imageUrl,
+          altAr: demo.nameAr,
+          altEn: demo.nameEn,
+          isDemo: true,
+          sortOrder: 0,
+        },
+      });
+    }
 
     // -- Attribute values, routed to the right typed column ------------------
     for (const [key, rawValue] of Object.entries(demo.attributes)) {
@@ -463,6 +522,7 @@ async function seedDemoProducts() {
           labelEn: variant.labelEn,
           priceIqd: variant.priceIqd,
           comparePriceIqd: variant.comparePriceIqd ?? null,
+          imageUrl: `/demo/products/${demo.image}.jpg`,
           sortOrder: variantIndex,
         },
       });
@@ -498,8 +558,7 @@ async function seedDemoProducts() {
     // -- Videos --------------------------------------------------------------
     for (const [videoIndex, video] of (demo.videos ?? []).entries()) {
       const videoId = extractYoutubeId(video.url);
-      if (!videoId)
-        throw new Error(`Invalid video URL for ${demo.slugEn}: ${video.url}`);
+      if (!videoId) throw new Error(`Invalid video URL for ${demo.slug}: ${video.url}`);
 
       await db.productVideo.upsert({
         where: {

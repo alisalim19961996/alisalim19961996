@@ -30,7 +30,14 @@ export async function SiteFooter() {
 
   return (
     <footer className="mt-auto border-t border-border bg-surface">
-      <div className="container-page py-12">
+      {/*
+        Extra bottom padding on small screens reserves room for the product
+        page's fixed buy bar. It lives here rather than on that page because the
+        footer is the last element in the document — anything earlier still
+        leaves the footer's own rows underneath the bar. On a footer the cost is
+        invisible; a covered copyright line is not.
+      */}
+      <div className="container-page pt-12 pb-24 lg:pb-12">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div className="max-w-xs">
             <Logo />
