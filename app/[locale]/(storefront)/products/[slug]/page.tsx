@@ -16,6 +16,7 @@ import {
 import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
+import { isPurchasable } from '@/lib/domain/availability';
 
 /**
  * Product detail.
@@ -242,9 +243,13 @@ export default async function ProductPage({
 
       {cheapest && (
         <MobileBuyBar
+          variantId={cheapest.id}
           priceIqd={cheapest.priceIqd}
           comparePriceIqd={cheapest.comparePriceIqd}
           name={name}
+          // Availability is decided by the same helper the picker and the cart
+          // service use, so the bar can never offer what the page refuses.
+          purchasable={cheapest.inventory ? isPurchasable(cheapest.inventory) : false}
         />
       )}
     </>

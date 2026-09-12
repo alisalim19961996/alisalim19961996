@@ -23,6 +23,34 @@ const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   [OrderStatus.RETURNED]: [],
 };
 
+/**
+ * The happy path, in the order a customer experiences it.
+ *
+ * Written out rather than derived from the transition table, because what a
+ * customer is shown is a deliberate narrative and not every reachable state:
+ * CANCELLED and RETURNED are outcomes, not steps, and are reported separately.
+ * A test asserts every entry here is a real, reachable status, so the list
+ * cannot drift away from the machine.
+ */
+export const ORDER_PROGRESS: readonly OrderStatus[] = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PROCESSING,
+  OrderStatus.READY_FOR_SHIPMENT,
+  OrderStatus.OUT_FOR_DELIVERY,
+  OrderStatus.DELIVERED,
+];
+
+/** An order that ended without a successful delivery. */
+export function isFailedOutcome(status: OrderStatus): boolean {
+  return status === OrderStatus.CANCELLED || status === OrderStatus.RETURNED;
+}
+
+/** How far along ORDER_PROGRESS an order is; -1 for a failed outcome. */
+export function progressIndex(status: OrderStatus): number {
+  return ORDER_PROGRESS.indexOf(status);
+}
+
 /** Statuses from which an order can no longer move anywhere. */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
   OrderStatus.CANCELLED,

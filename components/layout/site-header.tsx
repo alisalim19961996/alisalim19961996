@@ -6,6 +6,7 @@ import { LanguageSwitcher } from './language-switcher';
 import { MobileNav } from './mobile-nav';
 import { HeaderSearch } from '@/features/search/components/search-box';
 import { HEADER_ACTIONS, PRIMARY_NAV } from '@/config/nav';
+import { CartCountBadge } from '@/features/cart/components/cart-count-badge';
 
 /**
  * Header.
@@ -50,16 +51,23 @@ export async function SiteHeader() {
 
           {HEADER_ACTIONS.map((action) => {
             const Icon = ACTION_ICONS[action.icon];
+            const isCart = action.href === '/cart';
             return (
               <Link
                 key={action.href}
                 href={action.href}
                 aria-label={t(action.labelKey)}
-                className={`inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas [&_svg]:size-5 ${
+                className={`relative inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas [&_svg]:size-5 ${
                   action.desktopOnly ? 'hidden sm:inline-flex' : ''
                 }`}
               >
                 <Icon />
+                {/*
+                  The only part of the header that is not static. Reading the
+                  cart cookie here would opt every route in the app into
+                  dynamic rendering, so the count loads after hydration.
+                */}
+                {isCart && <CartCountBadge />}
               </Link>
             );
           })}

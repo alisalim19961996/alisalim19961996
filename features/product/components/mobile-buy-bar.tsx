@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ProductPrice } from './product-price';
-import { Button } from '@/components/ui/button';
+import { AddToCartButton } from '@/features/cart/components/add-to-cart-button';
 import { cn } from '@/lib/utils';
 import { MOBILE_BUY_BAR_OFFSET } from '@/config/ui';
 
@@ -20,13 +20,22 @@ import { MOBILE_BUY_BAR_OFFSET } from '@/config/ui';
  * controls are actually off-screen.
  */
 export function MobileBuyBar({
+  variantId,
   priceIqd,
   comparePriceIqd,
   name,
+  purchasable,
 }: {
+  /**
+   * The cheapest variant, matching the price shown beside it. The bar is a
+   * shortcut for the simple case; a shopper who wants a different storage or
+   * colour scrolls back to the picker, which is what the bar links them past.
+   */
+  variantId: string;
   priceIqd: number;
   comparePriceIqd: number | null;
   name: string;
+  purchasable: boolean;
 }) {
   const t = useTranslations('product');
   const [visible, setVisible] = useState(false);
@@ -63,10 +72,14 @@ export function MobileBuyBar({
             />
           </div>
 
-          {/* Wired up in Phase 3, when the cart exists. */}
-          <Button size="md" disabled tabIndex={visible ? 0 : -1}>
-            {t('addToCart')}
-          </Button>
+          <AddToCartButton
+            variantId={variantId}
+            disabled={!purchasable}
+            label={t('addToCart')}
+            size="md"
+            block={false}
+            className="shrink-0"
+          />
         </div>
       </div>
     </>

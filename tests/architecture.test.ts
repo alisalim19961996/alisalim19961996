@@ -350,6 +350,48 @@ describe('server layer is sealed', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('the server-only stub stays in the tests', () => {
+  /**
+   * tests/integration stubs out `server-only` so a service can be imported by
+   * a test. That stub is harmless there and catastrophic anywhere else: it
+   * would silently disable the guard that stops database code being bundled
+   * into the browser.
+   */
+  it('is not referenced by application code or the app build config', () => {
+    const scope = [
+      ...uiFiles,
+      ...walk('server', ['.ts']),
+      ...walk('lib', ['.ts']),
+      ...walk('schemas', ['.ts']),
+      ...walk('config', ['.ts']),
+    ];
+
+    const offences = scope.filter((file) =>
+      readFileSync(join(ROOT, file), 'utf8').includes('server-only-stub'),
+    );
+
+    // vitest.config.mts runs the unit tests and must NOT alias server-only:
+    // that alias belongs to the integration config alone. The check is for an
+    // actual alias entry, not any mention — an earlier version matched the
+    // substring and failed on the comment explaining the rule.
+    const unitConfig = readFileSync(join(ROOT, 'vitest.config.mts'), 'utf8');
+    if (/['"]server-only['"]\s*:/.test(unitConfig)) {
+      offences.push('vitest.config.mts aliases server-only');
+    }
+    if (unitConfig.includes('server-only-stub')) {
+      offences.push('vitest.config.mts points at the stub');
+    }
+
+    expect(
+      offences,
+      'The stub exists only for tests/integration. Anywhere else it disables ' +
+        'the guard that keeps server code out of the browser bundle.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('config stays honest', () => {
   /**
    * A config file whose constants nothing reads is worse than no config file:

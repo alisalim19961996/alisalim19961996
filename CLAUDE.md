@@ -62,7 +62,8 @@ pnpm check         # typecheck + lint + format + tests + build — run before pu
 pnpm build         # production build
 pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
-pnpm test          # vitest run
+pnpm test          # vitest run (unit)
+pnpm test:integration  # vitest against a real database (orders, concurrency)
 pnpm format        # prettier --write .
 pnpm db:deploy     # apply migrations (production)
 pnpm db:migrate    # create a migration (development)
@@ -102,9 +103,11 @@ app/[locale]/(storefront)   storefront routes
 app/[locale]/(admin)        admin routes          — NOT BUILT YET (Phase 4)
 components/ui               design-system primitives
 components/layout           header, footer, nav, language switcher
-features/<domain>/components  domain UI (product, catalogue, search)
-server/queries              catalogue + product reads
-server/services             business logic — the only place rules live
+features/<domain>/components  domain UI (product, catalogue, search, cart,
+                              checkout, order)
+features/<domain>/actions.ts  Server Actions — 'use server', async exports only
+server/queries              catalogue · product · cart · order reads
+server/services             cart + order logic — the only place rules live
 server/db                   Prisma client, seed, seed-data
 schemas/                    Zod, shared between client and server
 config/                     nav.ts (all links) · ui.ts (tuned numbers)
@@ -222,14 +225,25 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]`                                | SSG          | Homepage: hero, shop-by-type, trust, 3 product rails, brands, final CTA |
 | `/[locale]/products`                       | Dynamic      | Catalogue: filters, sort, pagination, search results (`?q=`)            |
 | `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                          |
+| `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                       |
+| `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                    |
+| `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                          |
+| `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                   |
 | `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                         |
 
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
 catalogue-shaped `products/loading.tsx`.
 
 **Linked but not built yet** (header/footer point at them, they 404 today):
-`/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/cart`, `/account`,
-`/wishlist`.
+`/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/account`, `/wishlist`.
+
+**The header must stay static.** It lives in the root layout, so any
+`cookies()` read inside it opts _every_ route into dynamic rendering — that
+turned the homepage and all 32 product pages into per-request renders when the
+cart count was first added server-side. The count is therefore the one part of
+the header that loads after hydration (`CartCountBadge`). Check the build
+output for `●` on `/ar` and the product pages before assuming a change is
+free.
 
 ### Catalogue URL contract
 
@@ -391,10 +405,49 @@ strips diacritics and tatweel) and maps common transliterations
 (سامسونج → samsung, تكنو → tecno, ايفون → iphone …). Verified live: سامسونج
 returns 4 products, تكنو returns 2.
 
-**Cart / checkout / payment** — schema exists, **logic not built** (Phase 3).
-When built: the client sends `variantId` and `quantity` only; every price and
-total is recomputed on the server; COD first, behind a payment-provider
-abstraction so an Iraqi gateway can be added without touching order code.
+**Cart** — `server/services/cart.ts`. Anonymous carts are keyed by an httpOnly
+token (`mps.cart_token`, 32 CSPRNG bytes, 30 days); a signed-in user's cart is
+keyed `user:<id>`. Signing in merges the anonymous cart into it, summing
+quantities and re-clamping. **Reads never write cookies** — Next only allows
+`cookies().set` in a Server Action or Route Handler — so `findCart()` returns
+null for a visitor with none, and only the write path mints a token.
+
+**Checkout and orders** — `server/services/order.ts`. The client sends
+`variantId` and `quantity`; the schemas have nowhere to put money. Every figure
+is recomputed inside the transaction from the variant rows and `DeliveryRate`.
+One transaction writes the order, the snapshotted `OrderItem`s, the COD
+`Payment`, the first `OrderEvent` and the stock ledger, then empties the cart —
+the cart survives so the visitor keeps their token.
+
+**Stock reservation is atomic.** Only variants with `trackQuantity` reserve
+anything, and they do it with a conditional UPDATE:
+
+```sql
+UPDATE "inventory" SET "reserved" = "reserved" + $n
+ WHERE "variantId" = $id AND "trackQuantity" = true
+   AND "onHand" - "reserved" >= $n
+```
+
+A read-then-write in JavaScript lets two checkouts for the last phone both
+pass, because both read before either writes — and the `reserved <= onHand`
+CHECK does _not_ catch it, since both write the same value. An integration test
+reproduces exactly that: with the naive version it sells one unit twice.
+
+**Order numbers** — `lib/domain/order-number.ts`. `MPS-<YY><DDD>-<NNNN>`, e.g.
+`MPS-26091-0042`. Never the database id: a cuid is unusable read aloud to a
+courier, and exposing row identity invites enumeration. Tracking accepts what
+people actually type — lowercase, spaced, prefix omitted, Arabic-Indic digits,
+en dash.
+
+**Access to an order** is never the URL alone, because the numbers are
+sequential. It needs the httpOnly `mps.recent_order` cookie written at checkout
+(this browser ordered it), a session that owns it, or the phone number via the
+tracking form. A wrong phone and a non-existent order return the same message,
+so the form cannot be used to discover which numbers are real. Tracking is a
+POST, not a GET: a phone number in a URL lands in history, logs and Referer.
+
+Payment is COD only today, behind `PaymentMethod`, so an Iraqi gateway can be
+added without touching order code.
 
 ---
 
@@ -460,10 +513,17 @@ tokens with their duplicate TS constants removed; CI running the full
 `pnpm check` against a real database; and `docs/extending-ar.md` so the owner
 can make routine changes without reading code.
 
+**Phase 3 — Commerce**: anonymous + signed-in cart with an httpOnly token and
+login merge; Server Actions taking ids and quantities only; cart page with
+live quantity control; header count; checkout in six fields with a live
+delivery quote from `DeliveryRate`; order placement in one transaction with
+price snapshots, COD payment, timeline event and atomic stock reservation;
+confirmation page and public tracking by number + phone. Verified end to end by
+driving the built site: add → badge → cart → quantity → checkout → order →
+tracking, plus a second browser proving an order does not leak.
+
 ### Partially complete
 
-- **Buy buttons render but are disabled** — deliberate, so the page's real
-  layout and mobile bar height are honest before Phase 3.
 - **Demo imagery** — generated device silhouettes
   (`scripts/generate-demo-images.mjs` → `public/demo/products/*.jpg`), flagged
   `isDemo` and badged in the UI. The owner will supply real photography; the
@@ -481,16 +541,19 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                        | Plan                                             |
-| -------------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
-| No e2e tests                                       | Filter/variant behaviour verified manually    | Playwright in Phase 6                            |
-| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand   | Fold into the Playwright suite in Phase 6        |
-| No cache layer                                     | Catalogue runs 2 queries per visit            | `unstable_cache` + tags when the catalogue grows |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                 | Split to JSON if it grows                        |
-| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/cart`… 404 | Built in Phases 3–5                              |
-| No mail provider                                   | Password reset cannot send                    | `MailProvider` abstraction before launch         |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                 | Consider sticky panel                            |
-| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                 | Keep                                             |
+| Item                                               | Impact                                         | Plan                                                       |
+| -------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| No e2e tests                                       | Filter/variant behaviour verified manually     | Playwright in Phase 6                                      |
+| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand    | Fold into the Playwright suite in Phase 6                  |
+| No cache layer                                     | Catalogue runs 2 queries per visit             | `unstable_cache` + tags when the catalogue grows           |
+| Cart merge on sign-in is lazy                      | Runs on the next cart read/write, not at login | Call `mergeAnonymousCart` from the sign-in flow in Phase 4 |
+| Coupons are schema-only                            | `discountIqd` is always 0                      | Phase 5; `orderTotals` already takes a discount            |
+| Reservations are never released                    | A cancelled order keeps counted stock reserved | Admin cancel in Phase 4 (`RESERVING_STATUSES` exists)      |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                  | Split to JSON if it grows                                  |
+| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/cart`… 404  | Built in Phases 3–5                                        |
+| No mail provider                                   | Password reset cannot send                     | `MailProvider` abstraction before launch                   |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                  | Consider sticky panel                                      |
+| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                  | Keep                                                       |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -518,10 +581,22 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **88 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
+`pnpm test` — **137 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
 Arabic search, order transitions, availability in both modes, YouTube parsing,
-catalogue param parsing) plus 15 architecture guardrails in
-`tests/architecture.test.ts` (16 cases — two are `it.each`).
+catalogue param parsing) plus 17 architecture guardrails in
+`tests/architecture.test.ts` (19 cases — two are `it.each`), and cart, delivery
+and order-number arithmetic in `tests/unit/cart.test.ts` and
+`tests/unit/order-number.test.ts`.
+
+`pnpm test:integration` — **8 tests against a real Postgres**, run by
+`pnpm check` and by CI. Order placement is the one path where being wrong costs
+money, and what makes it correct — a transaction that must roll back whole, a
+conditional UPDATE two checkouts race for, constraints Postgres enforces —
+cannot be tested with a fake. `vitest.integration.config.mts` stubs
+`server-only` so a service can be imported; a guardrail keeps that stub out of
+every other config and out of application code. The concurrency test was
+verified by replacing the atomic UPDATE with a read-then-write and watching it
+sell one unit twice.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/`, which is why that
@@ -555,6 +630,7 @@ not a false hit.
 | Every `config/` export has a consumer                     | A config file that lies about being the source   |
 | No route file over 420 lines                              | Business logic hiding in `app/`                  |
 | Every `server/` file starts with `import 'server-only'`   | Database code shipped to the browser             |
+| The `server-only` stub stays inside tests/integration     | Silently disabling that guard app-wide           |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -621,27 +697,27 @@ admin image uploads must reject SVG.
 
 ## 19. NEXT STEPS
 
-**Phase 3 — Commerce (next):**
+**Phase 3 — Commerce: complete.** Cart, checkout, orders, confirmation and
+public tracking all ship and are covered by unit tests, integration tests
+against a real database, and an end-to-end run against the built site.
 
-1. `Cart` + `CartItem` service — anonymous cart keyed by an httpOnly token,
-   merged into the user's cart on login.
-2. Server Actions for add / update / remove — accept `variantId` + `quantity`
-   only, recompute everything server-side.
-3. Cart page and header cart count; enable the currently disabled buy buttons
-   and the mobile buy bar.
-4. Checkout: 6 fields (name, phone, governorate, city, address, notes), guest
-   and account, delivery fee from `DeliveryRate`.
-5. Order creation in a transaction: snapshot prices into `OrderItem`, write
-   `Payment` (COD), emit the first `OrderEvent`, generate the order number.
-   Reserve stock only for variants with `trackQuantity` on.
-6. Order confirmation and public tracking by order number + phone.
-7. Tests: cart maths, delivery fee, order creation, state transitions,
-   concurrent checkout.
+**Phase 4 — Admin dashboard (next):**
 
-When Phase 3 lands, two constants come back to `config/ui.ts` with real
-consumers: a maximum line quantity (a typo guard, not a policy) and the cart
-cookie's lifetime. They were deliberately removed rather than left unused —
-see §13.16.
+1. `app/[locale]/(admin)` behind `requireStaff()` — and re-checked in every
+   service call, because route protection alone is bypassed the moment a
+   Server Action is invoked directly (§7).
+2. Orders: list, filter by status, open one, advance its status through
+   `assertTransition`, write the `OrderEvent`, and **release the stock
+   reservation on cancel** — `RESERVING_STATUSES` in `lib/domain/order-state.ts`
+   already says which statuses hold one.
+3. Products: create and edit against the data-driven attributes, so a new
+   product type stays data entry rather than code (§6).
+4. Settings: `SiteSetting` and per-governorate `DeliveryRate`, so the owner
+   changes delivery fees and contact details without a deployment.
+5. Call `mergeAnonymousCart` from the sign-in flow, instead of relying on the
+   next cart action to do it.
+6. Image upload that **rejects SVG** — `dangerouslyAllowSVG` is deliberately
+   off (§18).
 
 Then Phase 4 (admin), 5 (wishlist/compare/reviews/blog), 6 (QA).
 

@@ -77,4 +77,8 @@ jobs:
         run: pnpm db:seed
 
       - name: Typecheck, lint, format, test, build
+        # `pnpm check` includes the integration tests, which run against the
+        # Postgres service above — order placement is the one path where being
+        # wrong costs money, and a transaction, a row-level race and a CHECK
+        # constraint cannot be tested with a fake.
         run: pnpm check

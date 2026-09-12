@@ -7,6 +7,9 @@ import {
   holdsReservation,
   InvalidOrderTransitionError,
   isTerminal,
+  ORDER_PROGRESS,
+  isFailedOutcome,
+  progressIndex,
 } from '@/lib/domain/order-state';
 
 describe('order state machine', () => {
@@ -80,5 +83,46 @@ describe('order state machine', () => {
     expect(() =>
       assertTransition(OrderStatus.PENDING, OrderStatus.CONFIRMED),
     ).not.toThrow();
+  });
+});
+
+describe('ORDER_PROGRESS', () => {
+  it('contains only statuses the machine can actually reach', () => {
+    // The customer-facing narrative is written out by hand, so this is what
+    // stops it drifting away from the state machine it describes.
+    const reachable = new Set<OrderStatus>([OrderStatus.PENDING]);
+    for (const status of Object.values(OrderStatus)) {
+      for (const next of allowedTransitions(status)) reachable.add(next);
+    }
+    for (const status of ORDER_PROGRESS) {
+      expect(reachable.has(status), `${status} is unreachable`).toBe(true);
+    }
+  });
+
+  it('is a legal path from start to delivery', () => {
+    for (let i = 0; i < ORDER_PROGRESS.length - 1; i++) {
+      const from = ORDER_PROGRESS[i] as OrderStatus;
+      const to = ORDER_PROGRESS[i + 1] as OrderStatus;
+      expect(canTransition(from, to), `${from} -> ${to}`).toBe(true);
+    }
+  });
+
+  it('starts where a new order starts and ends at delivery', () => {
+    expect(ORDER_PROGRESS[0]).toBe(OrderStatus.PENDING);
+    expect(ORDER_PROGRESS.at(-1)).toBe(OrderStatus.DELIVERED);
+  });
+
+  it('excludes the failure outcomes, which are reported separately', () => {
+    expect(ORDER_PROGRESS).not.toContain(OrderStatus.CANCELLED);
+    expect(ORDER_PROGRESS).not.toContain(OrderStatus.RETURNED);
+    expect(isFailedOutcome(OrderStatus.CANCELLED)).toBe(true);
+    expect(isFailedOutcome(OrderStatus.RETURNED)).toBe(true);
+    expect(isFailedOutcome(OrderStatus.DELIVERED)).toBe(false);
+  });
+
+  it('reports -1 for a status that is not on the happy path', () => {
+    expect(progressIndex(OrderStatus.PENDING)).toBe(0);
+    expect(progressIndex(OrderStatus.DELIVERED)).toBe(ORDER_PROGRESS.length - 1);
+    expect(progressIndex(OrderStatus.CANCELLED)).toBe(-1);
   });
 });

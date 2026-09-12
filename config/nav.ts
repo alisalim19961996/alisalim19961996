@@ -34,6 +34,7 @@ export const PRIMARY_NAV: readonly NavLink[] = [
 export const SECONDARY_NAV: readonly NavLink[] = [
   { href: '/account', labelKey: 'account' },
   { href: '/wishlist', labelKey: 'wishlist' },
+  { href: '/track', labelKey: 'trackOrder' },
   { href: '/guides', labelKey: 'guides' },
 ];
 
@@ -61,5 +62,9 @@ export const FOOTER_NAV: readonly NavGroup[] = [
       { href: '/guides', labelKey: 'guides' },
       { href: '/contact', labelKey: 'contact' },
     ],
+  },
+  {
+    titleKey: 'support',
+    links: [{ href: '/track', labelKey: 'trackOrder' }],
   },
 ];

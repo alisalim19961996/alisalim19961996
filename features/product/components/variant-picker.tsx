@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 import { ProductPrice } from './product-price';
 import { getAvailability } from '@/lib/domain/availability';
-import { Button } from '@/components/ui/button';
+import { AddToCartButton } from '@/features/cart/components/add-to-cart-button';
 import type { Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
@@ -219,22 +219,26 @@ export function VariantPicker({
       )}
 
       {/*
-        The cart lands in Phase 3. Disabling the button rather than omitting it
-        keeps the page's real layout — and its mobile bar height — honest now.
+        Add-to-cart and buy-now differ only in where they leave you: the first
+        keeps you on the page to add an accessory, the second goes straight to
+        checkout. Both add the same line, so a customer who taps "buy now" on a
+        non-empty cart still sees everything they had.
       */}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button size="lg" block disabled={!purchasable} className="sm:flex-1">
-          {t('addToCart')}
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          block
+        <AddToCartButton
+          variantId={selected?.id ?? null}
           disabled={!purchasable}
+          label={t('addToCart')}
           className="sm:flex-1"
-        >
-          {t('buyNow')}
-        </Button>
+        />
+        <AddToCartButton
+          variantId={selected?.id ?? null}
+          disabled={!purchasable}
+          label={t('buyNow')}
+          variant="outline"
+          redirectTo="/cart"
+          className="sm:flex-1"
+        />
       </div>
     </div>
   );
