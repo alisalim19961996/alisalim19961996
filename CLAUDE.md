@@ -130,7 +130,7 @@ contributor — or by an assistant whose context was compacted. See §17.
 
 ## 6. Database
 
-45 tables, 28 CHECK constraints, 2 migrations. Schema: `prisma/schema.prisma`.
+44 tables, 12 enums, 28 CHECK constraints, 2 migrations. Schema: `prisma/schema.prisma`.
 
 ### Core relationships
 
@@ -371,7 +371,7 @@ discount cannot render.
 this be bought". Never read `onHand` directly. A product card shows "out of
 stock" only when **no** variant is purchasable.
 
-**Orders** — `server/services/order-state.ts`:
+**Orders** — `lib/domain/order-state.ts`:
 
 ```
 PENDING → CONFIRMED → PROCESSING → READY_FOR_SHIPMENT → OUT_FOR_DELIVERY → DELIVERED → RETURNED
@@ -451,7 +451,7 @@ sticky mobile buy bar, related products; Product JSON-LD; dynamic sitemap and
 robots; 32 product pages pre-generated.
 
 **Phase 2.5 — Maintainability**: the layer that makes later change cheap and
-safe. 14 architecture guardrails in `tests/architecture.test.ts`; per-directory
+safe. 15 architecture guardrails in `tests/architecture.test.ts`; per-directory
 import boundaries in `eslint.config.mjs`; navigation consolidated into
 `config/nav.ts` (header, mobile drawer and footer previously kept three copies
 in step by hand); tuned numbers into `config/ui.ts`, each with a consumer and a
@@ -518,14 +518,18 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **86 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
+`pnpm test` — **88 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
 Arabic search, order transitions, availability in both modes, YouTube parsing,
-catalogue param parsing) plus 14 architecture guardrails in
-`tests/architecture.test.ts`.
+catalogue param parsing) plus 15 architecture guardrails in
+`tests/architecture.test.ts` (16 cases — two are `it.each`).
 
 **Anything touching money, stock, order state or permissions needs a test
-before it ships.** Tests target pure functions in `lib/` and `server/services/`,
-which is why that logic is framework-free.
+before it ships.** Tests target pure functions in `lib/`, which is why that
+logic is framework-free. Anything under `server/` carries `import 'server-only'`
+and therefore _cannot_ be imported by a test — that is the deciding question
+for where a file goes: pure logic that wants a unit test belongs in
+`lib/domain/`, and only code that genuinely touches the database belongs in
+`server/`.
 
 ### Architecture guardrails
 
@@ -550,6 +554,7 @@ not a false hit.
 | No Arabic string literals in UI                           | Copy the owner cannot edit, with no English twin |
 | Every `config/` export has a consumer                     | A config file that lies about being the source   |
 | No route file over 420 lines                              | Business logic hiding in `app/`                  |
+| Every `server/` file starts with `import 'server-only'`   | Database code shipped to the browser             |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the

@@ -317,6 +317,39 @@ describe('translated text is not inlined in components', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('server layer is sealed', () => {
+  /**
+   * `import 'server-only'` is what makes a leak into a client bundle a BUILD
+   * error rather than a silent shipping of database code to the browser. The
+   * marker only works if it is the first import, so this checks the first line.
+   *
+   * The corollary is that anything under server/ cannot be unit-tested
+   * directly — `server-only` throws under vitest. That is the test for whether
+   * a file belongs here at all: pure logic that wants a unit test belongs in
+   * lib/domain/. order-state.ts sat in server/services/ without the marker for
+   * exactly that reason, and this test is why it moved.
+   */
+  it.each(['server/queries', 'server/services'])(
+    'every file in %s starts with server-only',
+    (dir) => {
+      const offences = walk(dir, ['.ts']).filter((file) => {
+        const first = readFileSync(join(ROOT, file), 'utf8')
+          .split('\n')
+          .find((line) => line.trim() !== '');
+        return first?.trim() !== "import 'server-only';";
+      });
+
+      expect(
+        offences,
+        "Add `import 'server-only';` as the first line — or move the file to " +
+          'lib/domain/ if it is pure logic that needs a unit test.',
+      ).toEqual([]);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+
 describe('config stays honest', () => {
   /**
    * A config file whose constants nothing reads is worse than no config file:

@@ -7,7 +7,7 @@ import {
   holdsReservation,
   InvalidOrderTransitionError,
   isTerminal,
-} from '@/server/services/order-state';
+} from '@/lib/domain/order-state';
 
 describe('order state machine', () => {
   it('permits the normal fulfilment path', () => {
