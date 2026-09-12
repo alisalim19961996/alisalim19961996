@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { Logo } from './logo';
+import { FOOTER_NAV } from '@/config/nav';
 
 export async function SiteFooter() {
   const [tNav, tBrand, tFooter] = await Promise.all([
@@ -8,25 +9,6 @@ export async function SiteFooter() {
     getTranslations('brand'),
     getTranslations('footer'),
   ]);
-
-  const columns = [
-    {
-      title: tFooter('shop'),
-      links: [
-        { href: '/products', label: tNav('products') },
-        { href: '/brands', label: tNav('brands') },
-        { href: '/offers', label: tNav('offers') },
-      ],
-    },
-    {
-      title: tFooter('company'),
-      links: [
-        { href: '/about', label: tNav('about') },
-        { href: '/guides', label: tNav('guides') },
-        { href: '/contact', label: tNav('contact') },
-      ],
-    },
-  ] as const;
 
   return (
     <footer className="mt-auto border-t border-border bg-surface">
@@ -37,7 +19,7 @@ export async function SiteFooter() {
         leaves the footer's own rows underneath the bar. On a footer the cost is
         invisible; a covered copyright line is not.
       */}
-      <div className="container-page pt-12 pb-24 lg:pb-12">
+      <div className="container-page pt-12 pb-[calc(3rem+var(--mobile-buy-bar-height))] lg:pb-12">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div className="max-w-xs">
             <Logo />
@@ -47,10 +29,10 @@ export async function SiteFooter() {
           </div>
 
           <div className="flex gap-12">
-            {columns.map((column) => (
-              <div key={column.title}>
+            {FOOTER_NAV.map((column) => (
+              <div key={column.titleKey}>
                 <h2 className="text-xs font-semibold tracking-wide text-subtle uppercase">
-                  {column.title}
+                  {tFooter(column.titleKey)}
                 </h2>
                 <ul className="mt-3 space-y-2">
                   {column.links.map((link) => (
@@ -59,7 +41,7 @@ export async function SiteFooter() {
                         href={link.href}
                         className="text-sm text-muted transition-colors hover:text-ink"
                       >
-                        {link.label}
+                        {tNav(link.labelKey)}
                       </Link>
                     </li>
                   ))}

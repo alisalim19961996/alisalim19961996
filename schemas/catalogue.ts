@@ -17,7 +17,7 @@ export const SORT_VALUES = [
   'best_selling',
 ] as const satisfies readonly CatalogueSort[];
 
-export const PER_PAGE = 24;
+export { PRODUCTS_PER_PAGE as PER_PAGE } from '@/config/ui';
 
 /** Repeated params arrive as `a,b,c`; unknown entries are dropped, not rejected. */
 const csvList = z

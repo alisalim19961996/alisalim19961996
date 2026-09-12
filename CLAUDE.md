@@ -74,7 +74,12 @@ pnpm db:studio     # browse the database
 and tests, because Prisma's enums only exist in the generated client.
 
 Arabic guides for the owner live in `docs/`: `run-locally-ar.md`,
-`database-setup-ar.md`, `vscode-setup-ar.md`.
+`database-setup-ar.md`, `vscode-setup-ar.md`, and **`extending-ar.md`** — 12
+step-by-step recipes answering "I want to change X, where do I start?"
+(text, colours, nav links, a new page, a new specification, a whole new
+product type, brands, UI numbers, commercial data, schema changes), plus the
+list of what the guardrails refuse. Every recipe names the exact file and how
+to confirm the change landed.
 
 ---
 
@@ -102,6 +107,7 @@ server/queries              catalogue + product reads
 server/services             business logic — the only place rules live
 server/db                   Prisma client, seed, seed-data
 schemas/                    Zod, shared between client and server
+config/                     nav.ts (all links) · ui.ts (tuned numbers)
 lib/                        framework-free helpers
 lib/domain/                 pure business logic, no imports from Next or Prisma runtime
 i18n/                       locale routing and navigation
@@ -114,6 +120,11 @@ messages/                   ar.json / en.json — all UI text
 - `server/queries/*` and `server/services/*` start with `import 'server-only'`.
 - Filtering, sorting and pagination happen in SQL, never in JavaScript after fetching.
 - Every query names its columns with `select`. No `include: { everything }`.
+
+**These rules are enforced, not merely written down.** `tests/architecture.test.ts`
+fails the build on a violation and `eslint.config.mjs` flags it while it is being
+typed. A rule that only lives in a document is broken quietly by the next
+contributor — or by an assistant whose context was compacted. See §17.
 
 ---
 
@@ -299,7 +310,15 @@ hard-codes a hex value.**
 --radius-control 0.5rem   --radius-card 0.75rem   --radius-panel 1rem
 --shadow-card, --shadow-raised     (two shadows only, used sparingly)
 --container-page 80rem
+--spacing-section 4rem    --spacing-section-lg 6rem
+--mobile-buy-bar-height 72px   reserved by the footer; bar measures 69px
+--aspect-product 4 / 5    every product image, so the grid never reflows
 ```
+
+`--mobile-buy-bar-height` and `--aspect-product` are owned by CSS **only**.
+A mirrored TypeScript constant was removed because nothing read it and it
+would have drifted; and an interpolated `aspect-[${value}]` would never be
+generated at all, since Tailwind scans class names statically.
 
 Brand colours (TECNO blue, Infinix green …) appear **only** as small identity
 dots. They never become backgrounds.
@@ -404,6 +423,15 @@ abstraction so an Iraqi gateway can be added without touching order code.
 13. **No hard-coded commercial information.** Prices, delivery fees, warranty
     terms and contact details come from `SiteSetting` / `DeliveryRate`.
 14. **Next 16 uses `proxy.ts`**, not `middleware.ts`.
+15. **Guardrails are never weakened to make a change pass.** If
+    `tests/architecture.test.ts` or an ESLint boundary rejects your code, the
+    code is wrong, not the rule. Changing a guardrail needs the same owner
+    approval as anything else on this list — that is the entire point of
+    writing them down as tests.
+16. **One source of truth per value.** A design token lives in `@theme`, a
+    tuned number in `config/ui.ts`, a link in `config/nav.ts`, commercial data
+    in the database. Mirroring a value into a second file is how the two copies
+    start disagreeing; a constant with no consumer is the same bug, waiting.
 
 ---
 
@@ -421,6 +449,16 @@ best-seller rails, brands, final CTA); catalogue with 6 filter dimensions,
 with dynamic per-type specification table, variant picker, gallery with video,
 sticky mobile buy bar, related products; Product JSON-LD; dynamic sitemap and
 robots; 32 product pages pre-generated.
+
+**Phase 2.5 — Maintainability**: the layer that makes later change cheap and
+safe. 14 architecture guardrails in `tests/architecture.test.ts`; per-directory
+import boundaries in `eslint.config.mjs`; navigation consolidated into
+`config/nav.ts` (header, mobile drawer and footer previously kept three copies
+in step by hand); tuned numbers into `config/ui.ts`, each with a consumer and a
+test proving it; buy-bar height and product aspect ratio promoted to `@theme`
+tokens with their duplicate TS constants removed; CI running the full
+`pnpm check` against a real database; and `docs/extending-ar.md` so the owner
+can make routine changes without reading code.
 
 ### Partially complete
 
@@ -446,6 +484,7 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 | Item                                               | Impact                                        | Plan                                             |
 | -------------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
 | No e2e tests                                       | Filter/variant behaviour verified manually    | Playwright in Phase 6                            |
+| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand   | Fold into the Playwright suite in Phase 6        |
 | No cache layer                                     | Catalogue runs 2 queries per visit            | `unstable_cache` + tags when the catalogue grows |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                 | Split to JSON if it grows                        |
 | Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/cart`… 404 | Built in Phases 3–5                              |
@@ -477,18 +516,76 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 
 ---
 
-## 17. Testing
+## 17. Testing and enforcement
 
-`pnpm test` — 72 unit tests in `tests/unit/`, covering money, Iraqi phones,
-Arabic search, order transitions, availability (both modes), YouTube parsing
-and catalogue param parsing.
+`pnpm test` — **86 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
+Arabic search, order transitions, availability in both modes, YouTube parsing,
+catalogue param parsing) plus 14 architecture guardrails in
+`tests/architecture.test.ts`.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/` and `server/services/`,
 which is why that logic is framework-free.
 
+### Architecture guardrails
+
+The rules in this file are only real if breaking them fails something. These
+turn the important ones into failures, each message naming the **file, line and
+fix** — a guardrail that only says "violation found" costs more time than it
+saves. Comments are stripped before matching, so a rule quoted in a comment is
+not a false hit.
+
+| Guardrail                                                 | Catches                                          |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| Translation keys identical in `ar.json` / `en.json`       | A raw `nav.offers` shown to half the customers   |
+| No empty translation strings                              | A label that renders as nothing                  |
+| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`               | Arabic laid out mirrored, silently               |
+| No hex colours in UI files                                | A second, slightly different red                 |
+| No `aspect-[4/5]` literals                                | A ratio that cannot be changed centrally         |
+| No Prisma client imported from UI                         | Layer bypass that still "works" in review        |
+| `lib/` imports neither `next` nor `server/`               | Pure logic that stops being testable             |
+| `components/ui` imports neither `features/` nor `server/` | A Button that only works for products            |
+| Client components import from `server/` as types only     | Server code dragged into the browser bundle      |
+| No literal IQD prices in UI                               | A price only a developer can change              |
+| No Arabic string literals in UI                           | Copy the owner cannot edit, with no English twin |
+| Every `config/` export has a consumer                     | A config file that lies about being the source   |
+| No route file over 420 lines                              | Business logic hiding in `app/`                  |
+
+`eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
+the gate that blocks a push, the lint rule is the red squiggle that stops the
+mistake being written. Each boundary was verified by deliberately violating it
+and confirming the intended message appeared.
+
+### CI
+
+`.github/workflows/ci.yml` runs the whole of `pnpm check` on every push and
+pull request, against a throwaway PostgreSQL 16 service — `pnpm check` ends in
+`next build`, which pre-renders 32 product pages and therefore needs a real
+database. `pnpm install --frozen-lockfile` makes the lockfile a control rather
+than a suggestion, and the session secret is generated per run with
+`openssl rand`, never stored in the repository.
+
 Missing: e2e (Phase 6). `@playwright/test` is installed and Chromium is
-available at `/opt/pw-browsers/chromium`.
+available at `/opt/pw-browsers/chromium`. Layout facts that matter — zero
+horizontal overflow at 390px and 1440px, and the footer's clearance under the
+mobile buy bar — are currently verified by driving the built site with
+Playwright by hand. Three measurement traps have already produced false bug
+reports here — check against them before believing a failure:
+
+- **`waitUntil: 'load'` is not "content is on screen".** Pages stream inside
+  Suspense, so the DOM can still be empty when `load` fires. Wait for a real
+  selector (`h1`), or you will "discover" that a page renders nothing.
+- **Scroll to the bottom and wait for `scrollY` to settle** before reading
+  rects. A mid-scroll reading once reported the footer's copyright line as
+  covered by the buy bar when the true clearance is 51px.
+- **`footer p:last-of-type` matches the tagline, not the copyright** — it is
+  the last `p` among _its own_ siblings. Match on the text instead.
+
+Also check the data before blaming the code: "related products" is empty on a
+product with no same-type neighbour inside `RELATED_PRICE_SPREAD`, which is
+correct behaviour, not a bug. `curl | grep` on built HTML is a poor cross-check
+— the phrase you are grepping for also appears in the serialised next-intl
+payload, and `grep -c` counts lines, which is meaningless on minified markup.
 
 ---
 
@@ -535,6 +632,11 @@ admin image uploads must reject SVG.
 6. Order confirmation and public tracking by order number + phone.
 7. Tests: cart maths, delivery fee, order creation, state transitions,
    concurrent checkout.
+
+When Phase 3 lands, two constants come back to `config/ui.ts` with real
+consumers: a maximum line quantity (a typo guard, not a policy) and the cart
+cookie's lifetime. They were deliberately removed rather than left unused —
+see §13.16.
 
 Then Phase 4 (admin), 5 (wishlist/compare/reviews/blog), 6 (QA).
 

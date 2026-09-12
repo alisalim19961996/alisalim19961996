@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Menu, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { PRIMARY_NAV, SECONDARY_NAV } from '@/config/nav';
 
 /**
  * Navigation drawer for phones.
@@ -15,11 +16,7 @@ import { Link } from '@/i18n/navigation';
  * lock, scrolling the drawer at its end scrolls the page underneath, which
  * makes the whole thing feel unfinished.
  */
-export function MobileNav({
-  links,
-}: {
-  links: ReadonlyArray<{ href: string; label: string }>;
-}) {
+export function MobileNav() {
   const [open, setOpen] = useState(false);
   const t = useTranslations('nav');
 
@@ -76,32 +73,28 @@ export function MobileNav({
 
             <nav aria-label={t('menu')}>
               <ul className="space-y-1">
-                {links.map((link) => (
+                {PRIMARY_NAV.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
                       className="block rounded-[--radius-control] px-3 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </Link>
                   </li>
                 ))}
               </ul>
 
               <ul className="mt-6 space-y-1 border-t border-border pt-6">
-                {[
-                  { href: '/account', label: t('account') },
-                  { href: '/wishlist', label: t('wishlist') },
-                  { href: '/guides', label: t('guides') },
-                ].map((link) => (
+                {SECONDARY_NAV.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
                       className="block rounded-[--radius-control] px-3 py-2.5 text-sm text-muted hover:bg-canvas hover:text-ink"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </Link>
                   </li>
                 ))}

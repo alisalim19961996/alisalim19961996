@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useLocale } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
-import { localeLabel, locales, type Locale } from '@/i18n/routing';
+import { localeLabel, localeShortLabel, locales, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
 /**
@@ -55,7 +55,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
               isActive ? 'bg-ink text-white' : 'text-muted hover:text-ink',
             )}
           >
-            {locale === 'ar' ? 'ع' : 'EN'}
+            {localeShortLabel[locale]}
             <span className="sr-only"> — {localeLabel[locale]}</span>
           </button>
         );

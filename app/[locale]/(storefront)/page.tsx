@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/features/product/components/product-card';
 import { getBrands, getProductRail, getProductTypes } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
+import { RAIL_SIZE } from '@/config/ui';
 
 /**
  * Homepage.
@@ -37,9 +38,9 @@ export default async function HomePage({
     await Promise.all([
       getTranslations('home'),
       getTranslations('common'),
-      getProductRail('isFeatured', 4),
-      getProductRail('isNewArrival', 4),
-      getProductRail('isBestSeller', 4),
+      getProductRail('isFeatured', RAIL_SIZE),
+      getProductRail('isNewArrival', RAIL_SIZE),
+      getProductRail('isBestSeller', RAIL_SIZE),
       getBrands(),
       getProductTypes(),
     ]);
@@ -149,7 +150,9 @@ export default async function HomePage({
                 >
                   <span
                     className="size-2 rounded-full"
-                    style={{ backgroundColor: brand.accentColor ?? '#6B7280' }}
+                    style={{
+                      backgroundColor: brand.accentColor ?? 'var(--color-muted)',
+                    }}
                     aria-hidden="true"
                   />
                   <span className="text-center text-sm font-medium text-ink">

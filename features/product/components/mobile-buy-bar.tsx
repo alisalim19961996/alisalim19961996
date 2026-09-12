@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ProductPrice } from './product-price';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { MOBILE_BUY_BAR_OFFSET } from '@/config/ui';
 
 /**
  * Sticky buy bar for phones.
@@ -34,7 +35,7 @@ export function MobileBuyBar({
     // 520px is past the gallery and the picker on a phone. Using a scroll
     // threshold rather than an observer on the button keeps this component
     // independent of the page's markup.
-    const onScroll = () => setVisible(window.scrollY > 520);
+    const onScroll = () => setVisible(window.scrollY > MOBILE_BUY_BAR_OFFSET);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);

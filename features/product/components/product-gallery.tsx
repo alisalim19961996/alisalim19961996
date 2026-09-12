@@ -65,13 +65,13 @@ export function ProductGallery({
 
   if (!active) {
     return (
-      <div className="aspect-[4/5] rounded-[--radius-panel] border border-border bg-canvas" />
+      <div className="aspect-product rounded-[--radius-panel] border border-border bg-canvas" />
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[--radius-panel] border border-border bg-canvas">
+      <div className="relative aspect-product overflow-hidden rounded-[--radius-panel] border border-border bg-canvas">
         {active.kind === 'image' ? (
           <>
             <Image

@@ -48,6 +48,18 @@
   --spacing-section: 4rem;
   --spacing-section-lg: 6rem;
   --container-page: 80rem;
+  /* Every product image renders at this ratio, so the grid never reflows while
+     images load and uploaded photography crops predictably. A token rather
+     than a TypeScript constant because Tailwind scans class names statically —
+     an interpolated `aspect-[${value}]` would simply not be generated. */
+  --aspect-product: 4 / 5;
+  /* Height of the product page's fixed mobile buy bar. The footer reserves
+     this much space so nothing ends up underneath it. Measured at 69px at
+     390px wide; the extra 3px keeps the reservation generous rather than
+     exact, so a longer product name cannot push the copyright under the bar.
+     Owned here only — a second copy in TypeScript would drift the day this
+     changes. */
+  --mobile-buy-bar-height: 72px;
 }
 
 /* --------------------------------------------------------------------------

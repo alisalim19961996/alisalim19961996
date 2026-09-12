@@ -1,0 +1,80 @@
+name: CI
+
+# Everything `pnpm check` runs locally, run again on every push and pull
+# request. The point is that the architecture rules in CLAUDE.md stop being
+# advice: a change that breaks a layer boundary, drops a translation key or
+# hard-codes a colour fails here, in public, before it reaches main.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  # A new push supersedes the run in flight for the same branch.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # `pnpm check` ends in `next build`, which pre-renders 32 product pages
+      # and therefore needs a real database. A throwaway one, created fresh for
+      # each run, is the honest way to prove the build works from nothing.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mps
+          POSTGRES_PASSWORD: mps_ci
+          POSTGRES_DB: mps_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U mps"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: postgresql://mps:mps_ci@127.0.0.1:5432/mps_ci?schema=public
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        # No version here on purpose: it is read from `packageManager` in
+        # package.json, so CI and every developer resolve to the same pnpm.
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Generate a session secret for this run
+        # Never a literal in the repository. This value exists for the length
+        # of one CI run against a throwaway database and is never reused.
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        # --frozen-lockfile fails rather than quietly resolving something new,
+        # which is what makes the lockfile a supply-chain control instead of a
+        # suggestion. postinstall runs `prisma generate`.
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        # deploy, never `migrate dev`: CI must run exactly the SQL that
+        # production will run, including the 28 CHECK constraints.
+        run: pnpm db:deploy
+
+      - name: Seed demo data
+        # The build pre-renders product pages, so it needs products to exist.
+        run: pnpm db:seed
+
+      - name: Typecheck, lint, format, test, build
+        run: pnpm check

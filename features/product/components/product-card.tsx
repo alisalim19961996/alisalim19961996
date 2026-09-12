@@ -60,7 +60,7 @@ export async function ProductCard({
         className,
       )}
     >
-      <div className="relative aspect-[4/5] overflow-hidden bg-canvas">
+      <div className="relative aspect-product overflow-hidden bg-canvas">
         {image ? (
           <Image
             src={image.url}

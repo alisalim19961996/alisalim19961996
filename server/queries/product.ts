@@ -2,6 +2,7 @@ import 'server-only';
 import { AttributeDataType } from '@prisma/client';
 import { db } from '@/server/db/client';
 import type { Locale } from '@/i18n/routing';
+import { RELATED_PRICE_SPREAD, RELATED_SIZE } from '@/config/ui';
 
 /**
  * Product detail reads.
@@ -257,9 +258,9 @@ export async function getRelatedProducts(
   productId: string,
   productTypeKey: string,
   minPriceIqd: number | null,
-  take = 4,
+  take = RELATED_SIZE,
 ) {
-  const spread = minPriceIqd ? Math.round(minPriceIqd * 0.4) : null;
+  const spread = minPriceIqd ? Math.round(minPriceIqd * RELATED_PRICE_SPREAD) : null;
 
   return db.product.findMany({
     where: {

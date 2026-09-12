@@ -14,7 +14,7 @@ export default function LocaleLoading() {
             <Skeleton className="h-12 w-40" />
           </div>
         </div>
-        <Skeleton className="aspect-[4/5] w-full max-w-md justify-self-center" />
+        <Skeleton className="aspect-product w-full max-w-md justify-self-center" />
       </div>
     </div>
   );
