@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Settings, Store, Truck } from 'lucide-react';
+import { Boxes, LayoutDashboard, Package, Settings, Store, Truck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Logo } from '@/components/layout/logo';
 import { SignOutButton } from '@/features/auth/components/sign-out-button';
@@ -16,6 +16,7 @@ import { SignOutButton } from '@/features/auth/components/sign-out-button';
 export interface AdminLabels {
   dashboard: string;
   orders: string;
+  products: string;
   settings: string;
   delivery: string;
   viewStore: string;
@@ -26,6 +27,7 @@ export interface AdminLabels {
 const NAV = [
   { href: '/admin', labelKey: 'dashboard', icon: LayoutDashboard },
   { href: '/admin/orders', labelKey: 'orders', icon: Package },
+  { href: '/admin/products', labelKey: 'products', icon: Boxes },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },
 ] as const;

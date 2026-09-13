@@ -7,10 +7,18 @@ import {
   updateSiteSettings,
 } from '@/server/services/admin-settings';
 import {
+  createProduct,
+  deleteProduct,
+  ProductAdminError,
+  setProductPublished,
+  updateProduct,
+} from '@/server/services/admin-products';
+import {
   advanceOrderSchema,
   deliveryRateSchema,
   siteSettingsSchema,
 } from '@/schemas/admin';
+import { productFormSchema } from '@/schemas/product';
 import { InvalidOrderTransitionError } from '@/lib/domain/order-state';
 import { ForbiddenError, UnauthenticatedError } from '@/server/auth/guards';
 
@@ -27,6 +35,12 @@ export interface AdminActionResult {
   ok: boolean;
   /** Key under the `admin` namespace in messages/, never a ready-made sentence. */
   errorKey?: string;
+  /**
+   * The field the error belongs to, where one applies — an attribute key, a
+   * SKU. An error with nowhere to point sends the owner hunting through a form
+   * with forty inputs.
+   */
+  field?: string;
 }
 
 /**
@@ -42,6 +56,9 @@ function toResult(error: unknown): AdminActionResult {
   }
   if (error instanceof OrderAdminError) {
     return { ok: false, errorKey: error.code };
+  }
+  if (error instanceof ProductAdminError) {
+    return { ok: false, errorKey: error.code, field: error.field };
   }
   if (error instanceof UnauthenticatedError || error instanceof ForbiddenError) {
     return { ok: false, errorKey: 'notAllowed' };
@@ -111,5 +128,95 @@ export async function updateSiteSettingsAction(
   }
 
   revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------
+
+export interface SaveProductActionResult extends AdminActionResult {
+  /** Present on success, so the form can navigate to the product it created. */
+  productId?: string;
+  /**
+   * Variants the owner removed that had already been sold. They are
+   * deactivated rather than deleted, and the form says so instead of letting
+   * the owner believe they are gone.
+   */
+  deactivatedVariantCount?: number;
+}
+
+/**
+ * Create or update a product.
+ *
+ * One action for both, because the form is the same form and the validation is
+ * the same validation — splitting them would mean two places to forget a rule.
+ * `id` is the only thing that decides which it is, and it comes from the route,
+ * not from the payload the browser could rewrite.
+ */
+export async function saveProductAction(
+  id: string | null,
+  input: unknown,
+): Promise<SaveProductActionResult> {
+  const parsed = productFormSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      ok: false,
+      errorKey: issue?.message ?? 'invalidRequest',
+      field: issue?.path.join('.'),
+    };
+  }
+
+  let result;
+  try {
+    result = id
+      ? await updateProduct(id, parsed.data)
+      : await createProduct(parsed.data);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/products', 'page');
+  // The storefront caches hard: the catalogue, the homepage rails and the
+  // product page itself are all pre-rendered, so an edit that is not
+  // revalidated is an edit the customer never sees.
+  revalidatePath('/[locale]/products', 'page');
+  revalidatePath(`/[locale]/products/${result.slug}`, 'page');
+  revalidatePath('/[locale]', 'page');
+
+  return {
+    ok: true,
+    productId: result.id,
+    deactivatedVariantCount: result.deactivatedVariantCount,
+  };
+}
+
+export async function setProductPublishedAction(input: {
+  id: string;
+  isPublished: boolean;
+}): Promise<AdminActionResult> {
+  try {
+    await setProductPublished(input.id, input.isPublished);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/products', 'page');
+  revalidatePath('/[locale]/products', 'page');
+  revalidatePath('/[locale]', 'page');
+  return { ok: true };
+}
+
+export async function deleteProductAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteProduct(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/products', 'page');
+  revalidatePath('/[locale]/products', 'page');
+  revalidatePath('/[locale]', 'page');
   return { ok: true };
 }

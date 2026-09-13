@@ -46,6 +46,7 @@ export default async function AdminLayout({
       labels={{
         dashboard: t('dashboard'),
         orders: t('orders'),
+        products: t('products'),
         settings: t('settings'),
         delivery: t('delivery'),
         viewStore: t('viewStore'),

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DatabaseSetupError, diagnoseDatabaseError } from '@/server/db/diagnose';
+import {
+  DatabaseSetupError,
+  diagnoseDatabaseError,
+  uniqueConstraintName,
+} from '@/server/db/diagnose';
 
 /**
  * These matter because the failure they prevent is expensive in a very ordinary
@@ -66,5 +70,57 @@ describe('diagnoseDatabaseError', () => {
   it('ignores a non-string code', () => {
     const odd = Object.assign(new Error('x'), { code: 1001 });
     expect(diagnoseDatabaseError(odd)).toBe(odd);
+  });
+});
+
+describe('uniqueConstraintName', () => {
+  /**
+   * Both shapes matter, and only one of them is what this project actually
+   * sees: Prisma's classic engine fills `meta.target`, while the pg driver
+   * adapter used here leaves it undefined and reports the constraint under
+   * `meta.driverAdapterError`. A reader that only knows `target` passes every
+   * unit test and then fails against the real database — which is exactly how
+   * "this SKU is taken" became "something went wrong".
+   */
+  const p2002 = (meta: unknown) =>
+    Object.assign(new Error('unique'), {
+      code: 'P2002',
+      name: 'PrismaClientKnownRequestError',
+      meta,
+    });
+
+  it('reads the classic engine shape', () => {
+    expect(uniqueConstraintName(p2002({ target: ['slugEn'] }))).toBe('slugEn');
+    expect(uniqueConstraintName(p2002({ target: 'sku' }))).toBe('sku');
+  });
+
+  it('reads the pg driver adapter shape', () => {
+    const meta = {
+      driverAdapterError: {
+        cause: {
+          kind: 'UniqueConstraintViolation',
+          constraint: { index: 'product_variant_sku_key' },
+        },
+      },
+    };
+    expect(uniqueConstraintName(p2002(meta))).toBe('product_variant_sku_key');
+  });
+
+  it('reads a column list from the adapter too', () => {
+    const meta = {
+      driverAdapterError: { cause: { constraint: { fields: ['slugAr', 'slugEn'] } } },
+    };
+    expect(uniqueConstraintName(p2002(meta))).toBe('slugAr,slugEn');
+  });
+
+  it('is null for anything that is not a unique violation', () => {
+    expect(uniqueConstraintName(prismaError('P2025'))).toBeNull();
+    expect(uniqueConstraintName(new Error('boom'))).toBeNull();
+    expect(uniqueConstraintName(null)).toBeNull();
+  });
+
+  it('is null when P2002 carries no usable constraint', () => {
+    expect(uniqueConstraintName(p2002(undefined))).toBeNull();
+    expect(uniqueConstraintName(p2002({}))).toBeNull();
   });
 });

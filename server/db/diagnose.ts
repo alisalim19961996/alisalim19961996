@@ -97,3 +97,46 @@ export function diagnoseDatabaseError(error: unknown): unknown {
 
   return new DatabaseSetupError(code, failure.cause, failure.fix, error);
 }
+
+/**
+ * The name of the unique constraint a P2002 violated.
+ *
+ * Prisma reports this in two different shapes, and which one you get depends
+ * on how the client connects. The classic engine fills `meta.target` with the
+ * columns; the **pg driver adapter this project uses** leaves `target`
+ * undefined and reports the constraint it violated under
+ * `meta.driverAdapterError.cause.constraint` instead.
+ *
+ * Reading only `target` therefore works in a unit test and fails against the
+ * real database — silently, by falling through to "something went wrong" on
+ * the one error the caller most wants to name. Both shapes are read here, in
+ * the one module that is allowed to know what a Prisma error looks like.
+ */
+export function uniqueConstraintName(error: unknown): string | null {
+  if (codeOf(error) !== 'P2002') return null;
+
+  const meta = (error as { meta?: unknown }).meta;
+  if (!isRecord(meta)) return null;
+
+  const parts: string[] = [];
+
+  const target = meta['target'];
+  if (Array.isArray(target)) parts.push(...target.map(String));
+  else if (typeof target === 'string') parts.push(target);
+
+  const adapterError = meta['driverAdapterError'];
+  const cause = isRecord(adapterError) ? adapterError['cause'] : undefined;
+  const constraint = isRecord(cause) ? cause['constraint'] : undefined;
+  if (isRecord(constraint)) {
+    const index = constraint['index'];
+    if (typeof index === 'string') parts.push(index);
+    const fields = constraint['fields'];
+    if (Array.isArray(fields)) parts.push(...fields.map(String));
+  }
+
+  return parts.length === 0 ? null : parts.join(',');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}

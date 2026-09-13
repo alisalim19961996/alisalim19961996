@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Field, FormSection, TextArea } from './form-fields';
 import { updateSiteSettingsAction, type AdminActionResult } from '../actions';
 
 export interface SiteSettingsValues {
@@ -36,7 +36,7 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
 
   return (
     <form action={formAction} className="space-y-8">
-      <Section title={t('storeIdentity')}>
+      <FormSection title={t('storeIdentity')}>
         <Field
           name="storeNameAr"
           label={t('storeNameAr')}
@@ -50,9 +50,9 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
           dir="ltr"
           required
         />
-      </Section>
+      </FormSection>
 
-      <Section title={t('contact')}>
+      <FormSection title={t('contact')}>
         <Field
           name="contactPhone"
           label={t('contactPhone')}
@@ -75,9 +75,9 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
           type="email"
           dir="ltr"
         />
-      </Section>
+      </FormSection>
 
-      <Section title={t('deliveryDefaults')}>
+      <FormSection title={t('deliveryDefaults')}>
         <Field
           name="defaultDeliveryIqd"
           label={t('defaultDeliveryIqd')}
@@ -97,9 +97,9 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
           // would make every order qualify for free delivery.
           hint={t('freeDeliveryHint')}
         />
-      </Section>
+      </FormSection>
 
-      <Section title={t('warranty')}>
+      <FormSection title={t('warranty')}>
         <TextArea
           name="warrantyNoteAr"
           label={t('warrantyNoteAr')}
@@ -111,7 +111,7 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
           defaultValue={values.warrantyNoteEn}
           dir="ltr"
         />
-      </Section>
+      </FormSection>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={pending}>
@@ -132,52 +132,5 @@ export function SettingsForm({ values }: { values: SiteSettingsValues }) {
         )}
       </div>
     </form>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-[--radius-card] border border-border bg-surface p-5">
-      <h2 className="text-sm font-semibold text-ink">{title}</h2>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">{children}</div>
-    </section>
-  );
-}
-
-function Field({
-  name,
-  label,
-  hint,
-  ...props
-}: { name: string; label: string; hint?: string } & React.ComponentProps<'input'>) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={name} className="text-sm font-medium text-ink">
-        {label}
-      </label>
-      <Input id={name} name={name} {...props} />
-      {hint && <p className="text-xs text-muted">{hint}</p>}
-    </div>
-  );
-}
-
-function TextArea({
-  name,
-  label,
-  ...props
-}: { name: string; label: string } & React.ComponentProps<'textarea'>) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={name} className="text-sm font-medium text-ink">
-        {label}
-      </label>
-      <textarea
-        id={name}
-        name={name}
-        rows={3}
-        className="w-full rounded-[--radius-control] border border-border bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
-        {...props}
-      />
-    </div>
   );
 }

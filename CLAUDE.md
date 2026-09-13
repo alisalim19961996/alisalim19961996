@@ -252,6 +252,9 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                         |
 | `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                |
 | `/[locale]/admin/orders/[orderNumber]`     | Dynamic      | One order: status controls, timeline, customer, money                   |
+| `/[locale]/admin/products`                 | Dynamic      | Catalogue list: published/draft tabs, search, paging, publish toggle    |
+| `/[locale]/admin/products/new`             | Dynamic      | Add a product                                                           |
+| `/[locale]/admin/products/[id]`            | Dynamic      | Edit a product; delete refused once it has been sold                    |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                             |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                             |
 | `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)             |
@@ -345,7 +348,15 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 "buy now"), `CartLines`, `CartCountBadge` (client-side; see §8),
 `CheckoutForm`, `OrderDetail`, `TrackForm`.
 
-**Admin** — `features/admin/components/`: `AdminShell` (plain by design —
+**Admin** — `features/admin/components/`: `form-fields.tsx` (`FormSection`,
+`CollapsibleSection`, `Field`, `TextArea`, `Select`, `Checkbox`,
+`RepeatableRow` — one definition shared by every admin form, so a second form
+cannot quietly lose the invalid state or a label's `htmlFor`), `ProductForm`
+(add + edit in one component), `ProductAttributeFields` (**the specification
+inputs are generated from the chosen type's `ProductTypeAttribute` rows — this
+file knows nothing about phones**), `ProductVariantsEditor` (options, then the
+variants they generate), `ProductMediaEditor`, `ProductPublishToggle` /
+`ProductDeleteButton`, `AdminShell` (plain by design —
 density beats atmosphere for someone processing forty orders a day),
 `OrderStatusBadge` (only PENDING is brand-coloured, because it is the only one
 that means "act now"), `OrderActions` (buttons come from the state machine, so
@@ -422,7 +433,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **246 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **470 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -507,6 +518,39 @@ POST, not a GET: a phone number in a URL lands in history, logs and Referer.
 Payment is COD only today, behind `PaymentMethod`, so an Iraqi gateway can be
 added without touching order code.
 
+**Editing the catalogue** — `server/services/admin-products.ts`, with the pure
+parts in `lib/domain/product.ts`. One transaction per save; a product whose
+variants were written but whose specifications were not would render an empty
+spec table with nothing to say it failed.
+
+- **Specifications are routed by their own definition.** `parseAttributeValue`
+  decides which of the five typed columns a value lands in, from the
+  `AttributeDefinition.type`. A key the chosen product type does not declare is
+  rejected rather than stored — a stray row would never render (the product
+  page reads through `ProductTypeAttribute`) and would survive every later
+  edit unseen. A cleared optional attribute loses its row; an absent
+  specification is hidden, while one stored empty renders a blank line.
+- **Options are replaced wholesale; variants never are.** Options carry no
+  history. Variants are referenced by `CartItem` (cascade) and `OrderItem`
+  (set null), so they are matched by id then SKU and updated in place. A
+  removed variant that was never ordered is deleted; one that **was** ordered
+  is deactivated instead, and the count is reported so the owner is told rather
+  than left guessing.
+- **`minPriceIqd` is recomputed from what was actually written**, not from what
+  the form claimed, and excludes inactive variants — a price nobody can buy is
+  a bait price.
+- **Deleting a product that appears in any order is refused.** `SetNull` would
+  cut past invoices loose from the row they were sold from; the snapshot keeps
+  them rendering, which is exactly what makes the damage invisible.
+  Unpublishing is the reversible answer, and the error says so.
+- **A unique-constraint violation names its own field.** Which field _is_ the
+  message, and only the constraint name distinguishes slug from SKU. Reading it
+  is `server/db/diagnose.ts`'s job, because Prisma reports it in two different
+  shapes and **the pg driver adapter this project uses leaves `meta.target`
+  undefined** — a reader that only knows `target` passes every unit test and
+  then silently degrades to "something went wrong" against the real database.
+  That is exactly how it was found here.
+
 ---
 
 ## 13. DO NOT CHANGE without explicit owner approval
@@ -580,6 +624,21 @@ confirmation page and public tracking by number + phone. Verified end to end by
 driving the built site: add → badge → cart → quantity → checkout → order →
 tracking, plus a second browser proving an order does not leak.
 
+**Phase 5.1 — the catalogue in the owner's hands**: add, edit, publish and
+delete products from the dashboard. The specification fields are _generated_
+from `ProductTypeAttribute`, so a new product type is data entry and this code
+does not change — proved by an integration test that invents a product type
+with its own integer, text and enum specifications and saves a product of it
+through the ordinary service. Options and the variants they generate are edited
+together, with a one-click matrix generator. Editing never destroys history: a
+variant is matched by id then SKU and updated in place so live carts and past
+order lines keep pointing at it, a removed variant that was sold is deactivated
+rather than deleted, and deleting a product that appears in any order is
+refused outright. Verified by driving the built site: signing in, switching the
+product type and watching 19 phone specifications become 6 accessory ones,
+generating variants, saving, and finding the product live on the storefront
+with its specs, options and price.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -604,9 +663,9 @@ review, performance pass, e2e tests (Phase 6).
 | No e2e tests                                       | Filter/variant behaviour verified manually       | Playwright in Phase 6                            |
 | Layout checks are manual                           | Overflow + buy-bar clearance driven by hand      | Fold into the Playwright suite in Phase 6        |
 | No cache layer                                     | Catalogue runs 2 queries per visit               | `unstable_cache` + tags when the catalogue grows |
-| Product create/edit not in the dashboard           | Catalogue changes still need the seed or Studio  | Phase 5 — the schema is already data-driven (§6) |
+| No image **upload**; paths are typed by hand       | Photos must be dropped into `public/` first      | Phase 5.2 — needs a storage decision (§19)       |
 | Coupons are schema-only                            | `discountIqd` is always 0                        | Phase 5; `orderTotals` already takes a discount  |
-| No image upload                                    | Real photography cannot be added from the admin  | Phase 5; must reject SVG (§18)                   |
+| Brands, categories and product types are seed-only | A new brand still needs Studio                   | Phase 5.3                                        |
 | No sign-up or account pages                        | Customers order as guests; staff are seeded      | Phase 5                                          |
 | Staff roles are set in the database                | No user management screen                        | Phase 5                                          |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                    | Split to JSON if it grows                        |
@@ -641,12 +700,14 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **156 tests**: 138 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **210 tests**: 184 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
-parsing, catalogue param parsing, cart and delivery arithmetic, order numbers)
-plus 17 architecture guardrail cases in `tests/architecture.test.ts`.
+parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
+product slugs, per-type attribute coercion, variant labels, option
+combinations, and both shapes of a Prisma unique-constraint error) plus 26
+architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **18 tests against a real Postgres** (order placement, concurrency, and the admin lifecycle: release on cancel, consume on delivery, payment settlement), run by
+`pnpm test:integration` — **34 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order), run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
 money, and what makes it correct — a transaction that must roll back whole, a
 conditional UPDATE two checkouts race for, constraints Postgres enforces —
@@ -784,25 +845,33 @@ admin image uploads must reject SVG.
 
 ## 19. NEXT STEPS
 
-**Phases 1–4 complete.** The store sells (cart, checkout, COD orders, tracking)
-and the owner runs it (sign-in, order queue, status changes with stock and
-payment settlement, delivery pricing, store settings).
+**Phases 1–4 and 5.1 complete.** The store sells (cart, checkout, COD orders,
+tracking), the owner runs it (sign-in, order queue, status changes with stock
+and payment settlement, delivery pricing, store settings), **and the owner owns
+the catalogue** (add, edit, publish, delete products; specifications generated
+per product type).
 
-**Phase 5 — the catalogue in the owner's hands (next):**
+**Phase 5.2 — photography (next), and it needs one owner decision.**
+Images are typed as paths under `public/` today, which works on the owner's own
+machine and nowhere else: `next.config.ts` allows no remote hosts, and a
+serverless host has no writable disk. Uploading needs a destination, and the
+obvious one is **Supabase Storage**, since the database is already there. The
+alternative is the local filesystem, which rules out Vercel-style hosting.
+Whatever is chosen, the endpoint **must reject SVG** — `dangerouslyAllowSVG` is
+off (§18) because an SVG is a script delivered as a picture — and must be
+validated by content, not by file extension.
 
-1. **Product create/edit in the dashboard.** The schema is already
-   data-driven, so the form is generated from `ProductTypeAttribute` rather
-   than written per type — that is the whole point of §6, and adding "laptops"
-   must stay data entry.
-2. **Image upload that rejects SVG.** `dangerouslyAllowSVG` is off (§18), and
-   an SVG is a script delivered as a picture. This is what replaces the
-   generated demo silhouettes with real photography.
-3. **Sign-up and account pages** — order history for a signed-in customer,
+**Then:**
+
+1. **Brands, categories and product types from the dashboard**, so adding
+   "laptops" is complete without Studio. The services are the same shape as
+   `admin-products.ts`; the schema already allows it.
+2. **Sign-up and account pages** — order history for a signed-in customer,
    using the same `findOwnedOrder` path that already exists.
-4. **User management** so staff can be created without touching the database.
-5. Offers and coupons: `orderTotals` already takes a discount and the schema
+3. **User management** so staff can be created without touching the database.
+4. Offers and coupons: `orderTotals` already takes a discount and the schema
    and constraints exist; nothing computes one yet.
-6. Wishlist, compare, reviews, blog.
+5. Wishlist, compare, reviews, blog.
 
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 accessibility audit, security review, performance pass and a cache layer.
@@ -810,8 +879,6 @@ accessibility audit, security review, performance pass and a cache layer.
 **Owner inputs still needed before launch:** real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
 production `DATABASE_URL`, and a mail provider for password reset.
-
-<!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
 
