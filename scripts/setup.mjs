@@ -95,6 +95,49 @@ function run(command, args, env = {}) {
   });
 }
 
+/**
+ * The password as it literally appears in the connection string.
+ *
+ * Read by hand rather than with `new URL()`, because the whole point is to
+ * inspect a string the URL parser may already have misread — which is the bug
+ * this catches.
+ */
+function rawPasswordOf(url) {
+  const afterScheme = url.replace(/^postgres(?:ql)?:\/\//i, '');
+  const at = afterScheme.lastIndexOf('@');
+  if (at === -1) return null;
+  const credentials = afterScheme.slice(0, at);
+  const colon = credentials.indexOf(':');
+  return colon === -1 ? null : credentials.slice(colon + 1);
+}
+
+/**
+ * Why a password that "looks right" is rejected.
+ *
+ * Postgres only ever reports "password authentication failed", which is true
+ * and useless: it cannot know the password was mangled before it arrived.
+ * Two ways that happens, and both look identical from the outside:
+ *
+ *  - the placeholder was never replaced;
+ *  - the password contains a character with a meaning inside a URL. `#` is the
+ *    cruel one — everything after it is a fragment, so `abc#123` is sent as
+ *    `abc` and nothing anywhere says so.
+ */
+function passwordProblem(url) {
+  const raw = rawPasswordOf(url);
+  if (raw === null) return null;
+
+  if (/\[.*\]/.test(raw) || raw.toUpperCase().includes('YOUR-PASSWORD')) {
+    return { kind: 'placeholder' };
+  }
+  if (raw === '') return { kind: 'empty' };
+
+  const offenders = [...new Set([...raw])].filter((ch) => '#?/@:[] '.includes(ch));
+  if (offenders.length > 0) return { kind: 'needsEncoding', offenders };
+
+  return null;
+}
+
 async function main() {
   say(`${c.bold}إعداد متجر MPS${c.reset}`);
   say(`${c.dim}يجهّز كل شي، ويكولك بالضبط وين المشكلة إذا صارت.${c.reset}`);
@@ -219,6 +262,30 @@ async function main() {
     fail('فشل الاتصال بقاعدة البيانات.');
     say('');
     say(`  ${c.bold}${c.yellow}السبب:${c.reset} ${explainConnectionError(error)}`);
+
+    // Postgres can only say "authentication failed". These two causes mangle
+    // the password before it ever reaches the server, so the server has no way
+    // to describe them — but the connection string still does.
+    const problem = passwordProblem(url);
+    if (problem?.kind === 'placeholder') {
+      say('');
+      warn('كلمة المرور بعدها النص التجريبي — ما انبدّلت.');
+      say('  شيل [YOUR-PASSWORD] وحط كلمة المرور الحقيقية مكانها.');
+    } else if (problem?.kind === 'empty') {
+      say('');
+      warn('ماكو كلمة مرور بالرابط إطلاقًا — المكان بين : و @ فارغ.');
+    } else if (problem?.kind === 'needsEncoding') {
+      say('');
+      warn(`كلمة المرور بيها رموز تكسر الرابط: ${problem.offenders.join(' ')}`);
+      say('  الرمز # هو الأخطر: كلشي بعده ينحذف بصمت، فتنرسل كلمة مرور ناقصة.');
+      say('');
+      say(`  ${c.bold}الحل الأسهل:${c.reset} بدّل كلمة مرور قاعدة البيانات لوحدة`);
+      say('  بحروف إنكليزية وأرقام فقط، بدون أي رمز:');
+      say(
+        `  ${c.dim}Supabase ← Project Settings ← Database ← Reset database password${c.reset}`,
+      );
+    }
+
     say('');
     say(`  ${c.dim}الرسالة الأصلية: ${String(error?.message ?? error)}${c.reset}`);
     await client.end().catch(() => {});
