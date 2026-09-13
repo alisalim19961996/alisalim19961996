@@ -148,7 +148,12 @@
     "signingIn": "جاري الدخول…",
     "signInHint": "ادخل لحسابك أو لوحة التحكم.",
     "guestCheckoutNote": "ما تحتاج حساب حتى تطلب — تكدر تشتري كزائر.",
-    "tooManyAttempts": "محاولات كثيرة. انتظر دقيقة وجرّب بعدين."
+    "tooManyAttempts": "محاولات كثيرة. انتظر دقيقة وجرّب بعدين.",
+    "continueWithGoogle": "تابع بحساب Google",
+    "or": "أو",
+    "googleFailed": "ما زبط تسجيل الدخول بـ Google. جرب مرة ثانية.",
+    "googleUnavailable": "تسجيل الدخول بـ Google مو متاح حاليًا.",
+    "googleUseYourPassword": "هذا البريد عنده حساب بكلمة مرور بهذا المتجر. سجّل دخول بكلمة المرور — بعدها نكدر نربط حساب Google."
   },
   "validation": {
     "required": "هذا الحقل مطلوب",

@@ -3,6 +3,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { Logo } from '@/components/layout/logo';
 import { SignInForm } from '@/features/auth/components/sign-in-form';
+import { GoogleSignInButton } from '@/features/auth/components/google-sign-in-button';
+import { isGoogleSignInConfigured } from '@/config/env';
 import { getCurrentUser, isStaff } from '@/server/auth/guards';
 import type { Locale } from '@/i18n/routing';
 
@@ -21,9 +23,9 @@ export default async function SignInPage({
   searchParams,
 }: {
   params: Promise<{ locale: Locale }>;
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const [{ locale }, { next }] = await Promise.all([params, searchParams]);
+  const [{ locale }, { next, error }] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
 
   const t = await getTranslations('auth');
@@ -55,11 +57,49 @@ export default async function SignInPage({
             used as a redirect target — so a crafted ?next= cannot bounce a
             signed-in user to an attacker's URL.
           */}
+          {/*
+            An OAuth failure comes back here as ?error=<code> rather than on
+            better-auth's own bare error page, so it is explained in the
+            customer's language on the page they started from.
+          */}
+          {error && (
+            <p
+              role="alert"
+              className="mb-4 rounded-[--radius-control] bg-danger-soft px-3 py-2 text-sm text-danger"
+            >
+              {t(oauthErrorKey(error))}
+            </p>
+          )}
+
           <SignInForm redirectTo={next === 'admin' ? 'admin' : undefined} />
+
+          {isGoogleSignInConfigured && (
+            <>
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-xs text-subtle">{t('or')}</span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <GoogleSignInButton redirectTo={next === 'admin' ? 'admin' : undefined} />
+            </>
+          )}
         </div>
 
         <p className="mt-6 text-center text-xs text-muted">{t('guestCheckoutNote')}</p>
       </div>
     </main>
   );
+}
+
+/**
+ * Translate better-auth's OAuth error code into something a customer can act on.
+ *
+ * `account_not_linked` is the one that needs its own wording: it means the
+ * address already has a password account here that has never been verified,
+ * so it is deliberately *not* linked (see server/auth/auth.ts). "Sign-in
+ * failed" would send the customer round the same loop; naming the password is
+ * the only thing that gets them in.
+ */
+function oauthErrorKey(code: string): string {
+  return code === 'account_not_linked' ? 'googleUseYourPassword' : 'googleFailed';
 }

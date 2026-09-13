@@ -148,7 +148,12 @@
     "signingIn": "Signing in…",
     "signInHint": "Sign in to your account or the dashboard.",
     "guestCheckoutNote": "You do not need an account to order — you can buy as a guest.",
-    "tooManyAttempts": "Too many attempts. Wait a minute and try again."
+    "tooManyAttempts": "Too many attempts. Wait a minute and try again.",
+    "continueWithGoogle": "Continue with Google",
+    "or": "or",
+    "googleFailed": "Google sign-in did not go through. Try again.",
+    "googleUnavailable": "Google sign-in is not available right now.",
+    "googleUseYourPassword": "This address already has a password account here. Sign in with your password first, then Google can be linked."
   },
   "validation": {
     "required": "This field is required",

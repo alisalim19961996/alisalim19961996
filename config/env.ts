@@ -55,6 +55,19 @@ const storageEnvSchema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
 });
 
+/**
+ * Google sign-in. Optional, like storage.
+ *
+ * Email and password stays enabled alongside it: not every customer in Iraq
+ * has a Google account, and the store's own staff accounts are addresses on
+ * the shop's domain. Google is an additional door, never a replacement for the
+ * one that already works.
+ */
+const googleEnvSchema = z.object({
+  GOOGLE_CLIENT_ID: z.string().min(10).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(10).optional(),
+});
+
 /** How to obtain each value, shown alongside the variable that is missing. */
 const REMEDIES: Record<string, string> = {
   DATABASE_URL:
@@ -74,6 +87,12 @@ const REMEDIES: Record<string, string> = {
     '      SECRET: it bypasses every row-level policy. Server-side only,\n' +
     '      never in a NEXT_PUBLIC_ variable, never committed.',
   SUPABASE_STORAGE_BUCKET: 'The storage bucket name. Defaults to product-images.',
+  GOOGLE_CLIENT_ID:
+    'Google Cloud console → APIs & Services → Credentials →\n' +
+    '      OAuth client ID (Web application). Add the redirect URI\n' +
+    '      <BETTER_AUTH_URL>/api/auth/callback/google exactly.',
+  GOOGLE_CLIENT_SECRET:
+    'The same OAuth client. SECRET: server-side only, never committed.',
 };
 
 function formatIssues(issues: readonly z.core.$ZodIssue[]): string {
@@ -150,4 +169,23 @@ export const storageEnv = parseStorageEnv();
  */
 export const isUploadConfigured = Boolean(
   storageEnv.SUPABASE_URL && storageEnv.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+function parseGoogleEnv() {
+  const parsed = googleEnvSchema.safeParse(process.env);
+  if (!parsed.success) throw envError('google', parsed.error.issues);
+  return parsed.data;
+}
+
+export const googleEnv = parseGoogleEnv();
+
+/**
+ * Whether "continue with Google" can work.
+ *
+ * Half-configured is the same as unconfigured: an id with no secret cannot
+ * complete the exchange, and a button that always ends on an error page is
+ * worse than no button.
+ */
+export const isGoogleSignInConfigured = Boolean(
+  googleEnv.GOOGLE_CLIENT_ID && googleEnv.GOOGLE_CLIENT_SECRET,
 );

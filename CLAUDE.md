@@ -204,6 +204,27 @@ under `server/auth/` carries `import 'server-only'`.
 
 - Email + password, minimum 8 characters. Email verification is **off** until a
   mail provider is configured.
+- **Google sign-in is optional and additive.** Configured only when
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set; otherwise no
+  provider is registered and no button is rendered. Email + password stays
+  enabled either way — not every customer in Iraq has a Google account, and
+  staff accounts are addresses on the shop's own domain.
+- **Account linking is deliberately conditional**, in `server/auth/auth.ts`:
+  `accountLinking: { enabled: true, trustedProviders: ['google'],
+requireLocalEmailVerified: true }`. Google's word that an address is verified
+  can be trusted. The _local_ account's cannot: `requireEmailVerification` is
+  false, so anyone can register `victim@gmail.com` with a password they choose.
+  Without `requireLocalEmailVerified`, the real owner of that address signing in
+  with Google would land inside the attacker's account and see nothing unusual.
+  With it, better-auth refuses and answers `account_not_linked`, which the
+  sign-in page explains in the customer's own language. It is written out rather
+  than left to its default because it is the entire safety property — **do not
+  remove it when email verification is switched on.**
+- An OAuth sign-in returns through `/api/session/claim-cart`, which folds the
+  anonymous cart into the account and revalidates, so a Google sign-in and a
+  password sign-in leave the cart in the same state. Its `next` parameter is
+  rejected unless it is a same-site path — `//evil.example` is a
+  protocol-relative URL that a "starts with /" check would honour.
 - Sessions in the database, 30 days, cookie prefix `mps`, `httpOnly` +
   `sameSite=lax`. **`Secure` follows `BETTER_AUTH_URL`'s scheme, not
   `NODE_ENV`.** Keying it off NODE_ENV meant `pnpm build && pnpm start` on
@@ -259,6 +280,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
 | `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)              |
 | `/api/admin/upload`                        | Route        | Product image upload (staff only); a route, not an action, for body size |
+| `/api/session/claim-cart`                  | Route        | Where OAuth lands: merges the anonymous cart, then forwards              |
 | `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                          |
 
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
@@ -364,7 +386,10 @@ that means "act now"), `OrderActions` (buttons come from the state machine, so
 an illegal move cannot be offered), `DeliveryRatesTable` (saves per row),
 `SettingsForm`.
 
-**Auth** — `features/auth/`: `SignInForm`, `SignOutButton`, `auth-client.ts`.
+**Auth** — `features/auth/`: `SignInForm`, `GoogleSignInButton` (rendered only
+when Google is configured; the mark lives in `public/brand/google.svg` because
+its four colours belong to Google, are not design tokens, and must never enter
+`@theme`), `SignOutButton`, `auth-client.ts`.
 
 **Domain helpers** — `lib/`: `money.ts`, `phone.ts` (Iraqi E.164 normalisation),
 `search.ts` (Arabic folding + transliteration), `video.ts` (YouTube id
@@ -434,7 +459,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **476 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **481 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -652,6 +677,10 @@ come from the format actually detected. Uploads are **optional**: with no keys
 configured the form asks for a path under `public/`, which is all a local
 machine needs.
 
+**Phase 5.3 — Google sign-in**: optional, additive, and conditional on the
+local account being verified before anything is linked (§7). Needs no schema
+change — better-auth's `Account` table already carries the provider tokens.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -686,7 +715,7 @@ review, performance pass, e2e tests (Phase 6).
 | Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404  | Built in Phases 4–5                                 |
 | No mail provider                                   | Password reset cannot send                        | `MailProvider` abstraction before launch            |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                     | Consider sticky panel                               |
-| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                     | Keep                                                |
+| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                      | Keep                                                |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -824,6 +853,8 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 | `SUPABASE_URL`              | Optional. Project URL for image upload       |
 | `SUPABASE_SERVICE_ROLE_KEY` | Optional. **Secret** — see below             |
 | `SUPABASE_STORAGE_BUCKET`   | Defaults to `product-images`                 |
+| `GOOGLE_CLIENT_ID`          | Optional. Enables "continue with Google"     |
+| `GOOGLE_CLIENT_SECRET`      | Optional. **Secret** — server-side only      |
 
 `config/env.ts` validates these at boot with Zod and fails loudly, with each
 error naming its own fix — including a `DATABASE_URL` that is **still the
@@ -873,23 +904,14 @@ uploads enforce that **by content, not by file name** — renaming an SVG to
 
 ## 19. NEXT STEPS
 
-**Phases 1–4, 5.1 and 5.2 complete.** The store sells (cart, checkout, COD
+**Phases 1–4 and 5.1–5.3 complete.** The store sells (cart, checkout, COD
 orders, tracking), the owner runs it (sign-in, order queue, status changes with
 stock and payment settlement, delivery pricing, store settings), **and the
 owner owns the catalogue** (add, edit, publish, delete products; specifications
 generated per product type; photographs uploaded to Supabase Storage).
+Customers sign in with a password or with Google.
 
-**Phase 5.3 — Google sign-in (next, owner-requested).** better-auth supports it
-behind the same seam (`server/auth/auth.ts`), so no feature code changes. What
-it needs: a Google Cloud OAuth client (id + secret) with
-`<site>/api/auth/callback/google` as an authorised redirect URI, and two new
-env vars. Two decisions to settle first — whether email/password stays
-alongside it (it should, until every customer has a Google account), and what
-happens when a Google email matches an existing password account, since
-better-auth's account linking is off by default and silently linking is how
-one person's orders end up in another person's history.
-
-**Then:**
+**Phase 5.4 — next:**
 
 1. **Brands, categories and product types from the dashboard**, so adding
    "laptops" is complete without Studio. The services are the same shape as
@@ -907,8 +929,10 @@ accessibility audit, security review, performance pass and a cache layer.
 **Owner inputs still needed before launch:** real product photography, the two
 Supabase storage values in `.env` (see `docs/extending-ar.md` §4.6), WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
-production `DATABASE_URL`, a Google OAuth client, and a mail provider for
-password reset.
+production `DATABASE_URL`, a Google OAuth client (`docs/extending-ar.md` §9.6),
+and a mail provider for password reset — which is also what unlocks email
+verification, and with it the safe half of account linking for addresses that
+already have a password here.
 
 # This is NOT the Next.js you know
 

@@ -488,6 +488,67 @@ password for both: xK7pQm2vNbTr
 
 ---
 
+## 9.6 تفعيل تسجيل الدخول بحساب Google
+
+بدون هاي الخطوة الموقع يشتغل عادي — صفحة الدخول تعرض الإيميل وكلمة المرور بس،
+وما يظهر زر Google إطلاقًا.
+
+### الخطوات من Google Cloud
+
+1. افتح [console.cloud.google.com](https://console.cloud.google.com) وسوّي
+   مشروع جديد (أو اختر واحد موجود).
+2. من القائمة: **APIs & Services** ← **OAuth consent screen**
+   - نوع المستخدم: **External**
+   - املأ اسم التطبيق وبريد الدعم — هذا اللي يشوفه الزبون بشاشة Google.
+3. **APIs & Services** ← **Credentials** ← **Create credentials** ←
+   **OAuth client ID**
+   - Application type: **Web application**
+   - تحت **Authorised redirect URIs** أضف بالضبط:
+
+     ```
+     http://localhost:3000/api/auth/callback/google
+     ```
+
+     ولما تنشر الموقع أضف نسخة ثانية بالرابط الحقيقي:
+
+     ```
+     https://your-domain.com/api/auth/callback/google
+     ```
+
+   > **لازم يكون مطابق حرف بحرف** — نفس `http`/`https`، نفس المنفذ، وبدون `/`
+   > زيادة بالآخر. أي اختلاف و Google يرفض ويعطي
+   > `redirect_uri_mismatch`.
+
+4. انسخ **Client ID** و **Client secret** وحطهن بملف `.env`:
+
+```
+GOOGLE_CLIENT_ID="....apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="الصق-السر-هنا"
+```
+
+5. أعد تشغيل الموقع (`pnpm dev`) — زر **تابع بحساب Google** راح يظهر.
+
+> **`GOOGLE_CLIENT_SECRET` سري.** لا ترفعه للكيتهاب ولا تلصقه بأي دردشة.
+> `.env` محمي مسبقًا.
+
+### شغلة مهمة: شنو يصير لو الإيميل موجود من قبل؟
+
+مثال: زبون سجّل بـ `ali@gmail.com` وكلمة مرور، وبعدين جا يدخل بـ Google بنفس
+الإيميل.
+
+**المتجر ما يربطهن تلقائيًا** — ويعطيه رسالة: "سجّل دخول بكلمة المرور أولاً".
+
+**ليش؟** لأن التحقق من البريد الإلكتروني مطفي حاليًا (ما بعد اكو مزوّد إيميل).
+يعني أي واحد يكدر يسجّل بإيميل **مو إله**. لو ربطنا تلقائيًا، جان صاحب
+الإيميل الحقيقي لما يدخل بـ Google يلگى نفسه **داخل حساب شخص ثاني** — وما
+ينتبه، لأن كلشي يبين طبيعي.
+
+الحماية مكتوبة صراحةً بـ `server/auth/auth.ts` تحت
+`accountLinking.requireLocalEmailVerified`. **لا تشيلها** حتى بعد ما نفعّل
+التحقق من البريد — تضل صحيحة بالحالتين.
+
+---
+
 ## 9.9 الموقع يطلع خطأ: "Database not ready"
 
 هذا أكثر خطأ راح تشوفه، وغالبًا **مو خطأ بالكود** — قاعدة البيانات مو شغّالة.
