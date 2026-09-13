@@ -102,7 +102,11 @@ async function checkSupabase(env) {
     response = await fetch(endpoint, {
       method: 'POST',
       headers: {
+        // Both generations of Supabase key at once: the legacy `service_role`
+        // JWT reads from Authorization, the current `sb_secret_...` from
+        // apikey. The owner should not have to know which one they have.
         Authorization: `Bearer ${key}`,
+        apikey: key,
         'Content-Type': 'image/png',
         'x-upsert': 'false',
       },
@@ -117,8 +121,10 @@ async function checkSupabase(env) {
 
   if ([400, 401, 403].includes(response.status)) {
     bad(`المفتاح مرفوض (${response.status}).`);
-    hint('تأكد أنك نسخت مفتاح service_role — مو anon ولا publishable.');
-    hint('Supabase ← Project Settings ← API keys ← service_role');
+    hint('لازم المفتاح السري، مو العام:');
+    hint('  • النظام الجديد: Secret keys ← المفتاح اللي يبدي بـ sb_secret_');
+    hint('  • النظام القديم: تبويب Legacy ← service_role');
+    hint('مفتاح sb_publishable_ أو anon ما ينفع — ما عنده صلاحية رفع.');
     return 'failed';
   }
   if (response.status === 404) {
@@ -138,7 +144,7 @@ async function checkSupabase(env) {
   // health check nobody runs twice.
   const deleted = await fetch(endpoint, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${key}` },
+    headers: { Authorization: `Bearer ${key}`, apikey: key },
   }).catch(() => null);
 
   if (deleted?.ok) ok('والحذف اشتغل — الصلاحيات كاملة وصحيحة.');

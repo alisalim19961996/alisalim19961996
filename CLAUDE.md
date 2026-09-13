@@ -886,6 +886,13 @@ thing that is not wrong. `docs/extending-ar.md` §9.9 has the owner-facing
 version, including starting the Windows service.
 
 **`SUPABASE_SERVICE_ROLE_KEY` bypasses every row-level policy in the project.**
+It holds whichever privileged key the project has: Supabase's legacy
+`service_role` JWT, or the current `sb_secret_...`. Requests carry it in
+**both** `Authorization: Bearer` and `apikey`, because the legacy key
+authenticates through the first and the current one through the second —
+sending both is what Supabase's own client does, and it means the owner never
+has to know which generation their dashboard is showing them. The publishable
+and `anon` keys are not interchangeable with it: they cannot write.
 It is read in exactly one module — `server/services/admin-storage.ts`, which is
 `server-only` and calls `requireStaff()` — and never reaches the browser under
 any name. The bucket `product-images` is public for reads (product photos are

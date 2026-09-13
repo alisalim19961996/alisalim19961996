@@ -37,6 +37,21 @@ export class StorageError extends Error {
   }
 }
 
+/**
+ * How the privileged key is presented to Supabase.
+ *
+ * Supabase has two generations of key. The legacy `service_role` key is a JWT
+ * and authenticates through `Authorization: Bearer`. The current
+ * `sb_secret_...` key is not a JWT, and the gateway reads it from `apikey`.
+ * Sending both is what Supabase's own client does, and it means a project on
+ * either generation works without the owner having to know which they have —
+ * a distinction the dashboard itself only hints at with a tab.
+ */
+function storageAuthHeaders(): Record<string, string> {
+  const key = storageEnv.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  return { Authorization: `Bearer ${key}`, apikey: key };
+}
+
 /** Supabase serves a public bucket's objects from this path, unauthenticated. */
 function publicUrlFor(objectPath: string): string {
   const bucket = storageEnv.SUPABASE_STORAGE_BUCKET;
@@ -87,7 +102,7 @@ export async function uploadProductImage(input: {
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${storageEnv.SUPABASE_SERVICE_ROLE_KEY}`,
+        ...storageAuthHeaders(),
         'Content-Type': inspection.contentType,
         // The object name carries 16 random bytes, so a collision means
         // something is wrong; overwriting silently would hide it.
