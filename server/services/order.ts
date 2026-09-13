@@ -8,7 +8,7 @@ import {
   Prisma,
   type Governorate,
 } from '@prisma/client';
-import { db } from '@/server/db/client';
+import { db, type DbTransaction } from '@/server/db/client';
 import { getCurrentUser } from '@/server/auth/guards';
 import { cartTotals, orderTotals, quoteDelivery } from '@/lib/domain/cart';
 import { isPurchasable } from '@/lib/domain/availability';
@@ -100,7 +100,7 @@ export async function quoteDeliveryFor(governorate: Governorate, subtotalIqd: nu
  * still cannot oversell.
  */
 async function reserveStock(
-  tx: Prisma.TransactionClient,
+  tx: DbTransaction,
   variantId: string,
   quantity: number,
 ): Promise<boolean> {

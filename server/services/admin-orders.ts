@@ -6,7 +6,7 @@ import {
   PaymentStatus,
   type Prisma,
 } from '@prisma/client';
-import { db } from '@/server/db/client';
+import { db, type DbTransaction } from '@/server/db/client';
 import { requireStaff } from '@/server/auth/guards';
 import { assertTransition, holdsReservation } from '@/lib/domain/order-state';
 
@@ -43,7 +43,7 @@ export class OrderAdminError extends Error {
  * skipped entirely.
  */
 async function releaseReservation(
-  tx: Prisma.TransactionClient,
+  tx: DbTransaction,
   orderId: string,
   actorId: string,
 ): Promise<void> {
@@ -100,7 +100,7 @@ async function releaseReservation(
  * onHand and reserved both come down, so the remaining count stays truthful.
  */
 async function fulfilReservation(
-  tx: Prisma.TransactionClient,
+  tx: DbTransaction,
   orderId: string,
   actorId: string,
 ): Promise<void> {

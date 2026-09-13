@@ -628,12 +628,12 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **128 tests**: 111 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **145 tests**: 128 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers)
 plus 17 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **8 tests against a real Postgres**, run by
+`pnpm test:integration` — **18 tests against a real Postgres** (order placement, concurrency, and the admin lifecycle: release on cancel, consume on delivery, payment settlement), run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
 money, and what makes it correct — a transaction that must roll back whole, a
 conditional UPDATE two checkouts race for, constraints Postgres enforces —
@@ -645,11 +645,14 @@ sell one unit twice.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/`, which is why that
-logic is framework-free. Anything under `server/` carries `import 'server-only'`
-and therefore _cannot_ be imported by a test — that is the deciding question
-for where a file goes: pure logic that wants a unit test belongs in
-`lib/domain/`, and only code that genuinely touches the database belongs in
-`server/`.
+logic is framework-free.
+
+`server/queries`, `server/services` and `server/auth` all carry
+`import 'server-only'` and therefore _cannot_ be imported by a unit test — that
+is the deciding question for where a file goes: pure logic that wants a unit
+test belongs in `lib/domain/`. `server/db` is deliberately **not** sealed,
+because the seed and one-off scripts run outside Next; that is why
+`server/db/diagnose.ts` has ordinary unit tests.
 
 ### Architecture guardrails
 
@@ -731,6 +734,23 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 
 `config/env.ts` validates these at boot with Zod and fails loudly, with each
 error naming its own fix.
+
+**A correct `.env` is not a working database.** `server/db/diagnose.ts` rewrites
+setup-shaped Prisma failures — P1000/P1001/P1002/P1003/P1017 (unreachable, wrong
+password, no such database) and P2021/P2022 (missing table or column) — into a
+message that names the cause and the command that fixes it, per platform. It is
+wired into the client with `$extends({ query: { $allOperations } })`, so it
+covers every model.
+
+Ordinary query errors pass through as the **same object**, deliberately:
+`server/services/order.ts` catches P2002 by `instanceof` and `code` to retry an
+order number, and a wrapper around every error would break that silently. A
+test asserts the identity holds.
+
+Without this, a stopped PostgreSQL surfaces on the homepage as a stack trace
+inside `product.findMany()` — the first query that happens to run, and the one
+thing that is not wrong. `docs/extending-ar.md` §9.9 has the owner-facing
+version, including starting the Windows service.
 
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
