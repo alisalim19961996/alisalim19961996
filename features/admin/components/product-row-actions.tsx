@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Eye, EyeOff, Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { deleteProductAction, setProductPublishedAction } from '../actions';
 
 /**
@@ -108,5 +109,75 @@ export function ProductDeleteButton({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Delete straight from the list.
+ *
+ * The same rule as the full control on the edit page — a sold product is never
+ * deletable — but stated as a disabled button with a reason rather than an
+ * absent one, so a row that cannot be deleted does not read as a missing
+ * feature. The service refuses it again regardless; this is manners, not
+ * protection (CLAUDE.md §7).
+ */
+export function ProductRowDelete({
+  id,
+  productName,
+  hasOrders,
+}: {
+  id: string;
+  productName: string;
+  hasOrders: boolean;
+}) {
+  const t = useTranslations('admin');
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+
+  if (hasOrders) {
+    return (
+      <span
+        title={t('productHasOrders')}
+        aria-label={t('productHasOrders')}
+        className="grid size-9 cursor-not-allowed place-items-center text-subtle"
+      >
+        <Trash2 className="size-4" aria-hidden />
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      title={errorKey ? t(errorKey) : t('deleteProduct')}
+      aria-label={t('deleteProduct')}
+      className={cn(
+        'grid size-9 place-items-center rounded-[--radius-control] transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50',
+        // A failed delete stays visible on the row rather than vanishing with
+        // the click: the title carries the reason, the colour carries that
+        // there is one. `aria-invalid` is not valid on a button.
+        errorKey ? 'text-danger' : 'text-muted',
+      )}
+      onClick={() => {
+        if (!window.confirm(t('confirmDelete', { name: productName }))) return;
+        setErrorKey(null);
+        startTransition(async () => {
+          const result = await deleteProductAction(id);
+          if (result.ok) {
+            router.refresh();
+            return;
+          }
+          setErrorKey(result.errorKey ?? 'actionFailed');
+        });
+      }}
+    >
+      {pending ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      ) : (
+        <Trash2 className="size-4" aria-hidden />
+      )}
+    </button>
   );
 }

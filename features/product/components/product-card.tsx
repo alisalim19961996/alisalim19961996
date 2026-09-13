@@ -55,7 +55,14 @@ export async function ProductCard({
     <Link
       href={`/products/${slug}`}
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-[--radius-card] border border-border bg-surface',
+        // `w-full` is not decoration: the card sits inside `<li className="flex">`,
+        // where a flex item defaults to `flex: 0 1 auto` and therefore sizes to
+        // its own content. Without it every card was as wide as its product
+        // name was long — and since the image box is `aspect-product`, a wider
+        // card meant a taller image. Four cards in one row measured 209, 219,
+        // 161 and 155 pixels across, with four different image heights, while
+        // the grid columns underneath were a uniform 292px each.
+        'group relative flex h-full w-full flex-col overflow-hidden rounded-[--radius-card] border border-border bg-surface',
         'transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-[--shadow-card]',
         className,
       )}

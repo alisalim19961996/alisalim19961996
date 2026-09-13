@@ -60,6 +60,8 @@ pnpm setup         # guided first-time setup (env, db, migrations, seed)
 pnpm keys          # fill the optional keys without editing .env by hand —
                    # asks one value at a time, catches the wrong one, writes
                    # it in place, then runs the live check
+pnpm check:layout  # measure the layout claims in §10 against a running site:
+                   # every card in a row the same size, no sideways scroll
 pnpm check:services # prove the optional keys work — uploads a file to
                    # Supabase and deletes it, asks Google if the client
                    # id and secret are a pair. Secrets print masked.
@@ -359,7 +361,13 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 
 - `ProductPrice` — **the only place a price is rendered.** Wraps prices in
   `.numeric` (LTR isolation) so Arabic bidi cannot reorder digits.
-- `ProductCard` — server component; image, brand, name, tagline, price.
+- `ProductCard` — server component; image, brand, name, tagline, price. Carries
+  **`w-full`**: it sits inside `<li className="flex">`, where a flex item
+  defaults to `flex: 0 1 auto` and sizes to its own content, so without it every
+  card was as wide as its product name was long — and since the image box is
+  `aspect-product`, a wider card meant a taller image. Four cards in one row
+  measured 209, 219, 161 and 155px across the uniform 292px grid columns
+  beneath them. `pnpm check:layout` now measures this.
 - `VariantPicker` — client; keeps price, SKU and availability in sync;
   unreachable combinations are dimmed, never hidden.
 - `ProductGallery` — client; images + videos in one strip, player created on
@@ -385,7 +393,10 @@ cannot quietly lose the invalid state or a label's `htmlFor`), `ProductForm`
 inputs are generated from the chosen type's `ProductTypeAttribute` rows — this
 file knows nothing about phones**), `ProductVariantsEditor` (options, then the
 variants they generate), `ProductMediaEditor`, `ProductPublishToggle` /
-`ProductDeleteButton`, `AdminShell` (plain by design —
+`ProductDeleteButton` / `ProductRowDelete` (delete straight from the list; a
+sold product renders as a disabled marker carrying the reason rather than an
+absent control, so a row that cannot be deleted does not read as a missing
+feature — the service refuses it again regardless), `AdminShell` (plain by design —
 density beats atmosphere for someone processing forty orders a day),
 `OrderStatusBadge` (only PENDING is brand-coloured, because it is the only one
 that means "act now"), `OrderActions` (buttons come from the state machine, so
@@ -709,7 +720,7 @@ review, performance pass, e2e tests (Phase 6).
 | Item                                               | Impact                                            | Plan                                                |
 | -------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- |
 | No e2e tests                                       | Filter/variant behaviour verified manually        | Playwright in Phase 6                               |
-| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand       | Fold into the Playwright suite in Phase 6           |
+| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured    | Fold into the Playwright suite in Phase 6           |
 | No cache layer                                     | Catalogue runs 2 queries per visit                | `unstable_cache` + tags when the catalogue grows    |
 | Uploaded images are never deleted from storage     | An image removed from a product leaves its object | Sweep by prefix when a product is deleted           |
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`   | `next/image` optimises on the fly; revisit at scale |
@@ -822,11 +833,17 @@ than a suggestion, and the session secret is generated per run with
 `openssl rand`, never stored in the repository.
 
 Missing: e2e (Phase 6). `@playwright/test` is installed and Chromium is
-available at `/opt/pw-browsers/chromium`. Layout facts that matter — zero
-horizontal overflow at 390px and 1440px, and the footer's clearance under the
-mobile buy bar — are currently verified by driving the built site with
-Playwright by hand. Three measurement traps have already produced false bug
-reports here — check against them before believing a failure:
+available at `/opt/pw-browsers/chromium`.
+
+**`pnpm check:layout`** measures the §10 claims against a running site: every
+product card in a row identical in width and image height, and zero horizontal
+overflow, across `/ar`, `/ar/products` and `/en` at 390px and 1440px. It exists
+because a real bug survived every test and every review — cards sized to their
+own product names — and was found by the owner looking at the page. The
+footer's clearance under the mobile buy bar is still checked by hand.
+
+Three measurement traps have already produced false bug reports here — check
+against them before believing a failure:
 
 - **`waitUntil: 'load'` is not "content is on screen".** Pages stream inside
   Suspense, so the DOM can still be empty when `load` fires. Wait for a real

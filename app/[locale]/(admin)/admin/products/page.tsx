@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProductPrice } from '@/features/product/components/product-price';
-import { ProductPublishToggle } from '@/features/admin/components/product-row-actions';
+import {
+  ProductPublishToggle,
+  ProductRowDelete,
+} from '@/features/admin/components/product-row-actions';
 import { getAdminProducts } from '@/server/queries/admin-products';
 import { adminProductFilterSchema } from '@/schemas/product';
 import type { Locale } from '@/i18n/routing';
@@ -197,6 +200,11 @@ export default async function AdminProductsPage({
                         {row.isPublished ? t('published') : t('draft')}
                       </Badge>
                       <ProductPublishToggle id={row.id} isPublished={row.isPublished} />
+                      <ProductRowDelete
+                        id={row.id}
+                        productName={locale === 'ar' ? row.nameAr : row.nameEn}
+                        hasOrders={row.hasOrders}
+                      />
                     </div>
                   </td>
                 </tr>

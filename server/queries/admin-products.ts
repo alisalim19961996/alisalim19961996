@@ -31,6 +31,8 @@ export interface AdminProductRow {
   variantCount: number;
   imageUrl: string | null;
   updatedAt: Date;
+  /** Deleting is refused once true; the list shows why instead of a dead button. */
+  hasOrders: boolean;
 }
 
 export interface AdminProductListResult {
@@ -105,6 +107,26 @@ export async function getAdminProducts(
     }),
   ]);
 
+  /**
+   * Which of these products have been sold.
+   *
+   * One indexed query for the page rather than a per-row count: the list needs
+   * only a yes or no, and asking 20 times is 20 round trips to answer the same
+   * question. `deleteProduct` re-checks this server-side — the list is telling
+   * the owner what will happen, not deciding it.
+   */
+  const soldIds = new Set(
+    (
+      await db.product.findMany({
+        where: {
+          id: { in: products.map((product) => product.id) },
+          variants: { some: { orderItems: { some: {} } } },
+        },
+        select: { id: true },
+      })
+    ).map((product) => product.id),
+  );
+
   return {
     rows: products.map((product) => ({
       id: product.id,
@@ -119,6 +141,7 @@ export async function getAdminProducts(
       variantCount: product._count.variants,
       imageUrl: product.images[0]?.url ?? null,
       updatedAt: product.updatedAt,
+      hasOrders: soldIds.has(product.id),
     })),
     total,
     page,
