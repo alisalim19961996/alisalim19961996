@@ -57,6 +57,9 @@ Runtime: Node ≥ 22.12, PostgreSQL 16.
 
 ```bash
 pnpm setup         # guided first-time setup (env, db, migrations, seed)
+pnpm check:services # prove the optional keys work — uploads a file to
+                   # Supabase and deletes it, asks Google if the client
+                   # id and secret are a pair. Secrets print masked.
 pnpm dev           # development server
 pnpm check         # typecheck + lint + format + tests + build — run before pushing
 pnpm build         # production build
