@@ -269,6 +269,39 @@ async function checkGoogle(env) {
   return 'passed';
 }
 
+/**
+ * The variables without which the site does not start at all.
+ *
+ * This check exists because of a real failure: an owner replaced .env with
+ * three lines, two of which had a copy-paste artefact in front of the name, and
+ * this script answered "2 optional services not configured — the site runs fine
+ * without them". Every word of that was true about the optional half and
+ * dangerously wrong about the file, which had also lost DATABASE_URL and the
+ * session secret. A checker that reassures while the foundation is missing is
+ * worse than no checker.
+ */
+const REQUIRED = [
+  'DATABASE_URL',
+  'BETTER_AUTH_SECRET',
+  'BETTER_AUTH_URL',
+  'NEXT_PUBLIC_APP_URL',
+];
+
+function checkRequired(env) {
+  const missing = REQUIRED.filter((name) => !env[name]?.trim());
+  if (missing.length === 0) return true;
+
+  title('الأساسيات — بدونها الموقع ما يشتغل إطلاقًا');
+  for (const name of missing) {
+    bad(`${name} — ${name in env ? 'فارغ' : 'مو موجود'}`);
+  }
+  say();
+  hint(`الملف: ${envPath}`);
+  hint('الحل بأمر واحد — يصلّح الملف ويحافظ على اللي موجود:');
+  hint('  pnpm setup');
+  return false;
+}
+
 async function main() {
   say(`${c.bold}فحص الخدمات الخارجية${c.reset}`);
   say(`${c.dim}القيم السرية تظهر مخفية — هذا الناتج آمن للمشاركة.${c.reset}`);
@@ -281,12 +314,22 @@ async function main() {
     return;
   }
 
+  // A broken foundation is reported first and alone: telling someone their
+  // optional keys are fine while the database is unreachable buries the thing
+  // that actually stops the store.
+  const foundationOk = checkRequired(env);
+
   const results = [await checkSupabase(env), await checkGoogle(env)];
 
   title('الخلاصة');
   const failed = results.filter((r) => r === 'failed').length;
   const skipped = results.filter((r) => r === 'skipped').length;
 
+  if (!foundationOk) {
+    bad('ملف .env ناقص أساسيات — شغّل pnpm setup قبل أي شي ثاني.');
+    process.exitCode = 1;
+    return;
+  }
   if (failed > 0) {
     bad(`${failed} خدمة تحتاج تصليح — اقرأ الرسائل فوق.`);
     process.exitCode = 1;
