@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { headers } from 'next/headers';
 import { Role } from '@prisma/client';
 import { auth } from './auth';
@@ -73,6 +75,29 @@ export async function requireRole(...roles: readonly Role[]): Promise<SessionUse
 export const requireStaff = () => requireRole(Role.STAFF, Role.ADMIN);
 export const requireAdmin = () => requireRole(Role.ADMIN);
 
-export function hasRole(user: SessionUser | null, ...roles: readonly Role[]): boolean {
+/**
+ * A type predicate, so `if (!hasRole(user, …)) return redirect(…)` narrows the
+ * user to non-null afterwards instead of forcing a cast.
+ */
+export function hasRole(
+  user: SessionUser | null,
+  ...roles: readonly Role[]
+): user is SessionUser {
   return user != null && roles.includes(user.role);
+}
+
+/**
+ * Can this user open the dashboard?
+ *
+ * Exists so a layout can ask without importing the `Role` enum: the UI layers
+ * may only import types from Prisma, never values (eslint.config.mjs), and
+ * that rule is what keeps the data layer swappable from the components' side.
+ */
+export function isStaff(user: SessionUser | null): user is SessionUser {
+  return hasRole(user, Role.STAFF, Role.ADMIN);
+}
+
+/** Only admins may destroy things or change another user's role. */
+export function isAdmin(user: SessionUser | null): user is SessionUser {
+  return hasRole(user, Role.ADMIN);
 }

@@ -329,7 +329,7 @@ describe('server layer is sealed', () => {
    * lib/domain/. order-state.ts sat in server/services/ without the marker for
    * exactly that reason, and this test is why it moved.
    */
-  it.each(['server/queries', 'server/services'])(
+  it.each(['server/queries', 'server/services', 'server/auth'])(
     'every file in %s starts with server-only',
     (dir) => {
       const offences = walk(dir, ['.ts']).filter((file) => {
@@ -386,6 +386,97 @@ describe('the server-only stub stays in the tests', () => {
       offences,
       'The stub exists only for tests/integration. Anywhere else it disables ' +
         'the guard that keeps server code out of the browser bundle.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('the auth provider stays swappable', () => {
+  /**
+   * CLAUDE.md §7: application code never imports better-auth directly, so the
+   * provider can be replaced without touching feature code. There are exactly
+   * two seams — the server instance and the browser client — and this keeps it
+   * that way. Without the test the rule survives until the first component
+   * that wants one convenient hook.
+   */
+  const SEAMS = [
+    'server/auth/auth.ts',
+    'features/auth/auth-client.ts',
+    // The seed writes a credential row so the demo admin can sign in, and it
+    // uses the provider's own hasher rather than inventing one. It is a script,
+    // not application code — eslint.config.mjs exempts server/db/** for the
+    // same reason.
+    'server/db/seed.ts',
+  ];
+
+  it('is imported only by its two seam modules', () => {
+    const scope = [
+      ...uiFiles,
+      ...walk('server', ['.ts']),
+      ...walk('lib', ['.ts']),
+      ...walk('schemas', ['.ts']),
+      ...walk('config', ['.ts']),
+    ];
+
+    const offences: string[] = [];
+    for (const file of scope) {
+      if (SEAMS.includes(file.split('\\').join('/'))) continue;
+      for (const { line, text } of readCode(file)) {
+        if (/from ['"]better-auth/.test(text)) {
+          offences.push(`${file}:${line} → ${text.trim()}`);
+        }
+      }
+    }
+
+    expect(
+      offences,
+      'Import from @/server/auth/auth or @/features/auth/auth-client instead. ' +
+        'Those two files are the only ones that may know which provider MPS uses.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('admin data is guarded', () => {
+  /**
+   * CLAUDE.md §7: middleware protects the route, the guard protects the data.
+   * The admin layout's redirect is a courtesy — a Server Action can be invoked
+   * directly with no layout involved, so every admin read and write must call
+   * a guard itself.
+   *
+   * This is checked statically because the failure mode is silent: a new admin
+   * function that forgets the guard works perfectly for staff, and exposes
+   * customer phone numbers and addresses to anyone who finds the action id.
+   */
+  const ADMIN_MODULES = [
+    ...walk('server/services', ['.ts']),
+    ...walk('server/queries', ['.ts']),
+  ].filter((file) => /admin/i.test(file));
+
+  it('has admin modules to check', () => {
+    // Guards against the test quietly passing because the glob stopped
+    // matching anything after a rename.
+    expect(ADMIN_MODULES.length).toBeGreaterThan(0);
+  });
+
+  it.each(ADMIN_MODULES)('every exported function in %s calls a guard', (file) => {
+    const source = readFileSync(join(ROOT, file), 'utf8');
+
+    // Split on exported async functions and check each body for a guard call.
+    const functions = [
+      ...source.matchAll(/export async function (\w+)[\s\S]*?(?=\nexport |\n?$)/g),
+    ];
+
+    const unguarded = functions
+      .filter(([body]) => !/require(Staff|Admin|User|Role)\s*\(/.test(body))
+      .map(([, name]) => `${file}:${name}`);
+
+    expect(
+      unguarded,
+      'Call requireStaff() or requireAdmin() at the top. The admin layout does ' +
+        'not protect a Server Action invoked directly.',
     ).toEqual([]);
   });
 });

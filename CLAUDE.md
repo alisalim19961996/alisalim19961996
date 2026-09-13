@@ -75,11 +75,12 @@ pnpm db:studio     # browse the database
 and tests, because Prisma's enums only exist in the generated client.
 
 Arabic guides for the owner live in `docs/`: `run-locally-ar.md`,
-`database-setup-ar.md`, `vscode-setup-ar.md`, and **`extending-ar.md`** — 12
+`database-setup-ar.md`, `vscode-setup-ar.md`, and **`extending-ar.md`** —
 step-by-step recipes answering "I want to change X, where do I start?"
 (text, colours, nav links, a new page, a new specification, a whole new
-product type, brands, UI numbers, commercial data, schema changes), plus the
-list of what the guardrails refuse. Every recipe names the exact file and how
+product type, brands, UI numbers, delivery fees, the line-quantity cap, what
+the order path forbids, why the header must stay static, schema changes), plus
+the list of what the guardrails refuse. Every recipe names the exact file and how
 to confirm the change landed.
 
 ---
@@ -194,14 +195,32 @@ product and brand names and on SKU.
 
 ## 7. Authentication and authorization
 
-`better-auth` behind `server/auth/auth.ts`; guards in `server/auth/guards.ts`.
-Application code never imports better-auth directly, so the provider is
-swappable.
+`better-auth` behind `server/auth/auth.ts` (server) and
+`features/auth/auth-client.ts` (browser); guards in `server/auth/guards.ts`.
+Those are the only two modules that may import better-auth — enforced by
+`tests/architecture.test.ts`, with `server/db/seed.ts` exempted because it
+writes the demo credential row using the provider's own hasher. Everything
+under `server/auth/` carries `import 'server-only'`.
 
 - Email + password, minimum 8 characters. Email verification is **off** until a
   mail provider is configured.
 - Sessions in the database, 30 days, cookie prefix `mps`, `httpOnly` +
-  `sameSite=lax`, `Secure` in production.
+  `sameSite=lax`. **`Secure` follows `BETTER_AUTH_URL`'s scheme, not
+  `NODE_ENV`.** Keying it off NODE_ENV meant `pnpm build && pnpm start` on
+  http://localhost issued `__Secure-` cookies the browser silently refused to
+  store: sign-in appeared to succeed, no session existed, and every guarded
+  page bounced back to the form. curl stores them regardless, so the API
+  looked healthy while the browser was broken.
+- **Sign-in goes over HTTP through `/api/auth/*`, never a direct
+  `auth.api.signInEmail()` call.** better-auth applies its rate limits in the
+  router's `onRequest`, which only runs for requests through that handler — a
+  direct call from a Server Action bypasses them entirely, leaving the limits
+  below documented but unenforced. Over HTTP the limiter also sees the real
+  client IP, so one attacker cannot lock every customer out.
+- **`BETTER_AUTH_URL` must match the origin the site is served from**, or
+  better-auth's origin check answers every sign-in with 403. The form logs the
+  real cause to the console in development, because to a user a 403 is
+  indistinguishable from a wrong password.
 - Rate limits: 5 sign-ins/minute, 3 sign-ups/5 min, 3 password resets/5 min,
   20 requests/minute globally.
 - Roles: `CUSTOMER` | `STAFF` | `ADMIN`. **Role is server-owned** — declared
@@ -229,6 +248,13 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                    |
 | `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                          |
 | `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                   |
+| `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                          |
+| `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                         |
+| `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                |
+| `/[locale]/admin/orders/[orderNumber]`     | Dynamic      | One order: status controls, timeline, customer, money                   |
+| `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                             |
+| `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                             |
+| `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)             |
 | `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                         |
 
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
@@ -236,6 +262,11 @@ catalogue-shaped `products/loading.tsx`.
 
 **Linked but not built yet** (header/footer point at them, they 404 today):
 `/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/account`, `/wishlist`.
+
+**Redirects around the dashboard distinguish two cases**, because conflating
+them produced a loop: _not signed in_ goes to `/sign-in?next=admin`, while
+_signed in but not staff_ goes home. The sign-in page honours `?next=admin`
+only for a user who can actually open the dashboard.
 
 **The header must stay static.** It lives in the root layout, so any
 `cookies()` read inside it opts _every_ route into dynamic rendering — that
@@ -295,6 +326,20 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 
 **Search** — `features/search/components/search-box.tsx`: `SearchBox`,
 `HeaderSearch`.
+
+**Cart / checkout / order** — `features/cart|checkout|order/`:
+`AddToCartButton` (one control for every surface; `redirectTo` turns it into
+"buy now"), `CartLines`, `CartCountBadge` (client-side; see §8),
+`CheckoutForm`, `OrderDetail`, `TrackForm`.
+
+**Admin** — `features/admin/components/`: `AdminShell` (plain by design —
+density beats atmosphere for someone processing forty orders a day),
+`OrderStatusBadge` (only PENDING is brand-coloured, because it is the only one
+that means "act now"), `OrderActions` (buttons come from the state machine, so
+an illegal move cannot be offered), `DeliveryRatesTable` (saves per row),
+`SettingsForm`.
+
+**Auth** — `features/auth/`: `SignInForm`, `SignOutButton`, `auth-client.ts`.
 
 **Domain helpers** — `lib/`: `money.ts`, `phone.ts` (Iraqi E.164 normalisation),
 `search.ts` (Arabic folding + transliteration), `video.ts` (YouTube id
@@ -364,7 +409,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **159 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **246 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -533,27 +578,29 @@ tracking, plus a second browser proving an order does not leak.
 
 ### Not started
 
-Cart, checkout, orders, order tracking (Phase 3) · admin dashboard (Phase 4) ·
-wishlist, compare, reviews, recommendations, blog, analytics (Phase 5) ·
-accessibility audit, security review, performance pass, e2e tests (Phase 6).
+Sign-in / account UI · admin dashboard (Phase 4) · wishlist, compare, reviews,
+recommendations, blog, analytics (Phase 5) · accessibility audit, security
+review, performance pass, e2e tests (Phase 6).
 
 ---
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                         | Plan                                                       |
-| -------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
-| No e2e tests                                       | Filter/variant behaviour verified manually     | Playwright in Phase 6                                      |
-| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand    | Fold into the Playwright suite in Phase 6                  |
-| No cache layer                                     | Catalogue runs 2 queries per visit             | `unstable_cache` + tags when the catalogue grows           |
-| Cart merge on sign-in is lazy                      | Runs on the next cart read/write, not at login | Call `mergeAnonymousCart` from the sign-in flow in Phase 4 |
-| Coupons are schema-only                            | `discountIqd` is always 0                      | Phase 5; `orderTotals` already takes a discount            |
-| Reservations are never released                    | A cancelled order keeps counted stock reserved | Admin cancel in Phase 4 (`RESERVING_STATUSES` exists)      |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                  | Split to JSON if it grows                                  |
-| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/cart`… 404  | Built in Phases 3–5                                        |
-| No mail provider                                   | Password reset cannot send                     | `MailProvider` abstraction before launch                   |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                  | Consider sticky panel                                      |
-| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                  | Keep                                                       |
+| Item                                               | Impact                                           | Plan                                             |
+| -------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| No e2e tests                                       | Filter/variant behaviour verified manually       | Playwright in Phase 6                            |
+| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand      | Fold into the Playwright suite in Phase 6        |
+| No cache layer                                     | Catalogue runs 2 queries per visit               | `unstable_cache` + tags when the catalogue grows |
+| Product create/edit not in the dashboard           | Catalogue changes still need the seed or Studio  | Phase 5 — the schema is already data-driven (§6) |
+| Coupons are schema-only                            | `discountIqd` is always 0                        | Phase 5; `orderTotals` already takes a discount  |
+| No image upload                                    | Real photography cannot be added from the admin  | Phase 5; must reject SVG (§18)                   |
+| No sign-up or account pages                        | Customers order as guests; staff are seeded      | Phase 5                                          |
+| Staff roles are set in the database                | No user management screen                        | Phase 5                                          |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                    | Split to JSON if it grows                        |
+| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404 | Built in Phases 4–5                              |
+| No mail provider                                   | Password reset cannot send                       | `MailProvider` abstraction before launch         |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                    | Consider sticky panel                            |
+| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                    | Keep                                             |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -571,7 +618,7 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 - Comments explain **why**, not what. Document the decision and the failure it
   prevents.
 - Server Components by default; `'use client'` only for genuine interaction.
-  Currently 9 client files to 21 server files.
+  Currently 14 client files to 26 server files.
 - No `as never` / `as any` to silence the compiler. Dynamic hrefs are typed
   template literals.
 - Never mark a script's edit "done" without asserting the change actually
@@ -581,12 +628,10 @@ accessibility audit, security review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **137 tests**: 72 unit tests in `tests/unit/` (money, Iraqi phones,
-Arabic search, order transitions, availability in both modes, YouTube parsing,
-catalogue param parsing) plus 17 architecture guardrails in
-`tests/architecture.test.ts` (19 cases — two are `it.each`), and cart, delivery
-and order-number arithmetic in `tests/unit/cart.test.ts` and
-`tests/unit/order-number.test.ts`.
+`pnpm test` — **128 tests**: 111 unit tests in `tests/unit/` (money, Iraqi
+phones, Arabic search, order transitions, availability in both modes, YouTube
+parsing, catalogue param parsing, cart and delivery arithmetic, order numbers)
+plus 17 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **8 tests against a real Postgres**, run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
@@ -614,23 +659,25 @@ fix** — a guardrail that only says "violation found" costs more time than it
 saves. Comments are stripped before matching, so a rule quoted in a comment is
 not a false hit.
 
-| Guardrail                                                 | Catches                                          |
-| --------------------------------------------------------- | ------------------------------------------------ |
-| Translation keys identical in `ar.json` / `en.json`       | A raw `nav.offers` shown to half the customers   |
-| No empty translation strings                              | A label that renders as nothing                  |
-| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`               | Arabic laid out mirrored, silently               |
-| No hex colours in UI files                                | A second, slightly different red                 |
-| No `aspect-[4/5]` literals                                | A ratio that cannot be changed centrally         |
-| No Prisma client imported from UI                         | Layer bypass that still "works" in review        |
-| `lib/` imports neither `next` nor `server/`               | Pure logic that stops being testable             |
-| `components/ui` imports neither `features/` nor `server/` | A Button that only works for products            |
-| Client components import from `server/` as types only     | Server code dragged into the browser bundle      |
-| No literal IQD prices in UI                               | A price only a developer can change              |
-| No Arabic string literals in UI                           | Copy the owner cannot edit, with no English twin |
-| Every `config/` export has a consumer                     | A config file that lies about being the source   |
-| No route file over 420 lines                              | Business logic hiding in `app/`                  |
-| Every `server/` file starts with `import 'server-only'`   | Database code shipped to the browser             |
-| The `server-only` stub stays inside tests/integration     | Silently disabling that guard app-wide           |
+| Guardrail                                                 | Catches                                                 |
+| --------------------------------------------------------- | ------------------------------------------------------- |
+| Translation keys identical in `ar.json` / `en.json`       | A raw `nav.offers` shown to half the customers          |
+| No empty translation strings                              | A label that renders as nothing                         |
+| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`               | Arabic laid out mirrored, silently                      |
+| No hex colours in UI files                                | A second, slightly different red                        |
+| No `aspect-[4/5]` literals                                | A ratio that cannot be changed centrally                |
+| No Prisma client imported from UI                         | Layer bypass that still "works" in review               |
+| `lib/` imports neither `next` nor `server/`               | Pure logic that stops being testable                    |
+| `components/ui` imports neither `features/` nor `server/` | A Button that only works for products                   |
+| Client components import from `server/` as types only     | Server code dragged into the browser bundle             |
+| No literal IQD prices in UI                               | A price only a developer can change                     |
+| No Arabic string literals in UI                           | Copy the owner cannot edit, with no English twin        |
+| Every `config/` export has a consumer                     | A config file that lies about being the source          |
+| No route file over 420 lines                              | Business logic hiding in `app/`                         |
+| Every `server/` file starts with `import 'server-only'`   | Database code shipped to the browser                    |
+| The `server-only` stub stays inside tests/integration     | Silently disabling that guard app-wide                  |
+| better-auth imported only by its two seam modules         | An auth provider welded into feature code               |
+| Every admin query/service export calls a guard            | Customer addresses exposed to anyone with the action id |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -697,29 +744,28 @@ admin image uploads must reject SVG.
 
 ## 19. NEXT STEPS
 
-**Phase 3 — Commerce: complete.** Cart, checkout, orders, confirmation and
-public tracking all ship and are covered by unit tests, integration tests
-against a real database, and an end-to-end run against the built site.
+**Phases 1–4 complete.** The store sells (cart, checkout, COD orders, tracking)
+and the owner runs it (sign-in, order queue, status changes with stock and
+payment settlement, delivery pricing, store settings).
 
-**Phase 4 — Admin dashboard (next):**
+**Phase 5 — the catalogue in the owner's hands (next):**
 
-1. `app/[locale]/(admin)` behind `requireStaff()` — and re-checked in every
-   service call, because route protection alone is bypassed the moment a
-   Server Action is invoked directly (§7).
-2. Orders: list, filter by status, open one, advance its status through
-   `assertTransition`, write the `OrderEvent`, and **release the stock
-   reservation on cancel** — `RESERVING_STATUSES` in `lib/domain/order-state.ts`
-   already says which statuses hold one.
-3. Products: create and edit against the data-driven attributes, so a new
-   product type stays data entry rather than code (§6).
-4. Settings: `SiteSetting` and per-governorate `DeliveryRate`, so the owner
-   changes delivery fees and contact details without a deployment.
-5. Call `mergeAnonymousCart` from the sign-in flow, instead of relying on the
-   next cart action to do it.
-6. Image upload that **rejects SVG** — `dangerouslyAllowSVG` is deliberately
-   off (§18).
+1. **Product create/edit in the dashboard.** The schema is already
+   data-driven, so the form is generated from `ProductTypeAttribute` rather
+   than written per type — that is the whole point of §6, and adding "laptops"
+   must stay data entry.
+2. **Image upload that rejects SVG.** `dangerouslyAllowSVG` is off (§18), and
+   an SVG is a script delivered as a picture. This is what replaces the
+   generated demo silhouettes with real photography.
+3. **Sign-up and account pages** — order history for a signed-in customer,
+   using the same `findOwnedOrder` path that already exists.
+4. **User management** so staff can be created without touching the database.
+5. Offers and coupons: `orderTotals` already takes a discount and the schema
+   and constraints exist; nothing computes one yet.
+6. Wishlist, compare, reviews, blog.
 
-Then Phase 4 (admin), 5 (wishlist/compare/reviews/blog), 6 (QA).
+**Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
+accessibility audit, security review, performance pass and a cache layer.
 
 **Owner inputs still needed before launch:** real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a

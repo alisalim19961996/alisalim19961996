@@ -1,6 +1,8 @@
+import 'server-only';
+
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { nextCookies } from 'better-auth/next-js';
+import { nextCookies, toNextJsHandler } from 'better-auth/next-js';
 import { db } from '@/server/db/client';
 import { serverEnv } from '@/config/env';
 
@@ -56,7 +58,24 @@ export const auth = betterAuth({
 
   advanced: {
     cookiePrefix: 'mps',
-    useSecureCookies: process.env.NODE_ENV === 'production',
+    /**
+     * Derived from the URL the site is actually served from, not from
+     * NODE_ENV.
+     *
+     * Secure cookies carry the `__Secure-` prefix, which browsers accept ONLY
+     * over https. Keying this off NODE_ENV meant `pnpm build && pnpm start`
+     * on http://localhost issued cookies Chrome silently refused to store:
+     * sign-in appeared to succeed, no session existed, and every guarded page
+     * bounced back to the sign-in form. curl stores them regardless, so the
+     * API looked healthy while the browser was broken.
+     *
+     * The scheme is the thing that actually decides whether a secure cookie
+     * can work, so the scheme is what this reads. A real deployment serves
+     * https and gets secure cookies; it cannot be weakened by NODE_ENV alone,
+     * only by pointing BETTER_AUTH_URL at http — which would itself be the
+     * misconfiguration.
+     */
+    useSecureCookies: serverEnv.BETTER_AUTH_URL.startsWith('https://'),
     defaultCookieAttributes: {
       httpOnly: true,
       sameSite: 'lax',
@@ -79,3 +98,19 @@ export const auth = betterAuth({
 });
 
 export type Auth = typeof auth;
+
+/**
+ * The HTTP endpoints, mounted by app/api/auth/[...all]/route.ts.
+ *
+ * Built here rather than in the route file so this module stays the single
+ * place that knows which auth provider MPS uses — a rule enforced by
+ * tests/architecture.test.ts.
+ *
+ * Sign-in must go over HTTP rather than through a direct `auth.api.signInEmail()`
+ * call in a Server Action: better-auth applies its rate limits in the router's
+ * `onRequest`, which only runs for requests through this handler. A direct call
+ * bypasses them, so the "5 sign-ins per minute" in §7 would be a documented
+ * protection that does not exist. Over HTTP the limiter also sees the real
+ * client IP, so one attacker cannot lock every customer out of the store.
+ */
+export const authHandlers = toNextJsHandler(auth.handler);

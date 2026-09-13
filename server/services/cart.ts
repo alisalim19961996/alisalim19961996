@@ -112,6 +112,23 @@ async function mergeAnonymousCart(userId: string, token: string): Promise<void> 
 }
 
 /**
+ * Fold this visitor's anonymous cart into the account they just signed in to.
+ *
+ * Exposed so the sign-in flow can do it immediately. Doing it only lazily — on
+ * the next cart read or write — means someone who signs in while looking at
+ * their cart sees it empty until they touch something, which reads as having
+ * lost it.
+ *
+ * A no-op when there is no session or no anonymous cart, so it is safe to call
+ * after every sign-in.
+ */
+export async function claimCartForCurrentUser(): Promise<void> {
+  const [user, token] = await Promise.all([getCurrentUser(), readCartToken()]);
+  if (!user || !token) return;
+  await mergeAnonymousCart(user.id, token);
+}
+
+/**
  * The cart for this request, or null when the visitor has none.
  *
  * Safe to call while rendering: it never mints a token and never sets a

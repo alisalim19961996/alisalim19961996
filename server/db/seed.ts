@@ -14,6 +14,8 @@ import { ATTRIBUTE_GROUPS, ATTRIBUTES, PRODUCT_TYPES } from './seed-data/attribu
 import { DEMO_PRODUCTS } from './seed-data/products';
 import { extractYoutubeId } from '../../lib/video';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { randomBytes } from 'node:crypto';
+import { hashPassword } from 'better-auth/crypto';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -131,10 +133,39 @@ async function seedTaxonomy() {
   console.log(`  ${BRANDS.length} brands, ${CATEGORIES.length} categories`);
 }
 
+/**
+ * Give a demo user a password it can actually sign in with.
+ *
+ * Uses better-auth's own `hashPassword` rather than a hash this script
+ * invented — that was the original reason for leaving passwords unset, and it
+ * still holds. What changed is that without a credential row nobody could
+ * reach the dashboard after a fresh seed, which made the admin unusable.
+ *
+ * The password is never a literal in this repository: it comes from
+ * DEMO_ADMIN_PASSWORD, or is generated and printed once. `db:seed` refuses to
+ * run in production, so these accounts never exist on a real store.
+ */
+async function setDemoPassword(userId: string, password: string) {
+  const hash = await hashPassword(password);
+  const existing = await db.account.findFirst({
+    where: { userId, providerId: 'credential' },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await db.account.update({ where: { id: existing.id }, data: { password: hash } });
+    return;
+  }
+
+  await db.account.create({
+    data: { userId, accountId: userId, providerId: 'credential', password: hash },
+  });
+}
+
 async function seedUsers() {
-  // Demo accounts have no password set here: better-auth owns credential
-  // hashing, so passwords are created through the sign-up flow rather than
-  // written directly into the database with a hash this script invented.
+  const adminPassword =
+    process.env.DEMO_ADMIN_PASSWORD ?? randomBytes(12).toString('base64url');
+
   const admin = await db.user.upsert({
     where: { email: 'admin@mps.local' },
     update: { role: Role.ADMIN },
@@ -158,7 +189,20 @@ async function seedUsers() {
     },
   });
 
+  await Promise.all([
+    setDemoPassword(admin.id, adminPassword),
+    setDemoPassword(customer.id, adminPassword),
+  ]);
+
   console.log(`  demo users: ${admin.email} (ADMIN), ${customer.email} (CUSTOMER)`);
+  if (process.env.DEMO_ADMIN_PASSWORD) {
+    console.log('  password: taken from DEMO_ADMIN_PASSWORD');
+  } else {
+    // Printed once, here, because there is nowhere safe to store it and a
+    // dashboard nobody can open is not a dashboard.
+    console.log(`  password for both: ${adminPassword}`);
+    console.log('  (set DEMO_ADMIN_PASSWORD to choose your own)');
+  }
 }
 
 async function seedFaqs() {
