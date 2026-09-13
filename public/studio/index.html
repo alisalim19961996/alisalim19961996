@@ -4,43 +4,44 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link
   rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Lato:wght@400;700;900&display=swap"
+  href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
 />
 
 <style>
   /* ------------------------------------------------------------------
-     MPS Reels Studio — studio chrome.
+     MPS Reels Studio.
 
-     Committed single (dark) theme on purpose: this is a video-grading
-     surface. A 1080x1920 composition cannot be judged against bright
-     chrome, which is why every NLE ships dark. Every colour below is
-     painted explicitly so the page holds on either host ground.
-
-     Brand tokens come from the MPS brand book (mps_logo.pdf, p.004).
+     Every colour on this page comes from the brand book (mps_logo.pdf).
+     The book uses exactly two grounds — #f7f7f7 and #f22929 — and there
+     is no black anywhere in it, so there is none here either, chrome
+     included. Blue is text and the one sparing secondary ground; yellow
+     and grey are accents only.
      ------------------------------------------------------------------ */
   :root {
-    color-scheme: dark;
+    color-scheme: light;
 
-    /* Brand — do not invent new values, these are the book's four */
-    --mps-red: #f22929;
-    --mps-blue: #0b1275;
-    --mps-yellow: #ffea00;
-    --mps-grey: #999999;
+    /* Brand book p.004 — the whole palette */
+    --red: #f22929;
+    --red-deep: #d81f1f;
+    --blue: #0b1275;
+    --yellow: #ffea00;
+    --grey: #999999;
 
-    /* Chrome neutrals, biased toward the brand blue so the greys read
-       as chosen rather than inherited */
-    --bg: #0c0d12;
-    --panel: #13151d;
-    --panel-2: #1a1d27;
-    --line: #262a38;
-    --line-soft: #1e2230;
-    --text: #e9eaf0;
-    --text-dim: #9a9fb3;
-    --text-faint: #666c82;
+    /* Grounds, sampled from the book's own pages */
+    --ground: #f7f7f7;
+    --surface: #ffffff;
+
+    /* Every neutral is the brand blue at reduced strength, so the greys
+       carry the brand's hue instead of drifting to a generic slate. */
+    --text: #0b1275;
+    --text-dim: rgba(11, 18, 117, 0.62);
+    --text-faint: rgba(11, 18, 117, 0.42);
+    --line: rgba(11, 18, 117, 0.15);
+    --line-soft: rgba(11, 18, 117, 0.08);
+    --field: #fbfbfd;
 
     --radius: 10px;
     --radius-lg: 14px;
-    --bar-h: 56px;
   }
 
   * {
@@ -49,7 +50,7 @@
 
   body {
     margin: 0;
-    background: var(--bg);
+    background: var(--ground);
     color: var(--text);
     font-family:
       'IBM Plex Sans Arabic',
@@ -71,10 +72,10 @@
     color: inherit;
   }
 
-  /* Latin digits stay LTR inside Arabic runs — same rule the storefront
-     uses for prices and SKUs. */
+  /* Latin digits stay LTR inside Arabic runs — the same rule the
+     storefront uses for prices and SKUs. */
   .num {
-    font-family: 'Lato', system-ui, sans-serif;
+    font-family: 'Cabin', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     direction: ltr;
     unicode-bidi: isolate;
@@ -82,12 +83,11 @@
 
   /* ---------------------------------------------------------- top bar */
   .bar {
-    height: var(--bar-h);
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding-inline: 14px;
-    background: var(--panel);
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
     border-block-end: 1px solid var(--line);
     position: sticky;
     top: 0;
@@ -101,15 +101,14 @@
     flex-shrink: 0;
   }
   .brand svg {
-    width: 46px;
+    width: 48px;
     height: auto;
-    color: var(--mps-red);
+    color: var(--red);
     display: block;
   }
   .brand b {
     font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.02em;
   }
   .brand span {
     color: var(--text-faint);
@@ -120,24 +119,25 @@
     flex: 1;
   }
 
-  .readout {
-    display: flex;
+  /* The frame size is the one thing that must never drift, so it is
+     stated in the chrome rather than left to trust. */
+  .lock {
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    color: var(--text-dim);
+    gap: 7px;
+    background: var(--blue);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 13px;
     font-size: 11.5px;
     white-space: nowrap;
   }
-  .readout b {
-    color: var(--text);
-    font-weight: 600;
+  .lock b {
+    font-weight: 700;
   }
-  .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--mps-red);
-    flex-shrink: 0;
+  .lock small {
+    opacity: 0.72;
+    font-size: 10.5px;
   }
 
   /* ---------------------------------------------------------- buttons */
@@ -149,7 +149,7 @@
     height: 34px;
     padding-inline: 13px;
     border: 1px solid var(--line);
-    background: var(--panel-2);
+    background: var(--surface);
     color: var(--text);
     border-radius: var(--radius);
     cursor: pointer;
@@ -161,26 +161,26 @@
       border-color 160ms ease-out;
   }
   .btn:hover {
-    background: #222634;
-    border-color: #333848;
+    background: #f0f0f5;
+    border-color: rgba(11, 18, 117, 0.28);
   }
   .btn:focus-visible {
-    outline: 2px solid var(--mps-yellow);
+    outline: 2px solid var(--red);
     outline-offset: 2px;
   }
   .btn[disabled] {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
   }
   .btn-primary {
-    background: var(--mps-red);
-    border-color: var(--mps-red);
+    background: var(--red);
+    border-color: var(--red);
     color: #fff;
     font-weight: 600;
   }
   .btn-primary:hover {
-    background: #d81f1f;
-    border-color: #d81f1f;
+    background: var(--red-deep);
+    border-color: var(--red-deep);
   }
   .btn-sm {
     height: 28px;
@@ -192,7 +192,7 @@
     padding: 0;
   }
 
-  /* Export menu — a real popover, because window.prompt is blocked in a
+  /* Export menu — a real popover: window.prompt is blocked inside a
      sandboxed frame and would take the export path down with it. */
   .menu-host {
     position: relative;
@@ -202,11 +202,11 @@
     position: absolute;
     inset-block-start: calc(100% + 6px);
     inset-inline-start: 0;
-    min-width: 250px;
-    background: var(--panel-2);
+    min-width: 276px;
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 14px 40px rgba(11, 18, 117, 0.16);
     padding: 5px;
     z-index: 50;
     display: flex;
@@ -229,7 +229,7 @@
   }
   .menu button:hover,
   .menu button:focus-visible {
-    background: #262a38;
+    background: #f0f0f5;
     outline: none;
   }
   .menu button b {
@@ -244,8 +244,8 @@
   /* ------------------------------------------------------------ shell */
   .shell {
     display: grid;
-    grid-template-columns: 168px minmax(0, 1fr) 336px;
-    height: calc(100dvh - var(--bar-h));
+    grid-template-columns: 170px minmax(0, 1fr) 340px;
+    height: calc(100dvh - 55px);
     min-height: 0;
   }
 
@@ -257,7 +257,7 @@
 
   /* ------------------------------------------------------- storyboard */
   .storyboard {
-    background: var(--panel);
+    background: var(--surface);
     border-inline-start: 1px solid var(--line);
     padding: 12px 10px 24px;
     display: flex;
@@ -275,7 +275,6 @@
     letter-spacing: 0.09em;
     color: var(--text-faint);
     text-transform: uppercase;
-    padding-block-end: 2px;
   }
 
   .shot {
@@ -284,7 +283,7 @@
     width: 100%;
     padding: 0;
     border: 1px solid var(--line);
-    background: #000;
+    background: var(--ground);
     border-radius: var(--radius);
     overflow: hidden;
     cursor: pointer;
@@ -300,38 +299,33 @@
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
   }
   .shot:hover {
     transform: translateY(-1px);
   }
   .shot[aria-current='true'] {
-    border-color: var(--mps-red);
-    box-shadow: 0 0 0 2px rgba(242, 41, 41, 0.35);
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(242, 41, 41, 0.3);
   }
-  .shot-tag {
+  .shot-tag,
+  .shot-dur {
     position: absolute;
-    inset-block-start: 5px;
-    inset-inline-start: 5px;
-    background: rgba(0, 0, 0, 0.66);
-    backdrop-filter: blur(3px);
+    background: var(--blue);
+    color: #fff;
     border-radius: 5px;
     padding: 1px 6px;
     font-size: 10px;
     font-weight: 600;
     line-height: 1.7;
-    color: #fff;
+  }
+  .shot-tag {
+    inset-block-start: 5px;
+    inset-inline-start: 5px;
   }
   .shot-dur {
-    position: absolute;
     inset-block-end: 5px;
     inset-inline-end: 5px;
-    background: rgba(0, 0, 0, 0.66);
-    backdrop-filter: blur(3px);
-    border-radius: 5px;
-    padding: 1px 6px;
-    font-size: 10px;
-    color: #fff;
+    font-weight: 400;
   }
 
   /* ------------------------------------------------------------ stage */
@@ -354,8 +348,8 @@
 
   /* The canvas is a replaced element with an intrinsic 1080x1920, so
      capping both axes lets the browser fit it and keep the ratio — a
-     percentage height here resolves against a flex track that is not
-     always definite, and the frame spills. */
+     percentage height resolves against a flex track that is not always
+     definite, and the frame spills. */
   #stageCanvas {
     position: absolute;
     inset: 0;
@@ -366,8 +360,11 @@
     max-width: 100%;
     max-height: 100%;
     border-radius: 6px;
-    background: #000;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+    /* A light-ground scene is the same colour as the chrome, so the
+       frame needs its own edge or the composition loses its bounds. */
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 14px 40px rgba(11, 18, 117, 0.14);
   }
 
   .transport {
@@ -379,32 +376,38 @@
     flex-shrink: 0;
   }
 
-  /* Timeline: one track, one block per scene, widths proportional to
-     duration — the scene you are editing is lit. */
+  /* Timeline: one block per scene, widths proportional to duration. */
   .track {
     flex: 1;
-    display: flex;
-    gap: 2px;
     height: 26px;
     border-radius: 6px;
     overflow: hidden;
-    background: var(--panel-2);
+    background: #ebebf2;
     position: relative;
+  }
+  .track-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    gap: 2px;
+    /* Time runs left to right even on an RTL page. */
+    direction: ltr;
   }
   .track-seg {
     position: relative;
     border: 0;
     padding: 0;
-    background: #272b39;
+    height: 100%;
+    background: #dedee8;
     cursor: pointer;
     overflow: hidden;
     transition: background 140ms ease-out;
   }
   .track-seg:hover {
-    background: #333849;
+    background: #d0d0de;
   }
   .track-seg[aria-current='true'] {
-    background: #3a2027;
+    background: var(--red);
   }
   .track-seg span {
     position: absolute;
@@ -415,31 +418,23 @@
     color: var(--text-dim);
     pointer-events: none;
   }
+  .track-seg[aria-current='true'] span {
+    color: #fff;
+  }
   .playhead {
     position: absolute;
     inset-block: 0;
     width: 2px;
-    background: var(--mps-yellow);
+    background: var(--blue);
     pointer-events: none;
-    /* The track is LTR time even in an RTL page: time runs left→right. */
     left: 0;
-  }
-  .track-inner {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    gap: 2px;
-    direction: ltr;
-  }
-  .track-inner > .track-seg {
-    height: 100%;
   }
 
   .time {
     font-size: 11.5px;
     color: var(--text-dim);
     white-space: nowrap;
-    min-width: 74px;
+    min-width: 78px;
     text-align: center;
   }
 
@@ -458,37 +453,37 @@
     padding-inline: 10px;
     border-radius: 999px;
     border: 1px solid var(--line);
-    background: var(--panel-2);
+    background: var(--surface);
     color: var(--text-dim);
     font-size: 11.5px;
     cursor: pointer;
     user-select: none;
   }
   .toggle input {
-    accent-color: var(--mps-yellow);
+    accent-color: var(--red);
     margin: 0;
     width: 13px;
     height: 13px;
   }
   .toggle:has(input:checked) {
     color: var(--text);
-    border-color: #3a4055;
+    border-color: rgba(11, 18, 117, 0.3);
   }
 
   /* -------------------------------------------------------- inspector */
   .inspector {
-    background: var(--panel);
+    background: var(--surface);
     border-inline-end: 1px solid var(--line);
     padding: 12px 14px 40px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
   .group {
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-lg);
-    background: var(--panel-2);
+    background: var(--ground);
     overflow: hidden;
   }
   .group > summary {
@@ -497,12 +492,10 @@
     padding: 10px 12px;
     font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.02em;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    color: var(--text);
   }
   .group > summary::-webkit-details-marker {
     display: none;
@@ -517,7 +510,7 @@
     content: '−';
   }
   .group > summary:focus-visible {
-    outline: 2px solid var(--mps-yellow);
+    outline: 2px solid var(--red);
     outline-offset: -2px;
   }
   .group-body {
@@ -543,28 +536,24 @@
   .field select,
   .field textarea {
     width: 100%;
-    background: #0e1016;
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 7px 10px;
     font-size: 13px;
     transition: border-color 140ms ease-out;
   }
-  .field textarea {
-    resize: vertical;
-    min-height: 58px;
-    line-height: 1.7;
-  }
   .field input:focus,
   .field select:focus,
   .field textarea:focus {
     outline: none;
-    border-color: var(--mps-red);
+    border-color: var(--red);
   }
   .field .hint {
     font-size: 10.5px;
     color: var(--text-faint);
     line-height: 1.6;
+    margin: 0;
   }
 
   .row-2 {
@@ -580,18 +569,8 @@
 
   input[type='range'] {
     width: 100%;
-    accent-color: var(--mps-red);
+    accent-color: var(--red);
     margin: 0;
-  }
-
-  input[type='color'] {
-    width: 100%;
-    height: 32px;
-    padding: 2px;
-    background: #0e1016;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    cursor: pointer;
   }
 
   .chips {
@@ -601,21 +580,31 @@
   }
   .chip {
     border: 1px solid var(--line);
-    background: #0e1016;
+    background: var(--surface);
     border-radius: 999px;
-    padding: 3px 10px;
+    padding: 3px 11px;
     font-size: 11.5px;
     cursor: pointer;
     color: var(--text-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .chip:hover {
-    border-color: #3a4055;
+    border-color: rgba(11, 18, 117, 0.3);
     color: var(--text);
   }
   .chip[aria-pressed='true'] {
-    background: var(--mps-red);
-    border-color: var(--mps-red);
+    background: var(--blue);
+    border-color: var(--blue);
     color: #fff;
+  }
+  .swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1px solid rgba(11, 18, 117, 0.2);
+    flex-shrink: 0;
   }
 
   .thumbs {
@@ -627,55 +616,56 @@
     aspect-ratio: 1;
     border-radius: 7px;
     border: 1px solid var(--line);
-    background: #0e1016 center / contain no-repeat;
+    background: var(--surface) center / contain no-repeat;
     cursor: pointer;
     padding: 0;
   }
   .thumb[aria-pressed='true'] {
-    border-color: var(--mps-red);
-    box-shadow: 0 0 0 2px rgba(242, 41, 41, 0.3);
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(242, 41, 41, 0.25);
   }
 
-  /* Spec rows the owner reorders / edits — the reel's real payload */
-  .spec-row {
+  /* Saved projects */
+  .row-item {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 6px;
     align-items: center;
-    padding: 7px 8px;
+    padding: 7px 9px;
     border: 1px solid var(--line-soft);
     border-radius: 9px;
-    background: #0e1016;
+    background: var(--surface);
   }
-  .spec-row-main {
+  .row-item-main {
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 1px;
   }
-  .spec-row-main b {
+  .row-item-main b {
     font-size: 12.5px;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .spec-row-main small {
+  .row-item-main small {
     font-size: 10.5px;
     color: var(--text-faint);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
-  .spec-row-acts {
+  .row-item-acts {
     display: flex;
     gap: 3px;
   }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
   .note {
-    border: 1px solid #4a3a10;
-    background: #1d1806;
-    color: #f2dfa0;
+    border: 1px solid rgba(242, 41, 41, 0.35);
+    background: #fdecec;
     border-radius: var(--radius);
     padding: 9px 11px;
     font-size: 11.5px;
@@ -685,14 +675,14 @@
     align-items: flex-start;
   }
   .note b {
-    color: var(--mps-yellow);
+    color: var(--red);
     font-weight: 600;
   }
   .note button {
     margin-inline-start: auto;
     background: none;
     border: 0;
-    color: #8a7a45;
+    color: var(--text-faint);
     cursor: pointer;
     font-size: 15px;
     line-height: 1;
@@ -705,36 +695,25 @@
     inset-block-end: 16px;
     inset-inline-start: 50%;
     transform: translateX(50%);
-    background: #000;
-    border: 1px solid var(--line);
+    background: var(--blue);
+    color: #fff;
     border-radius: 999px;
-    padding: 8px 16px;
+    padding: 9px 18px;
     font-size: 12.5px;
     z-index: 60;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 10px 30px rgba(11, 18, 117, 0.3);
     display: none;
-    max-width: min(90vw, 460px);
+    max-width: min(90vw, 480px);
     text-align: center;
   }
   .status[data-show='true'] {
     display: block;
   }
   .status[data-kind='bad'] {
-    border-color: #7a2020;
-    color: #ffb4b4;
+    background: var(--red);
   }
   .status[data-kind='good'] {
-    border-color: #1e5e3a;
-    color: #a8e6c4;
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
+    background: var(--blue);
   }
 
   /* --------------------------------------------------------- narrow */
@@ -744,19 +723,16 @@
 
   @media (max-width: 1100px) {
     .shell {
-      grid-template-columns: 140px minmax(0, 1fr) 300px;
+      grid-template-columns: 142px minmax(0, 1fr) 306px;
     }
   }
 
   @media (max-width: 900px) {
-    /* The bar carries a logo, a readout and four controls; on a phone it
-       has to wrap or it sets a 1180px floor and the whole page scrolls
-       sideways. */
+    /* The bar carries a logo, a size lock and four controls; on a phone
+       it has to wrap or it sets a ~1180px floor and the whole page
+       scrolls sideways. */
     .bar {
-      height: auto;
       flex-wrap: wrap;
-      padding-block: 8px;
-      gap: 8px;
       position: static;
     }
     .bar-spacer {
@@ -765,12 +741,10 @@
     .brand span {
       display: none;
     }
-    .readout {
+    .lock {
       order: 10;
       width: 100%;
       justify-content: center;
-      border-block-start: 1px solid var(--line-soft);
-      padding-block-start: 7px;
     }
     .menu-host {
       margin-inline-start: auto;
@@ -778,7 +752,7 @@
     .menu {
       inset-inline-start: auto;
       inset-inline-end: 0;
-      min-width: min(250px, calc(100vw - 32px));
+      min-width: min(276px, calc(100vw - 32px));
     }
 
     .shell {
@@ -788,9 +762,6 @@
     .col {
       overflow: visible;
     }
-    .stage {
-      padding: 12px;
-    }
     .frame {
       height: min(62dvh, 560px);
       flex: none;
@@ -799,7 +770,7 @@
       display: flex;
       gap: 6px;
       padding: 10px 12px 0;
-      background: var(--panel);
+      background: var(--surface);
       border-block-start: 1px solid var(--line);
     }
     .tab {
@@ -808,15 +779,15 @@
       border: 1px solid var(--line);
       border-block-end: 0;
       border-radius: 9px 9px 0 0;
-      background: var(--panel-2);
+      background: var(--ground);
       color: var(--text-dim);
       font-size: 12.5px;
       cursor: pointer;
     }
     .tab[aria-selected='true'] {
-      background: var(--panel);
+      background: var(--surface);
       color: var(--text);
-      border-color: var(--mps-red);
+      border-color: var(--red);
     }
     .storyboard,
     .inspector {
@@ -857,19 +828,16 @@
 
   <div class="bar-spacer"></div>
 
-  <div class="readout">
-    <span class="dot"></span>
-    <b class="num">1080×1920</b>
-    <span>· 9:16 ·</span>
-    <b class="num">30</b>
-    <span>fps ·</span>
-    <b class="num" id="totalTime">0.0s</b>
-  </div>
+  <span class="lock">
+    <span class="num"><b>1080×1920</b></span>
+    <small>9:16 · 30fps ·</small>
+    <span class="num" id="totalTime">0.0s</span>
+  </span>
 
   <div class="bar-spacer"></div>
 
-  <button class="btn btn-sm" id="btnOpen" type="button">فتح مشروع</button>
-  <button class="btn btn-sm" id="btnSave" type="button">حفظ المشروع</button>
+  <button class="btn btn-sm" id="btnOpen" type="button">فتح ملف</button>
+  <button class="btn btn-sm" id="btnSaveCloud" type="button">حفظ</button>
   <div class="menu-host">
     <button
       class="btn btn-primary btn-sm"
@@ -883,15 +851,19 @@
     <div class="menu" id="exportMenu" role="menu" hidden>
       <button type="button" role="menuitem" data-act="video">
         <b>فيديو الريل كامل</b>
-        <small>1080×1920 · 30fps · كل المشاهد</small>
+        <small>1080×1920 · 30fps · كل المشاهد بالحركة</small>
       </button>
       <button type="button" role="menuitem" data-act="frames">
         <b>كل المشاهد صور PNG</b>
-        <small>للتركيب في CapCut أو Premiere</small>
+        <small>1080×1920 لكل مشهد · للتركيب بـ CapCut</small>
       </button>
       <button type="button" role="menuitem" data-act="cover">
         <b>غلاف الريل</b>
-        <small>المشهد المحدد · تذكّر قص 4:5</small>
+        <small>1080×1920 · المشهد المحدد</small>
+      </button>
+      <button type="button" role="menuitem" data-act="json">
+        <b>حفظ ملف المشروع</b>
+        <small>‎.json فيه النصوص والصور — نسخة احتياطية</small>
       </button>
     </div>
   </div>
@@ -923,7 +895,6 @@
 </div>
 
 <div class="shell">
-  <!-- ---------------------------------------------------- storyboard -->
   <aside class="col storyboard" id="colStoryboard" aria-label="لوحة المشاهد">
     <div class="col-head">
       <span>المشاهد</span>
@@ -938,7 +909,6 @@
     </div>
   </aside>
 
-  <!-- --------------------------------------------------------- stage -->
   <main class="col stage" id="colStage">
     <div class="frame">
       <canvas id="stageCanvas" width="1080" height="1920"></canvas>
@@ -971,13 +941,12 @@
     </div>
   </main>
 
-  <!-- ----------------------------------------------------- inspector -->
   <aside class="col inspector" id="colInspector" aria-label="لوحة التحرير">
     <div class="note" id="verifyNote">
       <div>
         <b>راجع المواصفات قبل النشر.</b>
-        موقع HONOR محجوب عن هذه الجلسة، فالأرقام المعبّأة مأخوذة من ملخّص بحث وليس من
-        صفحة الوكالة. قارنها بورقة الوكيل وعدّلها من هنا.
+        موقع HONOR محجوب عن الجلسة اللي انبنت بيها الأداة، فالأرقام المعبّأة مأخوذة من
+        ملخّص بحث وليس من صفحة الوكالة. قارنها بورقة الوكيل وعدّلها من هنا.
       </div>
       <button type="button" id="noteClose" aria-label="إغلاق">×</button>
     </div>
@@ -998,9 +967,8 @@
         <div class="field">
           <label for="imgUpload">أضف صور الجهاز الجديد</label>
           <input type="file" id="imgUpload" accept="image/*" multiple />
-          <p class="hint">
-            الصور تبقى داخل متصفحك ولا تُرفع لأي مكان. تُحفظ مع المشروع عند «حفظ
-            المشروع».
+          <p class="hint" id="uploadHint">
+            الصور تُحفظ مع المشروع حتى تفتحها من أي جهاز.
           </p>
         </div>
         <div class="field">
@@ -1008,6 +976,11 @@
           <div class="thumbs" id="imgLibrary"></div>
         </div>
       </div>
+    </details>
+
+    <details class="group" id="projectsGroup">
+      <summary>المشاريع المحفوظة</summary>
+      <div class="group-body" id="projectFields"></div>
     </details>
 
     <details class="group">
@@ -1069,15 +1042,68 @@
     LOGO[key].path2d = LOGO[key].p.map((seg) => new Path2D(seg.d));
   }
 
-  // Brand book p.004. These four are the whole palette.
+  /**
+   * The brand book's four colours plus its two grounds, sampled from the
+   * pages themselves. There is no black in the book, so there is none
+   * here — a near-black ground would be off-brand, not neutral.
+   */
   const MPS = {
     red: '#f22929',
     blue: '#0b1275',
     yellow: '#ffea00',
     grey: '#999999',
-    ink: '#0a0a0b',
+    ground: '#f7f7f7',
     white: '#ffffff',
   };
+
+  /**
+   * A scene ground is a whole colour set, so nothing has to remember
+   * which text colour belongs on which field. The book's two grounds
+   * plus blue, which it calls a sparing secondary.
+   */
+  const GROUNDS = {
+    light: {
+      bg: MPS.ground,
+      ink: MPS.blue,
+      accent: MPS.red,
+      soft: 'rgba(11,18,117,0.6)',
+      faint: 'rgba(11,18,117,0.36)',
+      plate: MPS.white,
+      pattern: MPS.red,
+      patternAlpha: 0.06,
+      tickOn: 'rgba(11,18,117,0.9)',
+      tickOff: 'rgba(11,18,117,0.22)',
+      label: 'فاتح',
+    },
+    red: {
+      bg: MPS.red,
+      ink: MPS.white,
+      accent: MPS.yellow,
+      soft: 'rgba(255,255,255,0.86)',
+      faint: 'rgba(255,255,255,0.62)',
+      plate: MPS.white,
+      pattern: MPS.white,
+      patternAlpha: 0.1,
+      tickOn: 'rgba(255,255,255,0.95)',
+      tickOff: 'rgba(255,255,255,0.3)',
+      label: 'أحمر',
+    },
+    blue: {
+      bg: MPS.blue,
+      ink: MPS.white,
+      accent: MPS.yellow,
+      soft: 'rgba(255,255,255,0.84)',
+      faint: 'rgba(255,255,255,0.6)',
+      plate: MPS.white,
+      pattern: MPS.white,
+      patternAlpha: 0.09,
+      tickOn: 'rgba(255,255,255,0.95)',
+      tickOff: 'rgba(255,255,255,0.3)',
+      label: 'أزرق',
+    },
+  };
+
+  const groundOf = (scene) => GROUNDS[scene && scene.ground] || GROUNDS.light;
 
   /* ==================================================================
      1. Canvas geometry — Instagram Reels, to the pixel
@@ -1088,22 +1114,17 @@
   const FPS = 30;
 
   /**
-   * Reels safe area. Instagram's own guidance is to keep anything that
-   * must be read clear of roughly the top 14% and bottom 20% of the
-   * frame, plus the right-hand action rail. Those percentages of 1920
-   * are 269 and 384; rounded to the values below they also line up with
-   * where the real UI chrome sits on a 2024+ handset.
+   * Reels safe area. Instagram's guidance is to keep anything that must
+   * be read clear of roughly the top 14% and bottom 20% of the frame,
+   * plus the right-hand action rail. Those percentages of 1920 are 269
+   * and 384; rounded to the values below they also line up with where
+   * the real UI chrome sits on a 2024+ handset.
    *
    * Nothing here is decorative: every text block in every scene is laid
    * out against TITLE, so a frame that looks right in this studio still
    * reads once Instagram paints its caption and buttons over it.
    */
-  const SAFE = {
-    top: 250, // Reels header + account row
-    bottom: 420, // caption, audio strip, progress bar
-    side: 60, // rounded-display bleed
-    rail: 240, // like / comment / share / menu column
-  };
+  const SAFE = { top: 250, bottom: 420, side: 60, rail: 240 };
 
   const TITLE = {
     x: SAFE.side + 28, // 88 — the design margin
@@ -1121,7 +1142,8 @@
     },
   };
 
-  const M = TITLE.x; // design margin, used constantly below
+  const M = TITLE.x;
+  const BOTTOM = TITLE.y + TITLE.h; // 1500 — the last safe baseline
 
   /* ==================================================================
      2. Project model
@@ -1131,14 +1153,25 @@
 
   const IMG_BASE = 'assets/honor-x9d/';
 
-  /** Images that ship with the studio. Uploads join this list at runtime. */
   const STOCK = [
     { id: 'kv-hero', label: 'الغلاف الرسمي', src: IMG_BASE + 'kv-hero.png' },
     { id: 'scene-desert', label: 'الصحراء', src: IMG_BASE + 'scene-desert.png' },
-    { id: 'battery-8300', label: 'البطارية', src: IMG_BASE + 'battery-8300.png' },
+    {
+      id: 'battery-8300',
+      label: 'البطارية',
+      src: IMG_BASE + 'battery-8300.png',
+    },
     { id: 'water-drop', label: 'مقاومة الماء', src: IMG_BASE + 'water-drop.png' },
-    { id: 'screen-hills', label: 'الشاشة / تلال', src: IMG_BASE + 'screen-hills.png' },
-    { id: 'screen-flat', label: 'الشاشة / أفقي', src: IMG_BASE + 'screen-flat.png' },
+    {
+      id: 'screen-hills',
+      label: 'الشاشة / تلال',
+      src: IMG_BASE + 'screen-hills.png',
+    },
+    {
+      id: 'screen-flat',
+      label: 'الشاشة / أفقي',
+      src: IMG_BASE + 'screen-flat.png',
+    },
     {
       id: 'reverse-charge',
       label: 'الشحن العكسي',
@@ -1153,47 +1186,50 @@
 
   function defaultProject() {
     return {
-      version: 1,
+      version: 2,
       name: 'HONOR X9d — إطلاق',
       brand: {
         store: 'MODERN PHONE STORE',
         handle: '@mps.iq',
         phone: '0770 000 0000',
         city: 'بغداد — شارع فلسطين',
-        accent: MPS.red,
       },
       device: {
         maker: 'HONOR',
         model: 'X9d',
-        tagline: 'مصنوع حتى يتحمّل',
         price: '',
         oldPrice: '',
         badge: 'كفالة الوكيل الرسمي',
       },
+      // Grounds alternate light / red so the reel has a beat, and the
+      // end card is the one sparing use of blue the book allows.
       scenes: [
         {
           type: 'hook',
+          ground: 'red',
           dur: 2.6,
           value: '8300',
           unit: 'mAh',
           headline: 'بطارية ما تخلص',
           kicker: 'أكبر بطارية بفئته',
           image: 'kv-hero',
-          focus: 46,
-          zoom: 100,
+          focus: 40,
+          zoom: 104,
         },
         {
           type: 'reveal',
+          ground: 'red',
           dur: 2.8,
           headline: 'X9d',
           sub: 'HONOR',
           kicker: 'مصنوع حتى يتحمّل',
           image: 'scene-desert',
-          focus: 50,
+          focus: 38,
           zoom: 104,
         },
         {
           type: 'spec',
+          ground: 'light',
           dur: 2.4,
           value: '8300',
           unit: 'mAh',
@@ -1205,6 +1241,7 @@
         },
         {
           type: 'spec',
+          ground: 'red',
           dur: 2.4,
           value: 'IP69K',
           unit: '',
@@ -1216,6 +1253,7 @@
         },
         {
           type: 'spec',
+          ground: 'light',
           dur: 2.4,
           value: '120',
           unit: 'Hz',
@@ -1227,6 +1265,7 @@
         },
         {
           type: 'spec',
+          ground: 'red',
           dur: 2.4,
           value: '108',
           unit: 'MP',
@@ -1238,6 +1277,7 @@
         },
         {
           type: 'colors',
+          ground: 'light',
           dur: 2.6,
           headline: 'أربعة ألوان',
           kicker: 'اختار لونك',
@@ -1250,12 +1290,14 @@
         },
         {
           type: 'price',
+          ground: 'red',
           dur: 2.6,
           headline: 'السعر',
           kicker: 'التوصيل لجميع المحافظات',
         },
         {
           type: 'cta',
+          ground: 'blue',
           dur: 2.8,
           headline: 'متوفر الآن',
           kicker: 'الدفع عند الاستلام',
@@ -1280,7 +1322,7 @@
      3. Image cache
      ================================================================== */
 
-  /** id -> {src, label, img, ready} */
+  /** id -> {id, label, src, assetId?, img, ready} */
   const images = new Map();
 
   function registerImage(entry) {
@@ -1326,15 +1368,12 @@
   const lerp = (a, b, t) => a + (b - a) * t;
 
   const AR = '"IBM Plex Sans Arabic", system-ui, sans-serif';
-  const LA = 'Lato, system-ui, sans-serif';
+  // Cabin is the humanist sans drawn after Gill Sans — the closest free
+  // stand-in for the brand's face, which has no web licence here.
+  const LA = 'Cabin, system-ui, sans-serif';
 
-  /** Arabic display type: never negative tracking, generous leading. */
-  function arFont(weight, size) {
-    return `${weight} ${size}px ${AR}`;
-  }
-  function laFont(weight, size) {
-    return `${weight} ${size}px ${LA}`;
-  }
+  const arFont = (weight, size) => `${weight} ${size}px ${AR}`;
+  const laFont = (weight, size) => `${weight} ${size}px ${LA}`;
 
   function roundRect(c, x, y, w, h, r) {
     const rr = Math.min(r, w / 2, h / 2);
@@ -1350,14 +1389,10 @@
   /** Cover-fit an image into a box, honouring a focal point and zoom. */
   function drawCover(c, img, x, y, w, h, focus = 50, zoom = 100) {
     if (!img) return;
-    const z = zoom / 100;
-    const scale = Math.max(w / img.width, h / img.height) * z;
+    const scale = Math.max(w / img.width, h / img.height) * (zoom / 100);
     const dw = img.width * scale;
     const dh = img.height * scale;
-    const dx = x + (w - dw) / 2;
-    // focus 0 = top of the image sits at the top of the box, 100 = bottom
-    const dy = y + (h - dh) * (focus / 100);
-    c.drawImage(img, dx, dy, dw, dh);
+    c.drawImage(img, x + (w - dw) / 2, y + (h - dh) * (focus / 100), dw, dh);
   }
 
   /** Contain-fit, used where the product must never be cropped. */
@@ -1376,10 +1411,15 @@
     c.fillRect(x, y, w, h);
   }
 
+  /** Same colour, variable alpha — keeps scrims inside the palette. */
+  function alpha(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+
   /**
    * Word-wrap that measures with the live context, so Arabic shaping and
    * kerning are accounted for rather than estimated from character count.
-   * Returns the lines; the caller decides where the block sits.
    */
   function wrap(c, text, maxWidth) {
     const words = String(text).split(/\s+/).filter(Boolean);
@@ -1398,7 +1438,7 @@
     return lines;
   }
 
-  /** Draw Arabic right-aligned inside the title-safe column. */
+  /** Arabic, right-aligned inside the title-safe column. */
   function arText(c, text, x, y, size, weight, color, maxWidth, leading = 1.34) {
     if (!text) return y;
     c.save();
@@ -1407,9 +1447,8 @@
     c.textBaseline = 'alphabetic';
     c.font = arFont(weight, size);
     c.fillStyle = color;
-    const lines = wrap(c, text, maxWidth);
     let cy = y;
-    for (const line of lines) {
+    for (const line of wrap(c, text, maxWidth)) {
       c.fillText(line, x, cy);
       cy += size * leading;
     }
@@ -1417,21 +1456,20 @@
     return cy - size * leading;
   }
 
-  /** A pill — used for kickers and the CTA. Returns its width. */
+  /** A pill — kickers and the CTA. */
   function pill(c, text, x, y, size, bg, fg, rtl = true) {
     c.save();
     c.font = arFont(600, size);
     const padX = size * 0.72;
     const padY = size * 0.5;
-    const tw = c.measureText(text).width;
-    const w = tw + padX * 2;
+    const w = c.measureText(text).width + padX * 2;
     const h = size + padY * 2;
-    const left = rtl ? x - w : x;
+    const left = rtl ? x - w : x - w / 2;
     roundRect(c, left, y, w, h, h / 2);
     c.fillStyle = bg;
     c.fill();
     c.fillStyle = fg;
-    c.direction = rtl ? 'rtl' : 'ltr';
+    c.direction = 'rtl';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.fillText(text, left + w / 2, y + h / 2 + size * 0.04);
@@ -1439,7 +1477,7 @@
     return w;
   }
 
-  /** Paint one of the brand logos at a given height. */
+  /** Paint one of the brand logos at a given height, anchored by its top. */
   function drawLogo(c, which, x, y, height, color, align = 'center') {
     const def = LOGO[which];
     const scale = height / def.h;
@@ -1456,42 +1494,39 @@
 
   /**
    * The brand book's pattern page: the standalone M, tiled and rotated,
-   * at a whisper of opacity. It is what keeps a flat red field from
-   * looking like a flat red field.
+   * at a whisper of opacity. It is what keeps a flat field from looking
+   * like a flat field.
    */
-  function drawPattern(c, x, y, w, h, color, alpha = 0.07) {
+  function drawPattern(c, x, y, w, h, color, a) {
     c.save();
     c.beginPath();
     c.rect(x, y, w, h);
     c.clip();
-    c.globalAlpha = alpha;
+    c.globalAlpha = a;
     const step = 168;
-    const size = 66;
     for (let row = -1, ry = y - step; ry < y + h + step; ry += step, row++) {
       const offset = row % 2 === 0 ? 0 : step / 2;
       for (let rx = x - step + offset; rx < x + w + step; rx += step) {
         c.save();
         c.translate(rx, ry);
         c.rotate(-0.5);
-        drawLogo(c, 'mark', 0, 0, size, color, 'start');
+        drawLogo(c, 'mark', 0, 0, 66, color, 'start');
         c.restore();
       }
     }
     c.restore();
   }
 
-  /** Thin progress ticks along the top — the reel's own chapter marks. */
-  function drawChapters(c, index, count, alpha) {
+  /** Chapter ticks along the top — the reel's own progress marks. */
+  function drawChapters(c, g, index, count, a) {
     const gap = 8;
     const y = 116;
-    const total = W - M * 2;
-    const seg = (total - gap * (count - 1)) / count;
+    const seg = (W - M * 2 - gap * (count - 1)) / count;
     c.save();
-    c.globalAlpha = alpha;
+    c.globalAlpha = a;
     for (let i = 0; i < count; i++) {
-      const x = M + i * (seg + gap);
-      roundRect(c, x, y, seg, 5, 2.5);
-      c.fillStyle = i <= index ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.26)';
+      roundRect(c, M + i * (seg + gap), y, seg, 5, 2.5);
+      c.fillStyle = i <= index ? g.tickOn : g.tickOff;
       c.fill();
     }
     c.restore();
@@ -1499,42 +1534,65 @@
 
   /* ==================================================================
      5. Scene renderers
-     Each takes (c, scene, t) where t is seconds elapsed inside the
-     scene. Composition is laid out against TITLE, never against the
-     raw frame, so nothing important can land under Instagram's chrome.
+     Each takes (c, scene, t, index) where t is seconds inside the scene.
+     Composition is laid out against TITLE, never the raw frame, so
+     nothing important can land under Instagram's chrome.
      ================================================================== */
 
-  const BOTTOM = TITLE.y + TITLE.h; // 1500 — the last safe baseline
+  /**
+   * Photo scenes put the copy on a solid brand panel instead of a black
+   * scrim. The book has no black, and a coloured panel also guarantees
+   * the type is legible over any photograph, which a gradient does not.
+   */
+  function drawPhotoPanel(c, g, panelTop) {
+    vGradient(c, 0, panelTop - 190, W, 190, [
+      [0, alpha(g.bg, 0)],
+      [1, alpha(g.bg, 1)],
+    ]);
+    c.fillStyle = g.bg;
+    c.fillRect(0, panelTop, W, H - panelTop);
+    drawPattern(c, 0, panelTop, W, H - panelTop, g.pattern, g.patternAlpha);
+  }
 
   function sceneHook(c, s, t, index) {
-    const img = imageOf(s.image);
+    const g = groundOf(s);
     const enter = easeOut(t / 0.7);
-    const drift = lerp(1.08, 1.0, easeInOut(t / 2.6)); // slow push-in
+    const drift = lerp(1.06, 1.0, easeInOut(t / (s.dur || 2.6)));
 
-    c.fillStyle = MPS.ink;
+    c.fillStyle = MPS.white;
     c.fillRect(0, 0, W, H);
-    if (img) drawCover(c, img, 0, 0, W, H, s.focus ?? 50, (s.zoom ?? 100) * drift);
+    drawCover(
+      c,
+      imageOf(s.image),
+      0,
+      0,
+      W,
+      1180,
+      s.focus ?? 45,
+      (s.zoom ?? 100) * drift,
+    );
 
-    // Scrim: the copy needs a ground, the photo needs to stay a photo.
-    vGradient(c, 0, 0, W, 460, [
-      [0, 'rgba(10,10,11,0.78)'],
-      [1, 'rgba(10,10,11,0)'],
-    ]);
-    vGradient(c, 0, H - 1180, W, 1180, [
-      [0, 'rgba(10,10,11,0)'],
-      [0.45, 'rgba(10,10,11,0.72)'],
-      [1, 'rgba(10,10,11,0.96)'],
-    ]);
+    const panelTop = 990;
+    drawPhotoPanel(c, g, panelTop);
 
-    // Maker tag, top-right inside safe
+    // Maker tag. It sits on a photograph, so it gets its own solid
+    // ground: bare type here is legible on one image and gone on the
+    // next.
     c.save();
     c.globalAlpha = enter;
-    c.font = laFont(700, 34);
-    c.textAlign = 'right';
-    c.textBaseline = 'top';
-    c.fillStyle = 'rgba(255,255,255,0.82)';
+    const maker = project.device.maker.toUpperCase();
+    c.font = laFont(700, 30);
     c.letterSpacing = '0.3em';
-    c.fillText(project.device.maker.toUpperCase(), W - M, TITLE.y - 40);
+    const tw = c.measureText(maker).width;
+    const tagW = tw + 52;
+    const tagH = 62;
+    roundRect(c, W - M - tagW, TITLE.y - 18, tagW, tagH, tagH / 2);
+    c.fillStyle = g.bg;
+    c.fill();
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillStyle = g.ink;
+    c.fillText(maker, W - M - tagW / 2 + 8, TITLE.y - 18 + tagH / 2);
     c.letterSpacing = '0px';
     c.restore();
 
@@ -1542,217 +1600,205 @@
     const numEnter = easeOut((t - 0.1) / 0.55);
     const value = String(s.value ?? '');
     const unit = String(s.unit ?? '');
+    const numY = panelTop + 232;
+
     c.save();
     c.globalAlpha = numEnter;
-    const numSize = value.length > 5 ? 230 : 300;
-    c.font = laFont(900, numSize);
+    c.translate(W - M, numY);
+    c.scale(lerp(1.12, 1, numEnter), lerp(1.12, 1, numEnter));
+    c.translate(-(W - M), -numY);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
-    const unitSize = 92;
+
+    const unitSize = 88;
     c.font = laFont(700, unitSize);
     const unitW = unit ? c.measureText(unit).width + 20 : 0;
-
-    const numY = BOTTOM - 322;
-    c.translate(W - M, numY);
-    c.scale(lerp(1.14, 1, numEnter), lerp(1.14, 1, numEnter));
-    c.translate(-(W - M), -numY);
-
     if (unit) {
-      c.font = laFont(700, unitSize);
-      c.fillStyle = MPS.yellow;
+      c.fillStyle = g.accent;
       c.fillText(unit, W - M, numY);
     }
-    c.font = laFont(900, numSize);
-    c.fillStyle = MPS.white;
+    c.font = laFont(700, value.length > 5 ? 218 : 274);
+    c.fillStyle = g.ink;
     c.fillText(value, W - M - unitW, numY);
     c.restore();
 
-    // Arabic headline rises under it
     const hEnter = easeOut((t - 0.32) / 0.6);
     c.save();
     c.globalAlpha = hEnter;
-    c.translate(0, lerp(54, 0, hEnter));
-    arText(c, s.headline, W - M, BOTTOM - 190, 82, 700, MPS.white, TITLE.w);
+    c.translate(0, lerp(46, 0, hEnter));
+    arText(c, s.headline, W - M, numY + 116, 78, 700, g.ink, TITLE.w);
     c.restore();
 
-    // Kicker last
-    const kEnter = easeOut((t - 0.55) / 0.55);
     if (s.kicker) {
+      const kEnter = easeOut((t - 0.55) / 0.55);
       c.save();
       c.globalAlpha = kEnter;
-      c.translate(0, lerp(28, 0, kEnter));
-      pill(c, s.kicker, W - M, BOTTOM - 116, 40, project.brand.accent, MPS.white);
+      c.translate(0, lerp(24, 0, kEnter));
+      c.textAlign = 'right';
+      pill(c, s.kicker, W - M, numY + 172, 38, g.accent, MPS.blue);
       c.restore();
     }
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, GROUNDS.light, index, project.scenes.length, enter * 0.9);
   }
 
   function sceneReveal(c, s, t, index) {
-    const img = imageOf(s.image);
+    const g = groundOf(s);
     const enter = easeOut(t / 0.75);
-    const drift = lerp(1.0, 1.06, easeInOut(t / (s.dur || 2.8)));
+    const drift = lerp(1.0, 1.05, easeInOut(t / (s.dur || 2.8)));
 
-    c.fillStyle = MPS.ink;
+    c.fillStyle = MPS.white;
     c.fillRect(0, 0, W, H);
-    if (img) drawCover(c, img, 0, 0, W, H, s.focus ?? 50, (s.zoom ?? 100) * drift);
+    drawCover(
+      c,
+      imageOf(s.image),
+      0,
+      0,
+      W,
+      1240,
+      s.focus ?? 40,
+      (s.zoom ?? 100) * drift,
+    );
 
-    vGradient(c, 0, H - 1080, W, 1080, [
-      [0, 'rgba(10,10,11,0)'],
-      [0.5, 'rgba(10,10,11,0.66)'],
-      [1, 'rgba(10,10,11,0.95)'],
-    ]);
+    const panelTop = 1060;
+    drawPhotoPanel(c, g, panelTop);
 
-    // Maker, letterspaced small caps in the brand yellow
     c.save();
     c.globalAlpha = easeOut((t - 0.15) / 0.5);
-    c.font = laFont(700, 40);
+    c.font = laFont(700, 38);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
     c.letterSpacing = '0.34em';
-    c.fillStyle = MPS.yellow;
-    c.fillText(String(s.sub ?? '').toUpperCase(), W - M, BOTTOM - 330);
+    c.fillStyle = g.accent;
+    c.fillText(String(s.sub ?? '').toUpperCase(), W - M, panelTop + 116);
     c.letterSpacing = '0px';
     c.restore();
 
-    // Model, the largest Latin on the frame
     const mEnter = easeOut((t - 0.25) / 0.65);
     c.save();
     c.globalAlpha = mEnter;
-    c.translate(0, lerp(44, 0, mEnter));
-    c.font = laFont(900, 188);
+    c.translate(0, lerp(40, 0, mEnter));
+    c.font = laFont(700, 176);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
-    c.fillStyle = MPS.white;
-    c.fillText(String(s.headline ?? ''), W - M, BOTTOM - 178);
+    c.fillStyle = g.ink;
+    c.fillText(String(s.headline ?? ''), W - M, panelTop + 280);
     c.restore();
 
-    // A rule that draws itself in, then the Arabic line
     const rule = easeOut((t - 0.5) / 0.6);
-    c.save();
-    c.fillStyle = project.brand.accent;
-    c.fillRect(W - M - 150 * rule, BOTTOM - 138, 150 * rule, 7);
-    c.restore();
+    c.fillStyle = g.accent;
+    c.fillRect(W - M - 150 * rule, panelTop + 322, 150 * rule, 7);
 
     c.save();
     c.globalAlpha = easeOut((t - 0.62) / 0.55);
-    arText(c, s.kicker, W - M, BOTTOM - 60, 52, 500, 'rgba(255,255,255,0.9)', TITLE.w);
+    arText(c, s.kicker, W - M, panelTop + 412, 50, 500, g.soft, TITLE.w);
     c.restore();
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, GROUNDS.light, index, project.scenes.length, enter * 0.9);
   }
 
   function sceneSpec(c, s, t, index) {
-    const img = imageOf(s.image);
+    const g = groundOf(s);
     const enter = easeOut(t / 0.6);
 
-    c.fillStyle = MPS.ink;
+    c.fillStyle = g.bg;
     c.fillRect(0, 0, W, H);
-    drawPattern(c, 0, 0, W, H, MPS.white, 0.04);
+    drawPattern(c, 0, 0, W, H, g.pattern, g.patternAlpha);
 
-    // Image plate: sits inside title-safe, opens downward as the scene
+    // Image plate: inside title-safe, opening downward as the scene
     // starts so the eye is pulled to the stat that follows it.
     const plateY = TITLE.y + 6;
     const plateH = 764;
     const grow = easeOut(t / 0.55);
     c.save();
     roundRect(c, M, plateY, TITLE.w, plateH * grow, 44);
-    c.clip();
-    c.fillStyle = '#15161c';
-    c.fillRect(M, plateY, TITLE.w, plateH);
-    if (img) {
-      const drift = lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4)));
-      drawCover(
-        c,
-        img,
-        M,
-        plateY,
-        TITLE.w,
-        plateH,
-        s.focus ?? 50,
-        (s.zoom ?? 100) * drift,
-      );
+    if (g === GROUNDS.light) {
+      c.strokeStyle = 'rgba(11,18,117,0.12)';
+      c.lineWidth = 2;
+      c.stroke();
     }
+    c.clip();
+    c.fillStyle = g.plate;
+    c.fillRect(M, plateY, TITLE.w, plateH);
+    drawCover(
+      c,
+      imageOf(s.image),
+      M,
+      plateY,
+      TITLE.w,
+      plateH,
+      s.focus ?? 50,
+      (s.zoom ?? 100) * lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4))),
+    );
     c.restore();
 
-    // Counter — the index is real information here: these scenes are a
-    // numbered run of specs, so they are numbered.
+    // The index is real information: spec scenes are a numbered run.
     const specScenes = project.scenes.filter((x) => x.type === 'spec');
     const ordinal = specScenes.indexOf(s) + 1;
+    const vy = plateY + plateH + 232;
+
     c.save();
-    c.globalAlpha = enter * 0.75;
-    c.font = laFont(700, 30);
-    c.textAlign = 'right';
+    c.globalAlpha = enter * 0.8;
+    c.font = laFont(600, 30);
+    c.textAlign = 'left';
     c.textBaseline = 'alphabetic';
     c.letterSpacing = '0.22em';
-    c.fillStyle = MPS.grey;
-    // Left edge, on the number's own baseline: right-aligning it put it
-    // directly over the top of the digits.
-    c.textAlign = 'left';
+    c.fillStyle = g.faint;
     c.fillText(
       `${String(ordinal).padStart(2, '0')} / ${String(specScenes.length).padStart(2, '0')}`,
       M,
-      plateY + plateH + 232,
+      vy,
     );
     c.letterSpacing = '0px';
     c.restore();
 
-    // The stat. Numeric values count up — it is the cheapest way to make
-    // a still frame feel like footage.
+    // Numeric values count up — the cheapest way to make a still frame
+    // feel like footage.
     const raw = String(s.value ?? '');
     const numeric = /^\d+(\.\d+)?$/.test(raw);
+    const decimals = raw.includes('.') ? 1 : 0;
     const count = easeOut((t - 0.12) / 0.75);
-    const shown = numeric
-      ? (
-          Math.round(parseFloat(raw) * count * (raw.includes('.') ? 10 : 1)) /
-          (raw.includes('.') ? 10 : 1)
-        ).toFixed(raw.includes('.') ? 1 : 0)
-      : raw;
+    const shown = numeric ? (parseFloat(raw) * count).toFixed(decimals) : raw;
 
-    const vEnter = easeOut((t - 0.1) / 0.5);
     c.save();
-    c.globalAlpha = vEnter;
-    const size = raw.length > 4 ? 186 : 248;
-    c.font = laFont(700, 78);
-    const uw = s.unit ? c.measureText(s.unit).width + 18 : 0;
-    const vy = plateY + plateH + 232;
+    c.globalAlpha = easeOut((t - 0.1) / 0.5);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
+    c.font = laFont(700, 74);
+    const uw = s.unit ? c.measureText(s.unit).width + 18 : 0;
     if (s.unit) {
-      c.fillStyle = MPS.yellow;
+      c.fillStyle = g.accent;
       c.fillText(s.unit, W - M, vy);
     }
-    c.font = laFont(900, size);
-    c.fillStyle = MPS.white;
+    c.font = laFont(700, raw.length > 4 ? 176 : 232);
+    c.fillStyle = g.ink;
     c.fillText(shown, W - M - uw, vy);
     c.restore();
 
-    // Arabic label + supporting line
     const lEnter = easeOut((t - 0.3) / 0.6);
     c.save();
     c.globalAlpha = lEnter;
-    c.translate(0, lerp(34, 0, lEnter));
-    const end = arText(c, s.headline, W - M, vy + 108, 66, 700, MPS.white, TITLE.w);
+    c.translate(0, lerp(30, 0, lEnter));
+    const end = arText(c, s.headline, W - M, vy + 108, 64, 700, g.ink, TITLE.w);
     if (s.kicker) {
-      arText(c, s.kicker, W - M, end + 80, 42, 400, 'rgba(255,255,255,0.66)', TITLE.w);
+      arText(c, s.kicker, W - M, end + 78, 42, 400, g.soft, TITLE.w);
     }
     c.restore();
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
 
   function sceneColors(c, s, t, index) {
+    const g = groundOf(s);
     const enter = easeOut(t / 0.6);
-    c.fillStyle = MPS.ink;
+    c.fillStyle = g.bg;
     c.fillRect(0, 0, W, H);
-    drawPattern(c, 0, 0, W, H, MPS.white, 0.05);
+    drawPattern(c, 0, 0, W, H, g.pattern, g.patternAlpha);
 
     c.save();
     c.globalAlpha = enter;
-    arText(c, s.headline, W - M, TITLE.y + 96, 84, 700, MPS.white, TITLE.w);
-    if (s.kicker) {
-      arText(c, s.kicker, W - M, TITLE.y + 176, 44, 400, MPS.grey, TITLE.w);
-    }
+    arText(c, s.headline, W - M, TITLE.y + 96, 82, 700, g.ink, TITLE.w);
+    if (s.kicker) arText(c, s.kicker, W - M, TITLE.y + 176, 44, 400, g.soft, TITLE.w);
     c.restore();
 
     const items = (s.colors || []).slice(0, 4);
@@ -1767,102 +1813,90 @@
     const ratio = sample ? sample.height / sample.width : 2.1;
     const cellH = Math.min(780, cellW * ratio + 64);
     const regionTop = TITLE.y + 260;
-    const regionH = BOTTOM - 90 - regionTop;
-    const top = regionTop + Math.max(0, (regionH - cellH - 80) / 2);
+    const top = regionTop + Math.max(0, (BOTTOM - 90 - regionTop - cellH - 80) / 2);
 
     items.forEach((item, i) => {
-      // Right-to-left order: the first colour named is the first seen.
+      // Right to left: the first colour named is the first seen.
       const x = W - M - cellW - i * (cellW + gap);
       const a = easeOut((t - 0.18 - i * 0.11) / 0.6);
       if (a <= 0) return;
       c.save();
       c.globalAlpha = a;
-      c.translate(0, lerp(52, 0, a));
+      c.translate(0, lerp(48, 0, a));
 
       roundRect(c, x, top, cellW, cellH, 30);
-      c.fillStyle = '#15161c';
+      c.fillStyle = g.plate;
       c.fill();
-
-      const img = imageOf(item.image);
-      if (img) {
-        c.save();
-        roundRect(c, x, top, cellW, cellH, 30);
-        c.clip();
-        drawContain(c, img, x, top + 18, cellW, cellH - 36, 96);
-        c.restore();
+      if (g === GROUNDS.light) {
+        c.strokeStyle = 'rgba(11,18,117,0.12)';
+        c.lineWidth = 2;
+        c.stroke();
       }
+
+      c.save();
+      roundRect(c, x, top, cellW, cellH, 30);
+      c.clip();
+      drawContain(c, imageOf(item.image), x, top + 18, cellW, cellH - 36, 96);
+      c.restore();
 
       c.direction = 'rtl';
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
       c.font = arFont(600, 38);
-      c.fillStyle = 'rgba(255,255,255,0.86)';
+      c.fillStyle = g.ink;
       c.fillText(item.label || '', x + cellW / 2, top + cellH + 68);
       c.restore();
     });
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
 
   function scenePrice(c, s, t, index) {
+    const g = groundOf(s);
     const enter = easeOut(t / 0.6);
 
-    c.fillStyle = project.brand.accent;
+    c.fillStyle = g.bg;
     c.fillRect(0, 0, W, H);
-    drawPattern(c, 0, 0, W, H, MPS.white, 0.09);
+    drawPattern(c, 0, 0, W, H, g.pattern, g.patternAlpha);
 
-    // Device name across the top so the price is never orphaned
     c.save();
     c.globalAlpha = enter;
-    c.font = laFont(700, 44);
+    c.font = laFont(700, 42);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
     c.letterSpacing = '0.2em';
-    c.fillStyle = 'rgba(255,255,255,0.8)';
+    c.fillStyle = g.soft;
     c.fillText(
       `${project.device.maker.toUpperCase()} ${project.device.model}`,
       W - M,
       TITLE.y + 84,
     );
     c.letterSpacing = '0px';
-    c.restore();
-
-    c.save();
-    c.globalAlpha = enter;
-    arText(
-      c,
-      s.headline,
-      W - M,
-      TITLE.y + 190,
-      62,
-      500,
-      'rgba(255,255,255,0.9)',
-      TITLE.w,
-    );
+    arText(c, s.headline, W - M, TITLE.y + 190, 60, 500, g.ink, TITLE.w);
     c.restore();
 
     const price = String(project.device.price || '').trim();
-    const mid = TITLE.y + 620;
+    const mid = TITLE.y + 660;
 
     if (price) {
       const pEnter = easeOut((t - 0.15) / 0.6);
       c.save();
       c.globalAlpha = pEnter;
-      c.translate(0, lerp(40, 0, pEnter));
+      c.translate(0, lerp(36, 0, pEnter));
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
 
-      c.font = arFont(600, 62);
       const cur = 'د.ع';
+      c.font = arFont(600, 60);
       const curW = c.measureText(cur).width;
-      c.font = laFont(900, 210);
+      c.font = laFont(700, 200);
       const pw = c.measureText(price).width;
       const totalW = pw + curW + 26;
 
-      c.fillStyle = MPS.white;
+      c.fillStyle = g.ink;
       c.fillText(price, W / 2 + (totalW / 2 - pw / 2), mid);
-      c.font = arFont(600, 62);
-      c.fillStyle = 'rgba(255,255,255,0.82)';
+      c.font = arFont(600, 60);
+      c.fillStyle = g.soft;
       c.fillText(cur, W / 2 - (totalW / 2 - curW / 2), mid);
       c.restore();
 
@@ -1870,13 +1904,13 @@
       if (old) {
         c.save();
         c.globalAlpha = easeOut((t - 0.35) / 0.5);
-        c.font = laFont(700, 66);
+        c.font = laFont(700, 64);
         c.textAlign = 'center';
         c.textBaseline = 'alphabetic';
-        c.fillStyle = 'rgba(255,255,255,0.62)';
-        c.fillText(old, W / 2, mid + 96);
+        c.fillStyle = g.faint;
+        c.fillText(old, W / 2, mid + 94);
         const ow = c.measureText(old).width;
-        c.fillRect(W / 2 - ow / 2 - 8, mid + 74, ow + 16, 4);
+        c.fillRect(W / 2 - ow / 2 - 8, mid + 72, ow + 16, 4);
         c.restore();
       }
     } else {
@@ -1887,13 +1921,13 @@
       c.textBaseline = 'middle';
       c.setLineDash([14, 12]);
       c.lineWidth = 4;
-      c.strokeStyle = 'rgba(255,255,255,0.5)';
+      c.strokeStyle = g.faint;
       roundRect(c, M, mid - 190, TITLE.w, 250, 28);
       c.stroke();
       c.setLineDash([]);
       c.direction = 'rtl';
-      c.font = arFont(600, 46);
-      c.fillStyle = 'rgba(255,255,255,0.82)';
+      c.font = arFont(600, 44);
+      c.fillStyle = g.soft;
       c.fillText('اكتب السعر من لوحة التحرير', W / 2, mid - 65);
       c.restore();
     }
@@ -1901,8 +1935,7 @@
     if (project.device.badge) {
       c.save();
       c.globalAlpha = easeOut((t - 0.5) / 0.5);
-      c.textAlign = 'center';
-      pill(c, project.device.badge, W / 2, mid + 190, 42, MPS.yellow, MPS.ink, false);
+      pill(c, project.device.badge, W / 2, mid + 176, 42, g.accent, MPS.blue, false);
       c.restore();
     }
 
@@ -1910,28 +1943,28 @@
     // rule above it reads as a footer rather than a stray sentence.
     c.save();
     c.globalAlpha = easeOut((t - 0.4) / 0.6);
-    c.fillStyle = 'rgba(255,255,255,0.3)';
+    c.fillStyle = g.faint;
     c.fillRect(W / 2 - 90, BOTTOM - 122, 180, 3);
     c.direction = 'rtl';
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
     c.font = arFont(500, 44);
-    c.fillStyle = 'rgba(255,255,255,0.88)';
+    c.fillStyle = g.soft;
     c.fillText(s.kicker || '', W / 2, BOTTOM - 40);
     c.restore();
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
 
   function sceneCta(c, s, t, index) {
+    const g = groundOf(s);
     const enter = easeOut(t / 0.6);
-    c.fillStyle = MPS.ink;
+    c.fillStyle = g.bg;
     c.fillRect(0, 0, W, H);
-    drawPattern(c, 0, 0, W, H, project.brand.accent, 0.16);
+    drawPattern(c, 0, 0, W, H, g.pattern, g.patternAlpha);
 
     // drawLogo anchors the mark by its TOP edge, so every following
-    // baseline is measured from the bottom of the mark, not from where
-    // it was asked to start.
+    // baseline is measured from the bottom of the mark.
     const LOGO_TOP = TITLE.y + 210;
     const LOGO_H = 168;
     const LOGO_BOTTOM = LOGO_TOP + LOGO_H;
@@ -1939,34 +1972,24 @@
     const logoEnter = easeOut(t / 0.7);
     c.save();
     c.globalAlpha = logoEnter;
-    c.translate(0, lerp(30, 0, logoEnter));
-    drawLogo(c, 'wordmark', W / 2, LOGO_TOP, LOGO_H, MPS.white, 'center');
+    c.translate(0, lerp(28, 0, logoEnter));
+    drawLogo(c, 'wordmark', W / 2, LOGO_TOP, LOGO_H, g.ink, 'center');
     c.restore();
 
     c.save();
     c.globalAlpha = easeOut((t - 0.2) / 0.6);
-    c.font = laFont(700, 36);
+    c.font = laFont(600, 36);
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
     c.letterSpacing = '0.3em';
-    c.fillStyle = 'rgba(255,255,255,0.7)';
+    c.fillStyle = g.soft;
     c.fillText(project.brand.store.toUpperCase(), W / 2, LOGO_BOTTOM + 74);
     c.letterSpacing = '0px';
     c.restore();
 
     c.save();
     c.globalAlpha = easeOut((t - 0.34) / 0.6);
-    c.textAlign = 'center';
-    pill(
-      c,
-      s.headline || '',
-      W / 2,
-      LOGO_BOTTOM + 130,
-      52,
-      project.brand.accent,
-      MPS.white,
-      false,
-    );
+    pill(c, s.headline || '', W / 2, LOGO_BOTTOM + 130, 50, g.accent, MPS.blue, false);
     c.restore();
 
     // Contact rows — real data from the project, never placeholder text
@@ -1982,18 +2005,18 @@
       if (a <= 0) return;
       c.save();
       c.globalAlpha = a;
-      c.translate(0, lerp(22, 0, a));
+      c.translate(0, lerp(20, 0, a));
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
       const latin = /^[\s@+0-9A-Za-z._-]+$/.test(row);
       c.font = latin ? laFont(700, 46) : arFont(500, 46);
       c.direction = latin ? 'ltr' : 'rtl';
-      c.fillStyle = i === 0 ? MPS.yellow : 'rgba(255,255,255,0.9)';
+      c.fillStyle = i === 0 ? g.accent : g.soft;
       c.fillText(row, W / 2, LOGO_BOTTOM + 320 + i * 86);
       c.restore();
     });
 
-    drawChapters(c, index, project.scenes.length, enter * 0.9);
+    drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
 
   const RENDERERS = {
@@ -2006,13 +2029,13 @@
   };
 
   /**
-   * Draw one scene. `t` is seconds inside the scene; the last 0.22s
-   * cross-dips to black so consecutive cuts read as cuts, not jumps.
+   * Draw one scene. `t` is seconds inside the scene; the last 0.2s dips
+   * toward the ground colour so consecutive cuts read as cuts.
    */
   function drawScene(c, index, t) {
     const s = project.scenes[index];
     if (!s) {
-      c.fillStyle = MPS.ink;
+      c.fillStyle = MPS.ground;
       c.fillRect(0, 0, W, H);
       return;
     }
@@ -2023,7 +2046,7 @@
 
     const out = (s.dur || 2.4) - t;
     if (out < 0.2) {
-      c.fillStyle = `rgba(10,10,11,${clamp01((0.2 - out) / 0.2) * 0.85})`;
+      c.fillStyle = alpha(groundOf(s).bg, clamp01((0.2 - out) / 0.2) * 0.9);
       c.fillRect(0, 0, W, H);
     }
   }
@@ -2033,13 +2056,9 @@
      ================================================================== */
 
   function drawGuides(c) {
-    const safe = document.getElementById('gSafe').checked;
-    const cover = document.getElementById('gCover').checked;
-    const grid = document.getElementById('gGrid').checked;
-
-    if (grid) {
+    if (document.getElementById('gGrid').checked) {
       c.save();
-      c.strokeStyle = 'rgba(255,255,255,0.2)';
+      c.strokeStyle = 'rgba(11,18,117,0.28)';
       c.lineWidth = 2;
       for (let i = 1; i < 3; i++) {
         c.beginPath();
@@ -2054,10 +2073,10 @@
       c.restore();
     }
 
-    if (safe) {
+    if (document.getElementById('gSafe').checked) {
       c.save();
       // Dim what Instagram's own chrome will sit on top of
-      c.fillStyle = 'rgba(11,18,117,0.34)';
+      c.fillStyle = 'rgba(11,18,117,0.4)';
       c.fillRect(0, 0, W, SAFE.top);
       c.fillRect(0, H - SAFE.bottom, W, SAFE.bottom);
       c.fillRect(0, SAFE.top, SAFE.side, H - SAFE.top - SAFE.bottom);
@@ -2086,20 +2105,19 @@
       c.fillText(`${TITLE.w}×${TITLE.h}`, TITLE.x, TITLE.y + 12);
 
       c.textBaseline = 'bottom';
-      c.fillStyle = 'rgba(255,234,0,0.75)';
       c.fillText(`top ${SAFE.top}`, 18, SAFE.top - 8);
       c.textBaseline = 'top';
       c.fillText(`bottom ${SAFE.bottom}`, 18, H - SAFE.bottom + 8);
       c.restore();
     }
 
-    if (cover) {
+    if (document.getElementById('gCover').checked) {
       c.save();
       c.lineWidth = 4;
-      c.strokeStyle = '#4de3ff';
+      c.strokeStyle = MPS.red;
       c.strokeRect(0, COVER.y, COVER.w, COVER.h);
       c.font = '400 24px ' + LA;
-      c.fillStyle = '#4de3ff';
+      c.fillStyle = MPS.red;
       c.textAlign = 'left';
       c.textBaseline = 'top';
       c.fillText('4:5 grid crop 1080×1350', 18, COVER.y + 10);
@@ -2112,7 +2130,7 @@
      ================================================================== */
 
   let playing = false;
-  let playT = 0; // seconds into the whole reel
+  let playT = 0;
   let lastTick = 0;
 
   const totalDur = () =>
@@ -2136,6 +2154,8 @@
     return acc;
   }
 
+  const restT = (i) => Math.min(1.2, Number(project.scenes[i]?.dur) || 1.2);
+
   function renderStage() {
     if (playing) {
       const at = sceneAt(playT);
@@ -2145,7 +2165,7 @@
         syncSelection();
       }
     } else {
-      drawScene(ctx, selected, Math.min(1.2, project.scenes[selected]?.dur ?? 1.2));
+      drawScene(ctx, selected, restT(selected));
     }
     drawGuides(ctx);
     updateTransport();
@@ -2153,13 +2173,9 @@
 
   function tick(now) {
     if (!playing) return;
-    const dt = (now - lastTick) / 1000;
+    playT += (now - lastTick) / 1000;
     lastTick = now;
-    playT += dt;
-    const total = totalDur();
-    if (playT >= total) {
-      playT = 0; // reels loop, so the preview loops
-    }
+    if (playT >= totalDur()) playT = 0; // reels loop, so the preview loops
     renderStage();
     requestAnimationFrame(tick);
   }
@@ -2182,8 +2198,8 @@
     document.getElementById('timeLabel').textContent =
       `${t.toFixed(1)} / ${total.toFixed(1)}`;
     document.getElementById('totalTime').textContent = `${total.toFixed(1)}s`;
-    const pct = total > 0 ? (t / total) * 100 : 0;
-    document.getElementById('playhead').style.left = `calc(${pct}% - 1px)`;
+    document.getElementById('playhead').style.left =
+      `calc(${total > 0 ? (t / total) * 100 : 0}% - 1px)`;
   }
 
   /* ==================================================================
@@ -2192,6 +2208,14 @@
 
   const storyboard = document.getElementById('colStoryboard');
   const trackInner = document.getElementById('trackInner');
+
+  // Thumbnails are drawn through one shared 1080x1920 buffer and then
+  // downscaled, so a thumbnail is the real frame — not a second, simpler
+  // renderer that could drift away from what exports.
+  const buffer = document.createElement('canvas');
+  buffer.width = W;
+  buffer.height = H;
+  const bctx = buffer.getContext('2d');
 
   function buildStoryboard() {
     storyboard.querySelectorAll('.shot').forEach((n) => n.remove());
@@ -2212,21 +2236,11 @@
     buildTrack();
   }
 
-  /**
-   * Thumbnails are drawn through one shared 1080x1920 buffer and then
-   * downscaled, so a thumbnail is the real frame — not a second, simpler
-   * renderer that could drift away from what exports.
-   */
-  const buffer = document.createElement('canvas');
-  buffer.width = W;
-  buffer.height = H;
-  const bctx = buffer.getContext('2d');
-
   function paintThumbs() {
     project.scenes.forEach((s, i) => {
       const host = storyboard.querySelector(`.shot[data-index="${i}"] canvas`);
       if (!host) return;
-      drawScene(bctx, i, Math.min(1.2, Number(s.dur) || 1.2));
+      drawScene(bctx, i, restT(i));
       const hc = host.getContext('2d');
       hc.clearRect(0, 0, host.width, host.height);
       hc.drawImage(buffer, 0, 0, host.width, host.height);
@@ -2279,21 +2293,21 @@
 
   let uid = 0;
   function field(label, input, hint) {
-    const wrapEl = document.createElement('div');
-    wrapEl.className = 'field';
+    const box = document.createElement('div');
+    box.className = 'field';
     const id = `f${++uid}`;
     input.id = id;
     const lab = document.createElement('label');
     lab.setAttribute('for', id);
     lab.textContent = label;
-    wrapEl.append(lab, input);
+    box.append(lab, input);
     if (hint) {
       const h = document.createElement('p');
       h.className = 'hint';
       h.textContent = hint;
-      wrapEl.append(h);
+      box.append(h);
     }
-    return wrapEl;
+    return box;
   }
 
   function textInput(value, onInput, placeholder) {
@@ -2354,6 +2368,7 @@
     buildTrack();
     syncSelection();
     renderStage();
+    queueAutosave();
   }
 
   function buildInspector() {
@@ -2361,7 +2376,6 @@
     sceneFields.innerHTML = '';
     if (!s) return;
 
-    // type + duration
     const typeSel = document.createElement('select');
     for (const [key, label] of Object.entries(SCENE_TYPES)) {
       const o = document.createElement('option');
@@ -2394,9 +2408,27 @@
     );
     sceneFields.append(row);
 
-    const has = (k) => Object.prototype.hasOwnProperty.call(s, k);
+    // Ground picker — the book's two grounds plus its sparing blue.
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    for (const [key, g] of Object.entries(GROUNDS)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.innerHTML = `<span class="swatch" style="background:${g.bg}"></span>${g.label}`;
+      b.setAttribute('aria-pressed', String((s.ground || 'light') === key));
+      b.addEventListener('click', () => {
+        s.ground = key;
+        buildInspector();
+        commit();
+      });
+      chips.appendChild(b);
+    }
+    sceneFields.append(
+      field('الخلفية', chips, 'ألوان دليل الهوية فقط — ما بيها أسود.'),
+    );
 
-    if (s.type === 'hook' || s.type === 'spec' || has('value')) {
+    if (['hook', 'spec'].includes(s.type)) {
       const vr = document.createElement('div');
       vr.className = 'row-2';
       vr.append(
@@ -2464,25 +2496,21 @@
 
     if (s.type === 'colors') {
       const list = document.createElement('div');
-      list.style.display = 'flex';
-      list.style.flexDirection = 'column';
-      list.style.gap = '6px';
+      list.className = 'stack';
       (s.colors || []).forEach((item, i) => {
         const r = document.createElement('div');
-        r.className = 'spec-row';
+        r.className = 'row-item';
         const main = document.createElement('div');
-        main.className = 'spec-row-main';
+        main.className = 'row-item-main';
         const nameEl = textInput(item.label, (v) => {
           item.label = v;
           commit();
         });
-        nameEl.style.background = 'transparent';
-        nameEl.style.border = '0';
-        nameEl.style.padding = '0';
-        nameEl.style.fontSize = '12.5px';
+        nameEl.style.cssText =
+          'background:transparent;border:0;padding:0;font-size:12.5px';
         main.append(nameEl);
         const acts = document.createElement('div');
-        acts.className = 'spec-row-acts';
+        acts.className = 'row-item-acts';
         const del = document.createElement('button');
         del.type = 'button';
         del.className = 'btn btn-sm btn-icon';
@@ -2509,7 +2537,10 @@
       add.className = 'btn btn-sm';
       add.textContent = '+ لون';
       add.addEventListener('click', () => {
-        (s.colors = s.colors || []).push({ image: STOCK[8].id, label: 'لون جديد' });
+        (s.colors = s.colors || []).push({
+          image: [...images.keys()][0],
+          label: 'لون جديد',
+        });
         buildInspector();
         commit();
       });
@@ -2559,7 +2590,6 @@
       sceneFields.append(fr);
     }
 
-    // scene actions
     const acts = document.createElement('div');
     acts.className = 'row-3';
     const mk = (label, fn, title) => {
@@ -2572,12 +2602,13 @@
       return b;
     };
     acts.append(
-      mk('◀ تقديم', () => moveScene(selected, -1), 'حرّك المشهد للأمام'),
-      mk('تأخير ▶', () => moveScene(selected, 1), 'حرّك المشهد للخلف'),
+      mk('◀ تقديم', () => moveScene(selected, -1)),
+      mk('تأخير ▶', () => moveScene(selected, 1)),
       mk('تكرار', () => {
         project.scenes.splice(selected + 1, 0, JSON.parse(JSON.stringify(s)));
         buildStoryboard();
         selectScene(selected + 1);
+        queueAutosave();
       }),
     );
     sceneFields.append(acts);
@@ -2591,6 +2622,7 @@
       project.scenes.splice(selected, 1);
       buildStoryboard();
       selectScene(Math.max(0, selected - 1));
+      queueAutosave();
     });
     sceneFields.append(del);
   }
@@ -2602,6 +2634,7 @@
     project.scenes.splice(to, 0, s);
     buildStoryboard();
     selectScene(to);
+    queueAutosave();
   }
 
   function buildDeviceFields() {
@@ -2634,15 +2667,6 @@
       ),
     );
     deviceFields.append(r1);
-    deviceFields.append(
-      field(
-        'الجملة التسويقية',
-        textInput(d.tagline, (v) => {
-          d.tagline = v;
-          commit();
-        }),
-      ),
-    );
     const r2 = document.createElement('div');
     r2.className = 'row-2';
     r2.append(
@@ -2677,7 +2701,7 @@
           d.badge = v;
           commit();
         }),
-        'تظهر أصفر على مشهد السعر.',
+        'تظهر على مشهد السعر بلون التمييز.',
       ),
     );
     deviceFields.append(
@@ -2685,8 +2709,9 @@
         'اسم المشروع',
         textInput(project.name, (v) => {
           project.name = v;
+          queueAutosave();
         }),
-        'يُستخدم باسم الملف عند التصدير.',
+        'يُستخدم باسم الملف عند التصدير والحفظ.',
       ),
     );
   }
@@ -2736,31 +2761,25 @@
       ),
     );
 
-    const chips = document.createElement('div');
-    chips.className = 'chips';
-    const accents = [
-      ['أحمر MPS', MPS.red],
-      ['أزرق MPS', MPS.blue],
-      ['أسود', MPS.ink],
-    ];
-    for (const [label, hex] of accents) {
-      const c = document.createElement('button');
-      c.type = 'button';
-      c.className = 'chip';
-      c.textContent = label;
-      c.setAttribute('aria-pressed', String(b.accent.toLowerCase() === hex));
-      c.addEventListener('click', () => {
-        b.accent = hex;
-        buildBrandFields();
-        commit();
-      });
-      chips.appendChild(c);
+    const swatches = document.createElement('div');
+    swatches.className = 'chips';
+    for (const [name, hex] of [
+      ['أحمر', MPS.red],
+      ['أزرق', MPS.blue],
+      ['أصفر', MPS.yellow],
+      ['رمادي', MPS.grey],
+      ['فاتح', MPS.ground],
+    ]) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<span class="swatch" style="background:${hex}"></span>${name} <span class="num" style="opacity:.6">${hex}</span>`;
+      swatches.append(chip);
     }
     brandFields.append(
       field(
-        'لون الهوية',
-        chips,
-        'الأحمر هو اللون الأساسي بدليل الهوية. الأزرق ثانوي ويُستخدم بقلّة.',
+        'ألوان الهوية',
+        swatches,
+        'هذي كل ألوان دليل الهوية. الخلفيات المسموحة: الفاتح والأحمر، والأزرق بقلّة.',
       ),
     );
   }
@@ -2795,18 +2814,38 @@
 
   document.getElementById('imgUpload').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files || []);
+    e.target.value = '';
     if (!files.length) return;
+
     for (const file of files) {
-      const dataUrl = await new Promise((res) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result);
-        fr.readAsDataURL(file);
-      });
       const id = `up-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const rec = registerImage({ id, label: file.name, src: dataUrl });
+      let rec;
+      // Uploading to artifact storage is what makes a custom image
+      // survive a reload; the data URL is only the in-session fallback.
+      if (assets) {
+        try {
+          const stored = await assets.upload(file);
+          rec = registerImage({
+            id,
+            label: file.name,
+            src: stored.url,
+            assetId: stored.id,
+          });
+        } catch (err) {
+          toast(`تعذّر رفع ${file.name}: ${err?.code || 'خطأ'}`, 'bad');
+        }
+      }
+      if (!rec) {
+        const dataUrl = await new Promise((res) => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.readAsDataURL(file);
+        });
+        rec = registerImage({ id, label: file.name, src: dataUrl });
+      }
       await loadImage(rec);
     }
-    e.target.value = '';
+
     buildLibrary();
     buildInspector();
     commit();
@@ -2814,26 +2853,224 @@
   });
 
   /* ==================================================================
-     11. Export
+     11. Capabilities: downloads, db, assets
+     `window.claude` exists only inside the claude.ai viewer, so every
+     one of these may stay null and the studio has to work without it.
      ================================================================== */
 
-  // `window.claude` exists only inside the claude.ai viewer; opened as a
-  // plain file there is no global at all, so this must not be a bare
-  // reference.
   let downloads = null;
-  window.claude
-    ?.use?.('downloads')
-    .then((d) => {
-      downloads = d;
-    })
-    .catch(() => {});
+  let db = null;
+  let assets = null;
 
-  function safeName(ext) {
-    const base = (project.name || 'mps-reel')
-      .replace(/[\\/:*?"<>|]+/g, '-')
-      .trim()
-      .slice(0, 60);
-    return `${base}.${ext}`;
+  const use = (name) =>
+    (window.claude?.use?.(name) ?? Promise.resolve(null)).catch(() => null);
+
+  /* ==================================================================
+     12. Saving
+     ================================================================== */
+
+  const AUTOSAVE_ID = '__autosave';
+
+  /** The project as stored: uploads carry an asset id, never a blob. */
+  function serialise({ inlineUploads }) {
+    const uploads = [];
+    for (const rec of images.values()) {
+      if (rec.assetId) {
+        uploads.push({ id: rec.id, label: rec.label, assetId: rec.assetId });
+      } else if (rec.src.startsWith('data:')) {
+        // A db document is capped at 256 KiB, so a base64 image only
+        // ever travels inside the exported .json file.
+        if (inlineUploads) uploads.push({ id: rec.id, label: rec.label, src: rec.src });
+      }
+    }
+    return { ...JSON.parse(JSON.stringify(project)), uploads };
+  }
+
+  async function adopt(data) {
+    for (const up of data.uploads || []) {
+      const src = up.src || (up.assetId ? '/_blob/' + up.assetId : null);
+      if (!src) continue;
+      const rec = registerImage({ ...up, src });
+      if (!rec.ready) await loadImage(rec);
+    }
+    const next = { ...defaultProject(), ...data };
+    delete next.uploads;
+    project = next;
+    selected = 0;
+    buildLibrary();
+    buildDeviceFields();
+    buildBrandFields();
+    buildStoryboard();
+    selectScene(0);
+  }
+
+  let autosaveTimer = 0;
+  function queueAutosave() {
+    if (!db) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      db.doc('projects/' + AUTOSAVE_ID)
+        .set({
+          name: project.name || 'بدون اسم',
+          updatedAt: new Date().toISOString(),
+          auto: true,
+          data: serialise({ inlineUploads: false }),
+        })
+        .catch(() => {});
+    }, 1400);
+  }
+
+  /**
+   * Two different names are needed, and conflating them is a bug: a
+   * document id must be ASCII, while a file name should keep the Arabic
+   * the owner typed. So the project carries a stable ASCII id of its
+   * own, minted once and saved with it.
+   */
+  function docId() {
+    if (!project.id) project.id = 'p-' + Math.random().toString(36).slice(2, 10);
+    return project.id;
+  }
+
+  function fileBase() {
+    return (
+      (project.name || 'mps-reel')
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || 'mps-reel'
+    );
+  }
+
+  async function saveToCloud() {
+    if (!db) {
+      toast('الحفظ السحابي غير متاح هنا — استعمل «حفظ ملف المشروع»', 'bad');
+      return;
+    }
+    const stray = [...images.values()].filter(
+      (r) => !r.assetId && r.src.startsWith('data:'),
+    );
+    try {
+      await db.doc('projects/' + docId()).set({
+        name: project.name || 'بدون اسم',
+        updatedAt: new Date().toISOString(),
+        auto: false,
+        data: serialise({ inlineUploads: false }),
+      });
+      await buildProjectList();
+      toast(
+        stray.length
+          ? `حُفظ — لكن ${stray.length} صورة مرفوعة ما انحفظت، صدّر ملف .json`
+          : `حُفظ «${project.name}»`,
+        stray.length ? 'bad' : 'good',
+      );
+    } catch (err) {
+      toast(`تعذّر الحفظ: ${err?.code || 'خطأ'}`, 'bad');
+    }
+  }
+
+  async function buildProjectList() {
+    const host = document.getElementById('projectFields');
+    host.innerHTML = '';
+
+    if (!db) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent =
+        'الحفظ السحابي يشتغل عند فتح الأداة من رابط claude.ai. من هنا استعمل «تصدير ← حفظ ملف المشروع».';
+      host.append(p);
+      return;
+    }
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-sm btn-primary';
+    saveBtn.textContent = 'حفظ المشروع الحالي';
+    saveBtn.addEventListener('click', saveToCloud);
+    host.append(saveBtn);
+
+    let snap;
+    try {
+      snap = await db
+        .collection('projects')
+        .orderBy('updatedAt', 'desc')
+        .limit(40)
+        .get();
+    } catch (err) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = `تعذّر قراءة المشاريع: ${err?.code || 'خطأ'}`;
+      host.append(p);
+      return;
+    }
+
+    if (snap.empty) {
+      const p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = 'ما عندك مشاريع محفوظة بعد.';
+      host.append(p);
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'stack';
+    for (const d of snap.docs) {
+      const row = d.data() || {};
+      const item = document.createElement('div');
+      item.className = 'row-item';
+      const main = document.createElement('div');
+      main.className = 'row-item-main';
+      const when = row.updatedAt ? new Date(row.updatedAt) : null;
+      main.innerHTML =
+        `<b>${row.auto ? '⟲ ' : ''}${String(row.name || d.id)}</b>` +
+        `<small>${when ? when.toLocaleString('ar-IQ') : ''}</small>`;
+      const acts = document.createElement('div');
+      acts.className = 'row-item-acts';
+
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'btn btn-sm';
+      open.textContent = 'فتح';
+      open.addEventListener('click', async () => {
+        if (row.data) {
+          await adopt(row.data);
+          toast(`فُتح «${row.name || d.id}»`, 'good');
+        }
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn btn-sm btn-icon';
+      del.textContent = '×';
+      del.title = 'حذف';
+      del.addEventListener('click', async () => {
+        await deleteProject(d.id);
+      });
+
+      acts.append(open, del);
+      item.append(main, acts);
+      list.append(item);
+    }
+    host.append(list);
+  }
+
+  async function deleteProject(id) {
+    try {
+      await db.collection('projects').doc(id).delete();
+      await buildProjectList();
+      toast('حُذف المشروع', 'good');
+    } catch (err) {
+      toast(`تعذّر الحذف: ${err?.code || 'خطأ'}`, 'bad');
+    }
+  }
+
+  /* ==================================================================
+     13. Export
+     ================================================================== */
+
+  const SIZE_TAG = `${W}x${H}`;
+
+  function safeName(suffix, ext) {
+    return `${fileBase()}-${suffix}.${ext}`;
   }
 
   /**
@@ -2884,22 +3121,20 @@
     let saved = 0;
     for (let i = 0; i < project.scenes.length; i++) {
       const s = project.scenes[i];
-      const blob = await frameBlob(i, Math.min(1.2, Number(s.dur) || 1.2));
+      const blob = await frameBlob(i, restT(i));
       const ok = await deliver(
-        `${String(i + 1).padStart(2, '0')}-${s.type}-1080x1920.png`,
+        `${String(i + 1).padStart(2, '0')}-${s.type}-${SIZE_TAG}.png`,
         blob,
       );
       if (!ok) break;
       saved++;
     }
-    if (saved) toast(`صُدّر ${saved} مشهد بمقاس 1080×1920`, 'good');
+    if (saved) toast(`صُدّر ${saved} مشهد بمقاس ${W}×${H}`, 'good');
   }
 
   async function exportCover() {
-    const first = project.scenes[selected] || project.scenes[0];
-    const at = project.scenes.indexOf(first);
-    const blob = await frameBlob(at, Math.min(1.2, Number(first?.dur) || 1.2));
-    await deliver(safeName('cover.png'), blob);
+    const blob = await frameBlob(selected, restT(selected));
+    await deliver(safeName(`cover-${SIZE_TAG}`, 'png'), blob);
   }
 
   const VIDEO_TYPES = [
@@ -2929,7 +3164,6 @@
     rec.ondataavailable = (e) => {
       if (e.data && e.data.size) chunks.push(e.data);
     };
-
     const done = new Promise((res) => {
       rec.onstop = () => res(new Blob(chunks, { type: mime }));
     });
@@ -2960,45 +3194,25 @@
     const blob = await done;
     stream.getTracks().forEach((tr) => tr.stop());
 
-    const ok = await deliver(safeName(ext), blob);
+    const ok = await deliver(safeName(SIZE_TAG, ext), blob);
     if (ok && ext === 'webm') {
       toast('صُدّر WebM — انستكرام يفضّل MP4، حوّله بـ CapCut قبل الرفع', 'bad');
     }
     renderStage();
   }
 
-  /**
-   * The project file carries uploaded images inline, so opening it on
-   * another machine restores the whole reel, not a set of broken links.
-   */
   function exportProject() {
-    const uploads = [];
-    for (const rec of images.values()) {
-      if (rec.src.startsWith('data:')) {
-        uploads.push({ id: rec.id, label: rec.label, src: rec.src });
-      }
-    }
-    const payload = JSON.stringify({ ...project, uploads }, null, 2);
-    deliver(safeName('json'), payload);
+    deliver(
+      safeName('project', 'json'),
+      JSON.stringify(serialise({ inlineUploads: true }), null, 2),
+    );
   }
 
   async function importProject(file) {
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      const data = JSON.parse(await file.text());
       if (!data || !Array.isArray(data.scenes)) throw new Error('bad shape');
-      for (const up of data.uploads || []) {
-        const rec = registerImage(up);
-        if (!rec.ready) await loadImage(rec);
-      }
-      delete data.uploads;
-      project = { ...defaultProject(), ...data };
-      selected = 0;
-      buildLibrary();
-      buildDeviceFields();
-      buildBrandFields();
-      buildStoryboard();
-      selectScene(0);
+      await adopt(data);
       toast('فُتح المشروع', 'good');
     } catch {
       toast('الملف غير صالح', 'bad');
@@ -3006,7 +3220,7 @@
   }
 
   /* ==================================================================
-     12. Wiring
+     14. Wiring
      ================================================================== */
 
   let toastTimer = 0;
@@ -3028,17 +3242,19 @@
   document.getElementById('btnAddScene').addEventListener('click', () => {
     project.scenes.splice(selected + 1, 0, {
       type: 'spec',
+      ground: 'light',
       dur: 2.4,
       value: '',
       unit: '',
       headline: 'مواصفة جديدة',
       kicker: '',
-      image: STOCK[0].id,
+      image: [...images.keys()][0],
       focus: 50,
       zoom: 100,
     });
     buildStoryboard();
     selectScene(selected + 1);
+    queueAutosave();
   });
 
   for (const id of ['gSafe', 'gCover', 'gGrid']) {
@@ -3049,7 +3265,10 @@
     document.getElementById('verifyNote').remove();
   });
 
-  document.getElementById('btnSave').addEventListener('click', exportProject);
+  document.getElementById('btnSaveCloud').addEventListener('click', () => {
+    if (db) saveToCloud();
+    else exportProject();
+  });
   document
     .getElementById('btnOpen')
     .addEventListener('click', () => document.getElementById('fileProject').click());
@@ -3061,30 +3280,27 @@
 
   const exportBtn = document.getElementById('btnExport');
   const exportMenu = document.getElementById('exportMenu');
-
-  function setMenu(open) {
+  const setMenu = (open) => {
     exportMenu.hidden = !open;
     exportBtn.setAttribute('aria-expanded', String(open));
-  }
+  };
 
   exportBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     setMenu(exportMenu.hidden);
   });
-
   exportMenu.addEventListener('click', (e) => {
     const item = e.target.closest('[data-act]');
     if (!item) return;
     setMenu(false);
-    ({ video: exportVideo, frames: exportFrames, cover: exportCover })[
-      item.dataset.act
-    ]();
+    ({
+      video: exportVideo,
+      frames: exportFrames,
+      cover: exportCover,
+      json: exportProject,
+    })[item.dataset.act]();
   });
-
   document.addEventListener('click', () => setMenu(false));
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setMenu(false);
-  });
 
   // Narrow-screen tabs
   const panes = {
@@ -3094,9 +3310,7 @@
   };
   function applyTabs(name) {
     const narrow = window.matchMedia('(max-width: 900px)').matches;
-    for (const [key, el] of Object.entries(panes)) {
-      el.hidden = narrow && key !== name;
-    }
+    for (const [key, el] of Object.entries(panes)) el.hidden = narrow && key !== name;
     document.querySelectorAll('.tab').forEach((t) => {
       t.setAttribute('aria-selected', String(t.dataset.tab === name));
     });
@@ -3105,12 +3319,13 @@
     t.addEventListener('click', () => applyTabs(t.dataset.tab));
   });
   window.addEventListener('resize', () => {
-    const current =
-      document.querySelector('.tab[aria-selected="true"]')?.dataset.tab || 'stage';
-    applyTabs(current);
+    applyTabs(
+      document.querySelector('.tab[aria-selected="true"]')?.dataset.tab || 'stage',
+    );
   });
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setMenu(false);
     if (e.target.matches('input, textarea, select')) return;
     if (e.code === 'Space') {
       e.preventDefault();
@@ -3121,11 +3336,10 @@
   });
 
   /* ==================================================================
-     13. Boot
+     15. Boot
      ================================================================== */
 
   async function boot() {
-    // Bar logo, from the same vector data the canvas uses
     document.getElementById('barLogo').innerHTML = LOGO.wordmark.p
       .map((seg) => `<path fill="currentColor" d="${seg.d}"/>`)
       .join('');
@@ -3134,8 +3348,8 @@
     // frame measures a fallback and every block lands slightly wrong.
     try {
       await Promise.all([
-        document.fonts.load('900 200px Lato'),
-        document.fonts.load('700 100px Lato'),
+        document.fonts.load('700 200px Cabin'),
+        document.fonts.load('600 60px Cabin'),
         document.fonts.load('700 100px "IBM Plex Sans Arabic"'),
         document.fonts.load('600 60px "IBM Plex Sans Arabic"'),
         document.fonts.load('400 60px "IBM Plex Sans Arabic"'),
@@ -3159,6 +3373,33 @@
     const missing = [...images.values()].filter((r) => !r.ready);
     if (missing.length) {
       toast(`${missing.length} صورة لم تُحمّل — ارفعها من لوحة الصور`, 'bad');
+    }
+
+    // Capabilities resolve late and may never resolve at all; the studio
+    // is already usable by the time they land.
+    [downloads, db, assets] = await Promise.all([
+      use('downloads'),
+      use('db'),
+      use('assets'),
+    ]);
+
+    if (!assets) {
+      document.getElementById('uploadHint').textContent =
+        'الصور تبقى داخل متصفحك — احفظ ملف .json حتى ما تضيع.';
+    }
+    await buildProjectList();
+
+    if (db) {
+      try {
+        const auto = await db.doc('projects/' + AUTOSAVE_ID).get();
+        const data = auto.exists ? auto.data()?.data : null;
+        if (data && Array.isArray(data.scenes)) {
+          await adopt(data);
+          toast('رجّعنا آخر شغل محفوظ تلقائياً', 'good');
+        }
+      } catch {
+        /* an unreadable autosave is not worth a message */
+      }
     }
   }
 

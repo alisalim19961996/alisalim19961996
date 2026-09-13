@@ -712,11 +712,25 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
   every scene composes against `TITLE`. The yellow guides only draw what the
   layout already obeys, and are never exported.
 - **The logo is the brand book's vector art**, lifted path-for-path from
-  `mps_logo.pdf` into `Path2D` rather than redrawn. Colours are the book's
-  four: `#f22929` `#0b1275` `#ffea00` `#999999`.
-- **A reel is data.** Scene type, copy, numbers, images and timings live in a
-  project object that saves and loads as JSON with uploaded images inlined.
-  Another device or another brand is a new project file, never a code change.
+  `mps_logo.pdf` into `Path2D` rather than redrawn.
+- **There is no black in the studio, because there is none in the book.**
+  Sampling every page gives exactly two grounds — `#f7f7f7` and `#f22929` —
+  with `#0b1275` as text and the one sparing secondary ground, and
+  `#ffea00` / `#999999` as accents that never become a background. A scene's
+  `ground` therefore names a whole colour set (`GROUNDS` in the file), so no
+  renderer decides which text colour belongs on which field, and an
+  off-brand ground cannot be introduced by editing one scene. The chrome
+  obeys the same palette. A dark editing surface was the first attempt and
+  was wrong: near-black reads as neutral, but on this brand it is off-brand.
+- **Photo scenes seat their copy on a solid brand panel**, not a black-to-
+  transparent scrim. It keeps the palette honest and, unlike a gradient,
+  guarantees the type is legible over any photograph.
+- **Latin type is Cabin** — the humanist sans drawn after Gill Sans, which
+  is the book's face and has no web licence. Arabic is IBM Plex Sans Arabic,
+  the storefront's own face.
+- **A reel is data.** Scene type, ground, copy, numbers, images and timings
+  live in a project object. Another device or another brand is a new project,
+  never a code change.
 - **No invented commercial data**, same rule as §13.12: the price scene renders
   a dashed "type the price" box until the owner types one. The seeded X9d specs
   came from a web summary because `honor.com` is blocked from this environment,
@@ -724,10 +738,20 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
 - Fonts are Lato (nearest free stand-in for the brand's Gill Sans) and IBM Plex
   Sans Arabic, the storefront's own Arabic face.
 
-Export runs through `claude.use('downloads')` when the page is opened inside a
-claude.ai artifact viewer, and falls back to an anchor download when it is
-served from `public/`. Video is MP4 where `MediaRecorder` supports it and WebM
-otherwise — Instagram rejects WebM, and the studio says which one it produced.
+Saving has two paths because the page runs in two places. Inside a claude.ai
+artifact viewer it uses `db` for named projects plus an autosave that restores
+on reopen, and `assets` for uploaded images — a db document is capped at
+256 KiB, so a base64 image never travels in one; the row keeps the asset id and
+the page builds `/_blob/<id>`. A db id must be ASCII while the owner's project
+names are Arabic, so a project carries its own minted `id` for the document and
+its name is used only for file names. Served from `public/` neither capability
+exists, and the `.json` project file — which does inline uploads — is the whole
+story; the studio says which mode it is in rather than hiding a dead button.
+
+Export runs through `claude.use('downloads')` in the viewer and falls back to an
+anchor download when served from `public/`. Video is MP4 where `MediaRecorder`
+supports it and WebM otherwise — Instagram rejects WebM, and the studio says
+which one it produced.
 
 `public/studio/` is not excluded anywhere: Prettier formats it with the
 project's own config, so `pnpm check` already covers it.
