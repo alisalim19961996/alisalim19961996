@@ -161,10 +161,13 @@ export function ProductForm({
   product,
   reference,
   locale,
+  uploadEnabled,
 }: {
   product: ProductFormValues | null;
   reference: ProductFormReference;
   locale: Locale;
+  /** False when no storage is configured; the form then asks for a path. */
+  uploadEnabled: boolean;
 }) {
   const t = useTranslations('admin');
   const router = useRouter();
@@ -359,6 +362,7 @@ export function ProductForm({
         options={values.options}
         variants={values.variants}
         slug={values.slug}
+        uploadEnabled={uploadEnabled}
         locale={locale}
         errorField={result.field}
         onOptionsChange={(options) => patch({ options })}
@@ -369,6 +373,8 @@ export function ProductForm({
       <ProductMediaEditor
         images={values.images}
         videos={values.videos}
+        slug={values.slug}
+        uploadEnabled={uploadEnabled}
         errorField={result.field}
         onImagesChange={(images) => patch({ images })}
         onVideosChange={(videos) => patch({ videos })}

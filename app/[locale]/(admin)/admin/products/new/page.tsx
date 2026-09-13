@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductForm } from '@/features/admin/components/product-form';
+import { isUploadConfigured } from '@/config/env';
 import { getProductFormReference } from '@/server/queries/admin-products';
 import type { Locale } from '@/i18n/routing';
 
@@ -43,7 +44,12 @@ export default async function NewProductPage({
         <p className="mt-1 text-sm text-muted">{t('newProductHint')}</p>
       </div>
 
-      <ProductForm product={null} reference={reference} locale={locale} />
+      <ProductForm
+        product={null}
+        reference={reference}
+        locale={locale}
+        uploadEnabled={isUploadConfigured}
+      />
     </div>
   );
 }

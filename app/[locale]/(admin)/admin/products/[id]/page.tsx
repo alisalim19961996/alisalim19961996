@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductForm } from '@/features/admin/components/product-form';
+import { isUploadConfigured } from '@/config/env';
 import { ProductDeleteButton } from '@/features/admin/components/product-row-actions';
 import {
   getProductForEdit,
@@ -78,7 +79,12 @@ export default async function EditProductPage({
         </div>
       </div>
 
-      <ProductForm product={product} reference={reference} locale={locale} />
+      <ProductForm
+        product={product}
+        reference={reference}
+        locale={locale}
+        uploadEnabled={isUploadConfigured}
+      />
 
       <section className="rounded-[--radius-card] border border-danger-soft bg-surface p-5">
         <h2 className="text-sm font-semibold text-ink">{t('dangerZone')}</h2>

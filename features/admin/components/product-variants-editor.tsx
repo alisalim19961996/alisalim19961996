@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Field, RepeatableRow, Select } from './form-fields';
+import { ImageUploadButton } from './image-upload-button';
 import {
   DEFAULT_SWATCH_HEX,
   optionCombinations,
@@ -74,6 +75,7 @@ export function ProductVariantsEditor({
   options,
   variants,
   slug,
+  uploadEnabled,
   locale,
   errorField,
   onOptionsChange,
@@ -83,6 +85,7 @@ export function ProductVariantsEditor({
   variants: VariantState[];
   /** Seeds generated SKUs, so they read like the product they belong to. */
   slug: string;
+  uploadEnabled: boolean;
   locale: Locale;
   errorField?: string;
   onOptionsChange: (options: OptionState[]) => void;
@@ -451,6 +454,16 @@ export function ProductVariantsEditor({
                   patchVariant(index, { imageUrl: event.target.value })
                 }
               />
+              <div className="sm:col-span-2">
+                <ImageUploadButton
+                  slug={slug}
+                  enabled={uploadEnabled}
+                  onUploaded={(urls) => {
+                    const first = urls[0];
+                    if (first) patchVariant(index, { imageUrl: first });
+                  }}
+                />
+              </div>
 
               <div className="sm:col-span-2">
                 <Checkbox

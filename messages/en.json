@@ -503,6 +503,12 @@
     "attrNotAnInteger": "Must be a whole number.",
     "attrUnknownOption": "That option is not one of the allowed values.",
     "attrTooLong": "Too long for a specification.",
-    "productHasOrders": "This product has been sold, so it cannot be deleted — past invoices depend on it. Unpublish it instead."
+    "productHasOrders": "This product has been sold, so it cannot be deleted — past invoices depend on it. Unpublish it instead.",
+    "uploadImage": "Upload image",
+    "uploadNotConfigured": "Uploads are not configured — add the Supabase keys to .env, or type an image path by hand.",
+    "uploadFailed": "The upload did not go through. Try again.",
+    "uploadTooLarge": "That image is larger than 8 MB.",
+    "uploadEmptyFile": "That file is empty.",
+    "uploadUnsupportedFormat": "Unsupported file type. Use JPG, PNG, WebP or AVIF."
   }
 }

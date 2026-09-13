@@ -4,14 +4,15 @@ import { useTranslations } from 'next-intl';
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, RepeatableRow } from './form-fields';
+import { ImageUploadButton } from './image-upload-button';
 
 /**
  * Photographs and videos.
  *
- * Images are referenced by a path under `public/`, not uploaded — there is no
- * upload endpoint yet, and `next.config.ts` allows no remote hosts, so a field
- * that accepted any URL would let the owner save something that silently
- * refuses to render. The hint tells them exactly where to put the file.
+ * Images are either uploaded to Supabase Storage or referenced by a path under
+ * `public/`. Those are the only two `next.config.ts` will render, so they are
+ * the only two the field accepts — a box taking any URL would let the owner
+ * save something that silently refuses to appear on the storefront.
  *
  * Order is editable because the first image is the one the catalogue card,
  * the share preview and the order confirmation all use — "which photo leads"
@@ -33,12 +34,17 @@ export interface VideoState {
 export function ProductMediaEditor({
   images,
   videos,
+  slug,
+  uploadEnabled,
   errorField,
   onImagesChange,
   onVideosChange,
 }: {
   images: ImageState[];
   videos: VideoState[];
+  /** Groups uploaded objects into a folder named after the product. */
+  slug: string;
+  uploadEnabled: boolean;
   errorField?: string;
   onImagesChange: (images: ImageState[]) => void;
   onVideosChange: (videos: VideoState[]) => void;
@@ -76,17 +82,35 @@ export function ProductMediaEditor({
             <h2 className="text-sm font-semibold text-ink">{t('images')}</h2>
             <p className="mt-1 text-xs text-muted">{t('imagesHint')}</p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              onImagesChange([...images, { url: '', altAr: '', altEn: '' }])
-            }
-          >
-            <Plus aria-hidden />
-            {t('addImage')}
-          </Button>
+          <div className="flex flex-wrap items-start gap-2">
+            <ImageUploadButton
+              slug={slug}
+              enabled={uploadEnabled}
+              multiple
+              onUploaded={(urls) =>
+                onImagesChange([
+                  ...images,
+                  ...urls.map((url) => ({ url, altAr: '', altEn: '' })),
+                ])
+              }
+            />
+            {/*
+              Still here when uploads are configured: the owner may already
+              have the file sitting in public/, and taking the path box away
+              would make that the wrong way to do it rather than a second way.
+            */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onImagesChange([...images, { url: '', altAr: '', altEn: '' }])
+              }
+            >
+              <Plus aria-hidden />
+              {t('addImage')}
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4 space-y-3">

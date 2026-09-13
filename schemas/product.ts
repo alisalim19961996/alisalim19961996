@@ -32,20 +32,30 @@ const priceIqd = z.coerce
   .max(1_000_000_000, 'amountTooLarge');
 
 /**
- * Media is referenced by a site-relative path, not an arbitrary URL.
+ * Where a product image may live.
  *
- * `next.config.ts` ships with `remotePatterns: []`, so a remote image would
- * pass validation here and then fail to render — a rule that lets the owner
- * save something broken is worse than no rule. SVG is refused outright:
- * `dangerouslyAllowSVG` is off (CLAUDE.md §18) because an SVG is a script
- * delivered as a picture.
+ * Exactly two places, because those are the two `next.config.ts` will render:
+ * a path under `public/`, and an object in a Supabase Storage bucket. Any
+ * other host passes no `remotePatterns` entry and fails at render time — and a
+ * rule that lets the owner save something broken is worse than no rule.
+ *
+ * `.svg` is refused by name here as well as by content at upload
+ * (`lib/domain/image-file.ts`): `dangerouslyAllowSVG` is off (CLAUDE.md §18)
+ * because an SVG is a script delivered as a picture, and a path typed by hand
+ * never passes through the upload check at all.
  */
+const SUPABASE_PUBLIC_OBJECT =
+  /^https:\/\/[a-z0-9-]+\.supabase\.(?:co|in)\/storage\/v1\/object\/public\/\S+$/i;
+
 const imagePath = z
   .string()
   .trim()
   .min(1, required)
   .max(500, 'tooLong')
-  .refine((value) => value.startsWith('/'), 'imageMustBeLocal')
+  .refine(
+    (value) => value.startsWith('/') || SUPABASE_PUBLIC_OBJECT.test(value),
+    'imageMustBeLocal',
+  )
   .refine((value) => !/\.svgz?($|\?)/i.test(value), 'imageSvgRefused');
 
 const optionalImagePath = z

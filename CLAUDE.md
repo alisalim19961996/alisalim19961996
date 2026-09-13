@@ -239,26 +239,27 @@ under `server/auth/` carries `import 'server-only'`.
 
 Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 
-| Route                                      | Rendering    | Purpose                                                                 |
-| ------------------------------------------ | ------------ | ----------------------------------------------------------------------- |
-| `/[locale]`                                | SSG          | Homepage: hero, shop-by-type, trust, 3 product rails, brands, final CTA |
-| `/[locale]/products`                       | Dynamic      | Catalogue: filters, sort, pagination, search results (`?q=`)            |
-| `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                          |
-| `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                       |
-| `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                    |
-| `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                          |
-| `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                   |
-| `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                          |
-| `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                         |
-| `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                |
-| `/[locale]/admin/orders/[orderNumber]`     | Dynamic      | One order: status controls, timeline, customer, money                   |
-| `/[locale]/admin/products`                 | Dynamic      | Catalogue list: published/draft tabs, search, paging, publish toggle    |
-| `/[locale]/admin/products/new`             | Dynamic      | Add a product                                                           |
-| `/[locale]/admin/products/[id]`            | Dynamic      | Edit a product; delete refused once it has been sold                    |
-| `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                             |
-| `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                             |
-| `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)             |
-| `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                         |
+| Route                                      | Rendering    | Purpose                                                                  |
+| ------------------------------------------ | ------------ | ------------------------------------------------------------------------ |
+| `/[locale]`                                | SSG          | Homepage: hero, shop-by-type, trust, 3 product rails, brands, final CTA  |
+| `/[locale]/products`                       | Dynamic      | Catalogue: filters, sort, pagination, search results (`?q=`)             |
+| `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                           |
+| `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                        |
+| `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                     |
+| `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                           |
+| `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                    |
+| `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                           |
+| `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                          |
+| `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                 |
+| `/[locale]/admin/orders/[orderNumber]`     | Dynamic      | One order: status controls, timeline, customer, money                    |
+| `/[locale]/admin/products`                 | Dynamic      | Catalogue list: published/draft tabs, search, paging, publish toggle     |
+| `/[locale]/admin/products/new`             | Dynamic      | Add a product                                                            |
+| `/[locale]/admin/products/[id]`            | Dynamic      | Edit a product; delete refused once it has been sold                     |
+| `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
+| `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
+| `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)              |
+| `/api/admin/upload`                        | Route        | Product image upload (staff only); a route, not an action, for body size |
+| `/sitemap.xml`, `/robots.txt`, `/icon.svg` | Static       |                                                                          |
 
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
 catalogue-shaped `products/loading.tsx`.
@@ -433,7 +434,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **470 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **476 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -639,6 +640,18 @@ product type and watching 19 phone specifications become 6 accessory ones,
 generating variants, saving, and finding the product live on the storefront
 with its specs, options and price.
 
+**Phase 5.2 — photography**: images upload to **Supabase Storage** through
+MPS, never from the browser directly. A signed URL handed to the client would
+move the "is this really a photograph?" question to the client, where it is
+advice; proxying keeps it an answer. What a file _is_ is decided from its own
+bytes in `lib/domain/image-file.ts` — an allowlist of raster signatures, so a
+renamed SVG is refused and a format nobody thought about is refused by default.
+The stored object reuses nothing the uploader chose: the folder is the
+product's slug, the name is 16 random bytes, the extension and `Content-Type`
+come from the format actually detected. Uploads are **optional**: with no keys
+configured the form asks for a path under `public/`, which is all a local
+machine needs.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -658,21 +671,22 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                           | Plan                                             |
-| -------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------ |
-| No e2e tests                                       | Filter/variant behaviour verified manually       | Playwright in Phase 6                            |
-| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand      | Fold into the Playwright suite in Phase 6        |
-| No cache layer                                     | Catalogue runs 2 queries per visit               | `unstable_cache` + tags when the catalogue grows |
-| No image **upload**; paths are typed by hand       | Photos must be dropped into `public/` first      | Phase 5.2 — needs a storage decision (§19)       |
-| Coupons are schema-only                            | `discountIqd` is always 0                        | Phase 5; `orderTotals` already takes a discount  |
-| Brands, categories and product types are seed-only | A new brand still needs Studio                   | Phase 5.3                                        |
-| No sign-up or account pages                        | Customers order as guests; staff are seeded      | Phase 5                                          |
-| Staff roles are set in the database                | No user management screen                        | Phase 5                                          |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                    | Split to JSON if it grows                        |
-| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404 | Built in Phases 4–5                              |
-| No mail provider                                   | Password reset cannot send                       | `MailProvider` abstraction before launch         |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                    | Consider sticky panel                            |
-| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                    | Keep                                             |
+| Item                                               | Impact                                            | Plan                                                |
+| -------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- |
+| No e2e tests                                       | Filter/variant behaviour verified manually        | Playwright in Phase 6                               |
+| Layout checks are manual                           | Overflow + buy-bar clearance driven by hand       | Fold into the Playwright suite in Phase 6           |
+| No cache layer                                     | Catalogue runs 2 queries per visit                | `unstable_cache` + tags when the catalogue grows    |
+| Uploaded images are never deleted from storage     | An image removed from a product leaves its object | Sweep by prefix when a product is deleted           |
+| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`   | `next/image` optimises on the fly; revisit at scale |
+| Coupons are schema-only                            | `discountIqd` is always 0                         | Phase 5; `orderTotals` already takes a discount     |
+| Brands, categories and product types are seed-only | A new brand still needs Studio                    | Phase 5.3                                           |
+| No sign-up or account pages                        | Customers order as guests; staff are seeded       | Phase 5                                             |
+| Staff roles are set in the database                | No user management screen                         | Phase 5                                             |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                     | Split to JSON if it grows                           |
+| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404  | Built in Phases 4–5                                 |
+| No mail provider                                   | Password reset cannot send                        | `MailProvider` abstraction before launch            |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                     | Consider sticky panel                               |
+| `as unknown` × 1, `eslint-disable` × 1             | Both documented and justified                     | Keep                                                |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -700,11 +714,12 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **210 tests**: 184 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **225 tests**: 198 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
-combinations, and both shapes of a Prisma unique-constraint error) plus 26
+combinations, both shapes of a Prisma unique-constraint error, and image
+signatures including four ways of disguising an SVG) plus 27
 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **34 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order), run by
@@ -800,12 +815,15 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 `.env` is gitignored and must never be committed, pasted into chat, or shared.
 `.env.example` lists the variables with placeholder values.
 
-| Variable              | Purpose                                      |
-| --------------------- | -------------------------------------------- |
-| `DATABASE_URL`        | PostgreSQL connection string                 |
-| `BETTER_AUTH_SECRET`  | Session signing key, ≥32 chars               |
-| `BETTER_AUTH_URL`     | Full site URL                                |
-| `NEXT_PUBLIC_APP_URL` | Full site URL, used for canonical/OG/JSON-LD |
+| Variable                    | Purpose                                      |
+| --------------------------- | -------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL connection string                 |
+| `BETTER_AUTH_SECRET`        | Session signing key, ≥32 chars               |
+| `BETTER_AUTH_URL`           | Full site URL                                |
+| `NEXT_PUBLIC_APP_URL`       | Full site URL, used for canonical/OG/JSON-LD |
+| `SUPABASE_URL`              | Optional. Project URL for image upload       |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional. **Secret** — see below             |
+| `SUPABASE_STORAGE_BUCKET`   | Defaults to `product-images`                 |
 
 `config/env.ts` validates these at boot with Zod and fails loudly, with each
 error naming its own fix — including a `DATABASE_URL` that is **still the
@@ -833,11 +851,21 @@ inside `product.findMany()` — the first query that happens to run, and the one
 thing that is not wrong. `docs/extending-ar.md` §9.9 has the owner-facing
 version, including starting the Windows service.
 
+**`SUPABASE_SERVICE_ROLE_KEY` bypasses every row-level policy in the project.**
+It is read in exactly one module — `server/services/admin-storage.ts`, which is
+`server-only` and calls `requireStaff()` — and never reaches the browser under
+any name. The bucket `product-images` is public for reads (product photos are
+public anyway) and writable only by that key: RLS is on for `storage.objects`
+with **no** policies, so anon and authenticated clients cannot write to it at
+all. If the key leaks, reset it in the Supabase dashboard; nothing else has to
+change.
+
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
 **session pooler** connection string, not a direct connection; security headers
-are set in `next.config.ts`; `dangerouslyAllowSVG` is deliberately **off**, so
-admin image uploads must reject SVG.
+are set in `next.config.ts`; `dangerouslyAllowSVG` is deliberately **off**, and
+uploads enforce that **by content, not by file name** — renaming an SVG to
+`.jpg` is the whole attack, so the extension is never consulted.
 
 **The repository is public.** Treat every commit as world-readable.
 
@@ -845,21 +873,21 @@ admin image uploads must reject SVG.
 
 ## 19. NEXT STEPS
 
-**Phases 1–4 and 5.1 complete.** The store sells (cart, checkout, COD orders,
-tracking), the owner runs it (sign-in, order queue, status changes with stock
-and payment settlement, delivery pricing, store settings), **and the owner owns
-the catalogue** (add, edit, publish, delete products; specifications generated
-per product type).
+**Phases 1–4, 5.1 and 5.2 complete.** The store sells (cart, checkout, COD
+orders, tracking), the owner runs it (sign-in, order queue, status changes with
+stock and payment settlement, delivery pricing, store settings), **and the
+owner owns the catalogue** (add, edit, publish, delete products; specifications
+generated per product type; photographs uploaded to Supabase Storage).
 
-**Phase 5.2 — photography (next), and it needs one owner decision.**
-Images are typed as paths under `public/` today, which works on the owner's own
-machine and nowhere else: `next.config.ts` allows no remote hosts, and a
-serverless host has no writable disk. Uploading needs a destination, and the
-obvious one is **Supabase Storage**, since the database is already there. The
-alternative is the local filesystem, which rules out Vercel-style hosting.
-Whatever is chosen, the endpoint **must reject SVG** — `dangerouslyAllowSVG` is
-off (§18) because an SVG is a script delivered as a picture — and must be
-validated by content, not by file extension.
+**Phase 5.3 — Google sign-in (next, owner-requested).** better-auth supports it
+behind the same seam (`server/auth/auth.ts`), so no feature code changes. What
+it needs: a Google Cloud OAuth client (id + secret) with
+`<site>/api/auth/callback/google` as an authorised redirect URI, and two new
+env vars. Two decisions to settle first — whether email/password stays
+alongside it (it should, until every customer has a Google account), and what
+happens when a Google email matches an existing password account, since
+better-auth's account linking is off by default and silently linking is how
+one person's orders end up in another person's history.
 
 **Then:**
 
@@ -876,9 +904,11 @@ validated by content, not by file extension.
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 accessibility audit, security review, performance pass and a cache layer.
 
-**Owner inputs still needed before launch:** real product photography, WhatsApp
+**Owner inputs still needed before launch:** real product photography, the two
+Supabase storage values in `.env` (see `docs/extending-ar.md` §4.6), WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
-production `DATABASE_URL`, and a mail provider for password reset.
+production `DATABASE_URL`, a Google OAuth client, and a mail provider for
+password reset.
 
 # This is NOT the Next.js you know
 
