@@ -80,7 +80,8 @@ step-by-step recipes answering "I want to change X, where do I start?"
 (text, colours, nav links, a new page, a new specification, a whole new
 product type, brands, UI numbers, commercial data, schema changes), plus the
 list of what the guardrails refuse. Every recipe names the exact file and how
-to confirm the change landed.
+to confirm the change landed. **`reels-studio-ar.md`** covers the marketing
+studio in §19.
 
 ---
 
@@ -695,7 +696,45 @@ admin image uploads must reject SVG.
 
 ---
 
-## 19. NEXT STEPS
+## 19. Marketing studio (`public/studio`)
+
+A standalone Instagram Reels designer for phone launches, served as a static
+page at `/studio/index.html`. It is **not** part of the storefront: no Prisma,
+no Server Actions, no `messages/*.json`, and it sits outside every directory
+the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
+`schemas`, `config`). It is one HTML file plus images.
+
+- **Renders on `<canvas>` at exactly 1080×1920**, not in CSS. Canvas is what
+  makes a pixel-exact PNG and a `MediaRecorder` capture possible at all, and
+  Canvas2D shapes Arabic correctly with `direction = 'rtl'`.
+- **Instagram safe area is a layout constant, not an overlay.** `SAFE`
+  (top 250, bottom 420, side 60, rail 240) derives `TITLE` (904×1250) and
+  every scene composes against `TITLE`. The yellow guides only draw what the
+  layout already obeys, and are never exported.
+- **The logo is the brand book's vector art**, lifted path-for-path from
+  `mps_logo.pdf` into `Path2D` rather than redrawn. Colours are the book's
+  four: `#f22929` `#0b1275` `#ffea00` `#999999`.
+- **A reel is data.** Scene type, copy, numbers, images and timings live in a
+  project object that saves and loads as JSON with uploaded images inlined.
+  Another device or another brand is a new project file, never a code change.
+- **No invented commercial data**, same rule as §13.12: the price scene renders
+  a dashed "type the price" box until the owner types one. The seeded X9d specs
+  came from a web summary because `honor.com` is blocked from this environment,
+  and the studio says so in a banner until dismissed.
+- Fonts are Lato (nearest free stand-in for the brand's Gill Sans) and IBM Plex
+  Sans Arabic, the storefront's own Arabic face.
+
+Export runs through `claude.use('downloads')` when the page is opened inside a
+claude.ai artifact viewer, and falls back to an anchor download when it is
+served from `public/`. Video is MP4 where `MediaRecorder` supports it and WebM
+otherwise — Instagram rejects WebM, and the studio says which one it produced.
+
+`public/studio/` is not excluded anywhere: Prettier formats it with the
+project's own config, so `pnpm check` already covers it.
+
+---
+
+## 20. NEXT STEPS
 
 **Phase 3 — Commerce: complete.** Cart, checkout, orders, confirmation and
 public tracking all ship and are covered by unit tests, integration tests
