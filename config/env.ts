@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isPlaceholderDatabaseUrl } from '@/lib/database-url';
 
 /**
  * Environment is validated once, at boot, and fails loudly.
@@ -10,7 +11,15 @@ import { z } from 'zod';
  * nothing they can act on.
  */
 const serverEnvSchema = z.object({
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: z
+    .string()
+    .min(1, 'DATABASE_URL is required')
+    .refine((url) => !isPlaceholderDatabaseUrl(url), {
+      message: 'DATABASE_URL is still the example value from .env.example',
+    })
+    .refine((url) => /^postgres(ql)?:\/\//.test(url), {
+      message: 'DATABASE_URL must start with postgresql://',
+    }),
   BETTER_AUTH_SECRET: z
     .string()
     .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),

@@ -628,7 +628,7 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **145 tests**: 128 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **155 tests**: 138 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers)
 plus 17 architecture guardrail cases in `tests/architecture.test.ts`.
@@ -733,7 +733,13 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 | `NEXT_PUBLIC_APP_URL` | Full site URL, used for canonical/OG/JSON-LD |
 
 `config/env.ts` validates these at boot with Zod and fails loudly, with each
-error naming its own fix.
+error naming its own fix — including a `DATABASE_URL` that is **still the
+template**. Copying `.env.example` and never filling it in is the most common
+first-run failure, and a placeholder passes a "non-empty string" check happily;
+it then surfaces three layers down as `Authentication failed … for \`user\``,
+which names the database rather than the file. `lib/database-url.ts` matches the
+tokens in position (`://USER:`, not the bare word) so a deployment whose role
+really is called `user` is not refused.
 
 **A correct `.env` is not a working database.** `server/db/diagnose.ts` rewrites
 setup-shaped Prisma failures — P1000/P1001/P1002/P1003/P1017 (unreachable, wrong
