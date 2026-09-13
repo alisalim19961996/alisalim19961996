@@ -746,7 +746,7 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **225 tests**: 198 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **229 tests**: 202 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -858,6 +858,14 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 | `SUPABASE_STORAGE_BUCKET`   | Defaults to `product-images`                 |
 | `GOOGLE_CLIENT_ID`          | Optional. Enables "continue with Google"     |
 | `GOOGLE_CLIENT_SECRET`      | Optional. **Secret** — server-side only      |
+
+**Every optional variable is preprocessed through `blankToUndefined`**
+(`lib/env-value.ts`). An empty string means "not set", which is not how a Zod
+schema reads it: `z.string().min(10).optional()` accepts a _missing_ variable
+and rejects an empty one — so `GOOGLE_CLIENT_ID=""`, exactly how
+`.env.example` ships every optional key, failed validation and took the whole
+site down at boot with an error about a feature nobody had configured. That
+happened. A unit test guards it.
 
 `config/env.ts` validates these at boot with Zod and fails loudly, with each
 error naming its own fix — including a `DATABASE_URL` that is **still the

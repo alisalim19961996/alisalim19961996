@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isPlaceholderDatabaseUrl } from '@/lib/database-url';
+import { blankToUndefined } from '@/lib/env-value';
 
 /**
  * Environment is validated once, at boot, and fails loudly.
@@ -45,14 +46,23 @@ const publicEnvSchema = z.object({
  * server-only and guarded; it must never be exposed with a NEXT_PUBLIC_ name.
  */
 const storageEnvSchema = z.object({
-  SUPABASE_URL: z
-    .url()
-    .optional()
-    .refine((url) => !url || !url.endsWith('/'), {
-      message: 'SUPABASE_URL must not end with a slash',
-    }),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
-  SUPABASE_STORAGE_BUCKET: z.string().min(1).default('product-images'),
+  SUPABASE_URL: z.preprocess(
+    blankToUndefined,
+    z
+      .url()
+      .optional()
+      .refine((url) => !url || !url.endsWith('/'), {
+        message: 'SUPABASE_URL must not end with a slash',
+      }),
+  ),
+  SUPABASE_SERVICE_ROLE_KEY: z.preprocess(
+    blankToUndefined,
+    z.string().min(20).optional(),
+  ),
+  SUPABASE_STORAGE_BUCKET: z.preprocess(
+    blankToUndefined,
+    z.string().min(1).default('product-images'),
+  ),
 });
 
 /**
@@ -64,8 +74,8 @@ const storageEnvSchema = z.object({
  * one that already works.
  */
 const googleEnvSchema = z.object({
-  GOOGLE_CLIENT_ID: z.string().min(10).optional(),
-  GOOGLE_CLIENT_SECRET: z.string().min(10).optional(),
+  GOOGLE_CLIENT_ID: z.preprocess(blankToUndefined, z.string().min(10).optional()),
+  GOOGLE_CLIENT_SECRET: z.preprocess(blankToUndefined, z.string().min(10).optional()),
 });
 
 /** How to obtain each value, shown alongside the variable that is missing. */
