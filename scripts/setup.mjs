@@ -14,6 +14,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { parseEnv, writeEnvValue } from './lib/env-file.mjs';
 import { createInterface } from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
 import { stdin, stdout } from 'node:process';
@@ -38,25 +39,6 @@ const warn = (msg) => say(`${c.yellow}!${c.reset} ${msg}`);
 const fail = (msg) => say(`${c.red}✗${c.reset} ${msg}`);
 const step = (n, msg) =>
   say(`\n${c.bold}${c.cyan}[${n}]${c.reset} ${c.bold}${msg}${c.reset}`);
-
-function parseEnv(text) {
-  const out = {};
-  for (const line of text.split('\n')) {
-    const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (!match) continue;
-    const [, key, rawValue] = match;
-    out[key] = rawValue.replace(/^["']|["']$/g, '');
-  }
-  return out;
-}
-
-function writeEnvValue(text, key, value) {
-  const line = `${key}="${value}"`;
-  const pattern = new RegExp(`^\\s*${key}\\s*=.*$`, 'm');
-  return pattern.test(text)
-    ? text.replace(pattern, line)
-    : `${text.trimEnd()}\n${line}\n`;
-}
 
 /** Turn the driver's error into the cause the user can actually act on. */
 function explainConnectionError(error) {

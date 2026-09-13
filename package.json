@@ -11,6 +11,7 @@
     "postinstall": "prisma generate",
     "setup": "node scripts/setup.mjs",
     "check:services": "node scripts/check-services.mjs",
+    "keys": "node scripts/set-keys.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
