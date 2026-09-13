@@ -14,6 +14,7 @@
  * Usage:  pnpm check:services
  */
 import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const ESC = String.fromCharCode(27);
 const c = {
@@ -34,6 +35,35 @@ const hint = (msg) => say(`      ${c.dim}${msg}${c.reset}`);
 const title = (msg) => say(`\n${c.bold}${c.cyan}${msg}${c.reset}`);
 
 /**
+ * Say what is actually wrong with a variable that produced no value.
+ *
+ * "Not configured" is true of a store that never wanted the feature and of one
+ * whose owner just filled the file in and saved it — and only the second needs
+ * help. A name missing from the file entirely usually means the wrong file was
+ * edited (`.env.example` is the classic); a name present but empty means the
+ * value did not get pasted between the quotes.
+ */
+function diagnoseMissing(env, names) {
+  for (const name of names) {
+    if (!(name in env)) bad(`${name} — مو موجود بالملف إطلاقًا`);
+    else if (!env[name]?.trim()) bad(`${name} — موجود بس فارغ ("")`);
+    else ok(`${name} — مليان`);
+  }
+
+  say();
+  hint(`الملف اللي انقرا فعلاً:`);
+  hint(`  ${envPath}`);
+  const names_ = Object.keys(env);
+  hint(
+    `المتغيّرات الموجودة بهذا الملف (${names_.length}): ${names_.join(', ') || '(ولا واحد)'}`,
+  );
+  say();
+  hint('أشهر سببين:');
+  hint('  1) عدّلت ملف .env.example بدل .env — لازم .env بالضبط');
+  hint('  2) ما حفظت الملف (Ctrl+S) قبل ما تشغّل الأمر');
+}
+
+/**
  * Enough of a value to recognise it, never enough to use it.
  *
  * The whole point of this script is that its output is safe to share, so a
@@ -45,8 +75,12 @@ function mask(value) {
   return `${value.slice(0, 6)}...${value.slice(-4)} (${value.length} حرف)`;
 }
 
+/** The file actually read, so "I edited it" can be checked against reality. */
+let envPath = '';
+
 function readEnv() {
-  if (!existsSync('.env')) return null;
+  envPath = resolve('.env');
+  if (!existsSync(envPath)) return null;
   const env = {};
   for (const line of readFileSync('.env', 'utf8').split('\n')) {
     const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
@@ -77,6 +111,8 @@ async function checkSupabase(env) {
   if (!url && !key) {
     warn('غير مهيّأ — زر "ارفع صورة" ما راح يظهر باللوحة.');
     hint('الموقع يشتغل عادي؛ تكتب مسارات الصور يدويًا. راجع docs/extending-ar.md §4.6');
+    say();
+    diagnoseMissing(env, ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
     return 'skipped';
   }
   if (!url || !key) {
