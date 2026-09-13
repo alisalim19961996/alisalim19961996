@@ -138,6 +138,42 @@ function passwordProblem(url) {
   return null;
 }
 
+/**
+ * The connection string's shape, with the password reduced to a length.
+ *
+ * Added because two rounds of "check the password" got nowhere: Postgres says
+ * only "authentication failed", and every guess about *why* was a guess. The
+ * parts that decide whether a Supabase connection can work — pooler host or
+ * direct host, which username form, which port — are all visible without the
+ * secret, and seeing them ends the argument in one line:
+ *
+ *   host `db.<ref>.supabase.co` + user `postgres`     → direct connection
+ *   host `...pooler.supabase.com` + user `postgres`   → pooler, wrong username
+ *   password length far shorter than what was typed   → a `#` ate the rest
+ *
+ * Safe to paste anywhere: the password never appears, only how long it is.
+ */
+function describeConnection(url) {
+  const password = rawPasswordOf(url);
+  const withoutPassword = password === null ? url : url.replace(`:${password}@`, ':@');
+
+  let parsed;
+  try {
+    parsed = new URL(withoutPassword);
+  } catch {
+    return null;
+  }
+
+  return {
+    host: parsed.hostname,
+    port: parsed.port || '(افتراضي)',
+    user: decodeURIComponent(parsed.username) || '(ماكو)',
+    database: parsed.pathname.replace(/^\//, '') || '(ماكو)',
+    params: parsed.search || '(ماكو)',
+    passwordLength: password === null ? 0 : password.length,
+  };
+}
+
 async function main() {
   say(`${c.bold}إعداد متجر MPS${c.reset}`);
   say(`${c.dim}يجهّز كل شي، ويكولك بالضبط وين المشكلة إذا صارت.${c.reset}`);
@@ -284,6 +320,36 @@ async function main() {
       say(
         `  ${c.dim}Supabase ← Project Settings ← Database ← Reset database password${c.reset}`,
       );
+    }
+
+    const shape = describeConnection(url);
+    if (shape) {
+      say('');
+      say(
+        `  ${c.bold}الرابط اللي انجرّب${c.reset} ${c.dim}(بدون كلمة المرور):${c.reset}`,
+      );
+      say(`    المضيف     : ${shape.host}`);
+      say(`    المنفذ     : ${shape.port}`);
+      say(`    المستخدم   : ${shape.user}`);
+      say(`    القاعدة    : ${shape.database}`);
+      say(`    باراميترات : ${shape.params}`);
+      say(`    كلمة المرور: ${shape.passwordLength} حرف`);
+
+      // The two shapes Supabase hands out differ in host *and* username, and
+      // mixing them is the failure that reads exactly like a wrong password.
+      const isPooler = shape.host.includes('pooler.supabase.com');
+      if (isPooler && !shape.user.includes('.')) {
+        say('');
+        warn('المضيف pooler بس اسم المستخدم مو كامل.');
+        say(
+          `  لازم يكون: ${c.bold}postgres.<معرّف-مشروعك>${c.reset} — مو postgres لحاله.`,
+        );
+      }
+      if (!isPooler && shape.host.startsWith('db.')) {
+        say('');
+        warn('هذا الاتصال المباشر، مو الـ pooler.');
+        say('  خذ الرابط الثاني من نافذة Connect — منفذ 5432 و pooler.supabase.com');
+      }
     }
 
     say('');
