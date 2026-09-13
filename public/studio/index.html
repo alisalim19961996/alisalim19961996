@@ -1,4 +1,9 @@
 <meta charset="utf-8" />
+<!-- Without this a phone lays the page out at ~980px and scales the
+     whole desktop layout down, so the tabbed phone view never runs.
+     The artifact wrapper supplies its own; this one is for the copy
+     served straight out of public/. -->
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>MPS Reels Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -690,6 +695,73 @@
     flex-shrink: 0;
   }
 
+  /* Result sheet. Exporting a video takes as long as the reel, so the
+     browser's user-activation is long gone by the time the file exists —
+     and navigator.share needs a live one. The sheet gives the owner a
+     fresh tap, which is also the only way to reach the camera roll. */
+  .sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(11, 18, 117, 0.55);
+    display: grid;
+    place-items: end center;
+    padding: 16px;
+  }
+  .sheet[hidden] {
+    display: none;
+  }
+  .sheet-card {
+    width: min(420px, 100%);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 92dvh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(11, 18, 117, 0.3);
+  }
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .sheet-head b {
+    font-size: 14px;
+  }
+  .sheet-media {
+    display: grid;
+    place-items: center;
+    background: var(--ground);
+    border-radius: 12px;
+    padding: 10px;
+  }
+  .sheet-media img,
+  .sheet-media video {
+    max-width: 100%;
+    max-height: 44dvh;
+    border-radius: 8px;
+    display: block;
+  }
+  .sheet-acts {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .sheet-acts .btn {
+    height: 44px;
+  }
+  .sheet p {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    line-height: 1.7;
+  }
+
   .status {
     position: fixed;
     inset-block-end: 16px;
@@ -837,7 +909,7 @@
   <div class="bar-spacer"></div>
 
   <button class="btn btn-sm" id="btnOpen" type="button">فتح ملف</button>
-  <button class="btn btn-sm" id="btnSaveCloud" type="button">حفظ</button>
+  <button class="btn btn-sm" id="btnSaveCloud" type="button">حفظ المشروع</button>
   <div class="menu-host">
     <button
       class="btn btn-primary btn-sm"
@@ -846,20 +918,23 @@
       aria-haspopup="menu"
       aria-expanded="false"
     >
-      تصدير ▾
+      حفظ بالتلفون ▾
     </button>
     <div class="menu" id="exportMenu" role="menu" hidden>
       <button type="button" role="menuitem" data-act="video">
         <b>فيديو الريل كامل</b>
-        <small>1080×1920 · 30fps · كل المشاهد بالحركة</small>
+        <small
+          ><span class="num">1080×1920</span> · <span class="num">30fps</span> · جاهز
+          للرفع</small
+        >
       </button>
       <button type="button" role="menuitem" data-act="frames">
-        <b>كل المشاهد صور PNG</b>
-        <small>1080×1920 لكل مشهد · للتركيب بـ CapCut</small>
+        <b>كل المشاهد صور</b>
+        <small><span class="num">1080×1920</span> لكل مشهد · تنحفظ سوا بضغطة</small>
       </button>
       <button type="button" role="menuitem" data-act="cover">
-        <b>غلاف الريل</b>
-        <small>1080×1920 · المشهد المحدد</small>
+        <b>المشهد الحالي صورة</b>
+        <small><span class="num">1080×1920</span> · أسرع طريقة</small>
       </button>
       <button type="button" role="menuitem" data-act="json">
         <b>حفظ ملف المشروع</b>
@@ -988,6 +1063,37 @@
       <div class="group-body" id="brandFields"></div>
     </details>
   </aside>
+</div>
+
+<div
+  class="sheet"
+  id="sheet"
+  hidden
+  role="dialog"
+  aria-modal="true"
+  aria-label="حفظ الملف"
+>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <b id="sheetTitle">جاهز</b>
+      <button
+        class="btn btn-sm btn-icon"
+        id="sheetClose"
+        type="button"
+        aria-label="إغلاق"
+      >
+        ×
+      </button>
+    </div>
+    <div class="sheet-media" id="sheetMedia"></div>
+    <div class="sheet-acts">
+      <button class="btn btn-primary" id="sheetPhone" type="button">
+        حفظ بالتلفون
+      </button>
+      <button class="btn" id="sheetDownload" type="button">تنزيل الملف</button>
+    </div>
+    <p id="sheetHint"></p>
+  </div>
 </div>
 
 <div class="status" id="status" role="status" aria-live="polite"></div>
@@ -1186,7 +1292,7 @@
 
   function defaultProject() {
     return {
-      version: 2,
+      version: 3,
       name: 'HONOR X9d — إطلاق',
       brand: {
         store: 'MODERN PHONE STORE',
@@ -1201,8 +1307,18 @@
         oldPrice: '',
         badge: 'كفالة الوكيل الرسمي',
       },
-      // Grounds alternate light / red so the reel has a beat, and the
-      // end card is the one sparing use of blue the book allows.
+      /**
+       * The copy sells the benefit, not the spec. "بطارية سيليكون–كاربون"
+       * is a line off a datasheet; "يومين بشحنة وحدة" is the reason
+       * somebody buys the phone. The number carries the proof, the
+       * Arabic line carries the reason, and the small line underneath
+       * carries the spec for whoever wants it.
+       *
+       * `layout` alternates the spec composition so nine scenes do not
+       * arrive in the same shape: `stat` puts giant type on top of a
+       * solid field with the photo beneath, `photo` fills the frame with
+       * the photograph and seats the type on a colour panel.
+       */
       scenes: [
         {
           type: 'hook',
@@ -1210,8 +1326,8 @@
           dur: 2.6,
           value: '8300',
           unit: 'mAh',
-          headline: 'بطارية ما تخلص',
-          kicker: 'أكبر بطارية بفئته',
+          headline: 'يومين بشحنة وحدة',
+          kicker: '',
           image: 'kv-hero',
           focus: 40,
           zoom: 104,
@@ -1222,30 +1338,32 @@
           dur: 2.8,
           headline: 'X9d',
           sub: 'HONOR',
-          kicker: 'مصنوع حتى يتحمّل',
+          kicker: 'بطارية تكفيك يومين، وجسم يتحمّل',
           image: 'scene-desert',
           focus: 38,
           zoom: 104,
         },
         {
           type: 'spec',
+          layout: 'stat',
           ground: 'light',
           dur: 2.4,
           value: '8300',
           unit: 'mAh',
-          headline: 'بطارية سيليكون–كاربون',
-          kicker: 'شحن سريع 66W + شحن عكسي',
+          headline: 'يومين بشحنة وحدة',
+          kicker: 'شحن سريع 66W · ويشحن أجهزتك الثانية',
           image: 'battery-8300',
           focus: 50,
           zoom: 100,
         },
         {
           type: 'spec',
+          layout: 'photo',
           ground: 'red',
           dur: 2.4,
           value: 'IP69K',
           unit: '',
-          headline: 'مقاوم للماء والغبار',
+          headline: 'ماي وغبار؟ ما يهمّك',
           kicker: 'شهادات IP66 · IP68 · IP69 · IP69K',
           image: 'water-drop',
           focus: 50,
@@ -1253,24 +1371,26 @@
         },
         {
           type: 'spec',
+          layout: 'stat',
           ground: 'light',
           dur: 2.4,
-          value: '120',
-          unit: 'Hz',
-          headline: 'شاشة AMOLED 6.79 إنچ',
-          kicker: 'سطوع يصل 6000 nits',
+          value: '6000',
+          unit: 'nits',
+          headline: 'تشوف الشاشة بعزّ الشمس',
+          kicker: 'AMOLED 6.79 إنچ · 120Hz',
           image: 'screen-hills',
           focus: 46,
           zoom: 100,
         },
         {
           type: 'spec',
+          layout: 'photo',
           ground: 'red',
           dur: 2.4,
           value: '108',
           unit: 'MP',
-          headline: 'كاميرا بتثبيت OIS',
-          kicker: 'مع كاميرا عريضة 5 ميكا بكسل',
+          headline: 'كبّر الصورة… التفاصيل باقية',
+          kicker: 'مع مثبّت OIS يمنع الهزّة',
           image: 'kv-hero',
           focus: 44,
           zoom: 118,
@@ -1279,8 +1399,8 @@
           type: 'colors',
           ground: 'light',
           dur: 2.6,
-          headline: 'أربعة ألوان',
-          kicker: 'اختار لونك',
+          headline: 'اختار لونك',
+          kicker: 'أربع ألوان متوفرة',
           colors: [
             { image: 'back-red', label: 'أحمر' },
             { image: 'back-black', label: 'أسود' },
@@ -1293,7 +1413,7 @@
           ground: 'red',
           dur: 2.6,
           headline: 'السعر',
-          kicker: 'التوصيل لجميع المحافظات',
+          kicker: 'توصيل لكل المحافظات · الدفع عند الاستلام',
         },
         {
           type: 'cta',
@@ -1374,6 +1494,23 @@
 
   const arFont = (weight, size) => `${weight} ${size}px ${AR}`;
   const laFont = (weight, size) => `${weight} ${size}px ${LA}`;
+
+  /**
+   * Size a line so it spans a measure. A hero number that is merely
+   * "large" still reads as body copy blown up; one that fills its column
+   * reads as a poster — and that difference is most of what makes a
+   * spec frame look designed. Linear scaling off one reference
+   * measurement is accurate enough for both faces here.
+   */
+  function fitFont(c, text, measure, weight, family, max, min = 28) {
+    const REF = 100;
+    c.font = `${weight} ${REF}px ${family}`;
+    const w = c.measureText(String(text)).width || 1;
+    return Math.max(min, Math.min(max, (measure / w) * REF));
+  }
+
+  /** Cap height, near enough, for stacking blocks under fitted type. */
+  const capOf = (size) => size * 0.72;
 
   function roundRect(c, x, y, w, h, r) {
     const rr = Math.min(r, w / 2, h / 2);
@@ -1540,18 +1677,69 @@
      ================================================================== */
 
   /**
-   * Photo scenes put the copy on a solid brand panel instead of a black
-   * scrim. The book has no black, and a coloured panel also guarantees
-   * the type is legible over any photograph, which a gradient does not.
+   * Photo scenes seat their copy on a solid brand panel instead of a
+   * black scrim. The book has no black, and a coloured panel also
+   * guarantees the type is legible over any photograph, which a
+   * gradient does not.
    */
   function drawPhotoPanel(c, g, panelTop) {
-    vGradient(c, 0, panelTop - 190, W, 190, [
+    vGradient(c, 0, panelTop - 200, W, 200, [
       [0, alpha(g.bg, 0)],
       [1, alpha(g.bg, 1)],
     ]);
     c.fillStyle = g.bg;
     c.fillRect(0, panelTop, W, H - panelTop);
     drawPattern(c, 0, panelTop, W, H - panelTop, g.pattern, g.patternAlpha);
+  }
+
+  /** Small letterspaced label — the eyebrow above a hero number. */
+  function eyebrow(c, text, x, y, size, color, align, spacing = '0.26em') {
+    if (!text) return;
+    c.save();
+    c.font = laFont(600, size);
+    c.letterSpacing = spacing;
+    c.textAlign = align;
+    c.textBaseline = 'alphabetic';
+    c.fillStyle = color;
+    c.fillText(text, x, y);
+    c.letterSpacing = '0px';
+    c.restore();
+  }
+
+  /** The maker's name over a photograph, on its own ground so it reads. */
+  function makerTag(c, g, y) {
+    const maker = String(project.device.maker || '').toUpperCase();
+    if (!maker) return;
+    c.save();
+    c.font = laFont(600, 30);
+    c.letterSpacing = '0.3em';
+    const tagW = c.measureText(maker).width + 52;
+    const tagH = 62;
+    roundRect(c, W - M - tagW, y, tagW, tagH, tagH / 2);
+    c.fillStyle = g.bg;
+    c.fill();
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillStyle = g.ink;
+    c.fillText(maker, W - M - tagW / 2 + 8, y + tagH / 2);
+    c.letterSpacing = '0px';
+    c.restore();
+  }
+
+  /**
+   * The hero number, set to fill the safe column. Counts up while the
+   * scene enters when the value is numeric — the cheapest way to make a
+   * still frame feel like footage — but it is sized from the FINAL
+   * value so the type does not jitter as the digits change.
+   */
+  function heroNumber(c, raw, t, measure, maxSize) {
+    const numeric = /^\d+(\.\d+)?$/.test(raw);
+    const decimals = raw.includes('.') ? 1 : 0;
+    const size = fitFont(c, raw, measure, 700, LA, maxSize);
+    const shown = numeric
+      ? (parseFloat(raw) * easeOut((t - 0.12) / 0.75)).toFixed(decimals)
+      : raw;
+    return { size, shown, cap: capOf(size) };
   }
 
   function sceneHook(c, s, t, index) {
@@ -1567,75 +1755,55 @@
       0,
       0,
       W,
-      1180,
+      1060,
       s.focus ?? 45,
       (s.zoom ?? 100) * drift,
     );
 
-    const panelTop = 990;
+    const panelTop = 880;
     drawPhotoPanel(c, g, panelTop);
 
-    // Maker tag. It sits on a photograph, so it gets its own solid
-    // ground: bare type here is legible on one image and gone on the
-    // next.
     c.save();
     c.globalAlpha = enter;
-    const maker = project.device.maker.toUpperCase();
-    c.font = laFont(700, 30);
-    c.letterSpacing = '0.3em';
-    const tw = c.measureText(maker).width;
-    const tagW = tw + 52;
-    const tagH = 62;
-    roundRect(c, W - M - tagW, TITLE.y - 18, tagW, tagH, tagH / 2);
-    c.fillStyle = g.bg;
-    c.fill();
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillStyle = g.ink;
-    c.fillText(maker, W - M - tagW / 2 + 8, TITLE.y - 18 + tagH / 2);
-    c.letterSpacing = '0px';
+    makerTag(c, g, TITLE.y - 18);
     c.restore();
 
-    // The number is the hook. It lands first and it lands big.
-    const numEnter = easeOut((t - 0.1) / 0.55);
-    const value = String(s.value ?? '');
-    const unit = String(s.unit ?? '');
-    const numY = panelTop + 232;
+    const raw = String(s.value ?? '');
+    const hero = heroNumber(c, raw, t, TITLE.w, 420);
+    const numY = panelTop + 108 + hero.cap;
 
+    // Unit rides above the number as a label, because a number that
+    // fills the column has no room beside it.
+    c.save();
+    c.globalAlpha = easeOut((t - 0.05) / 0.5);
+    eyebrow(c, String(s.unit ?? ''), W - M, panelTop + 74, 44, g.accent, 'right');
+    c.restore();
+
+    const numEnter = easeOut((t - 0.1) / 0.55);
     c.save();
     c.globalAlpha = numEnter;
-    c.translate(W - M, numY);
-    c.scale(lerp(1.12, 1, numEnter), lerp(1.12, 1, numEnter));
-    c.translate(-(W - M), -numY);
+    c.translate(W / 2, numY);
+    c.scale(lerp(1.1, 1, numEnter), lerp(1.1, 1, numEnter));
+    c.translate(-W / 2, -numY);
+    c.font = laFont(700, hero.size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
-
-    const unitSize = 88;
-    c.font = laFont(700, unitSize);
-    const unitW = unit ? c.measureText(unit).width + 20 : 0;
-    if (unit) {
-      c.fillStyle = g.accent;
-      c.fillText(unit, W - M, numY);
-    }
-    c.font = laFont(700, value.length > 5 ? 218 : 274);
     c.fillStyle = g.ink;
-    c.fillText(value, W - M - unitW, numY);
+    c.fillText(hero.shown, W - M, numY);
     c.restore();
 
-    const hEnter = easeOut((t - 0.32) / 0.6);
+    const hEnter = easeOut((t - 0.34) / 0.6);
     c.save();
     c.globalAlpha = hEnter;
-    c.translate(0, lerp(46, 0, hEnter));
-    arText(c, s.headline, W - M, numY + 116, 78, 700, g.ink, TITLE.w);
+    c.translate(0, lerp(42, 0, hEnter));
+    const size = fitFont(c, s.headline || '', TITLE.w, 700, AR, 86);
+    arText(c, s.headline, W - M, numY + 122, size, 700, g.ink, TITLE.w);
     c.restore();
 
     if (s.kicker) {
-      const kEnter = easeOut((t - 0.55) / 0.55);
       c.save();
-      c.globalAlpha = kEnter;
-      c.translate(0, lerp(24, 0, kEnter));
-      c.textAlign = 'right';
-      pill(c, s.kicker, W - M, numY + 172, 38, g.accent, MPS.blue);
+      c.globalAlpha = easeOut((t - 0.55) / 0.55);
+      arText(c, s.kicker, W - M, numY + 208, 42, 400, g.soft, TITLE.w);
       c.restore();
     }
 
@@ -1655,135 +1823,187 @@
       0,
       0,
       W,
-      1240,
+      1200,
       s.focus ?? 40,
       (s.zoom ?? 100) * drift,
     );
 
-    const panelTop = 1060;
+    const panelTop = 1020;
     drawPhotoPanel(c, g, panelTop);
 
     c.save();
     c.globalAlpha = easeOut((t - 0.15) / 0.5);
-    c.font = laFont(700, 38);
-    c.textAlign = 'right';
-    c.textBaseline = 'alphabetic';
-    c.letterSpacing = '0.34em';
-    c.fillStyle = g.accent;
-    c.fillText(String(s.sub ?? '').toUpperCase(), W - M, panelTop + 116);
-    c.letterSpacing = '0px';
+    eyebrow(
+      c,
+      String(s.sub ?? '').toUpperCase(),
+      W - M,
+      panelTop + 96,
+      40,
+      g.accent,
+      'right',
+      '0.34em',
+    );
     c.restore();
 
+    // The model name fills the column. It is the one word on the frame
+    // that has to be unmistakable.
     const mEnter = easeOut((t - 0.25) / 0.65);
+    const model = String(s.headline ?? '');
+    const size = fitFont(c, model, TITLE.w, 700, LA, 260);
+    const modelY = panelTop + 140 + capOf(size);
+
     c.save();
     c.globalAlpha = mEnter;
-    c.translate(0, lerp(40, 0, mEnter));
-    c.font = laFont(700, 176);
+    c.translate(0, lerp(38, 0, mEnter));
+    c.font = laFont(700, size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
     c.fillStyle = g.ink;
-    c.fillText(String(s.headline ?? ''), W - M, panelTop + 280);
+    c.fillText(model, W - M, modelY);
     c.restore();
 
     const rule = easeOut((t - 0.5) / 0.6);
     c.fillStyle = g.accent;
-    c.fillRect(W - M - 150 * rule, panelTop + 322, 150 * rule, 7);
+    c.fillRect(W - M - 160 * rule, modelY + 42, 160 * rule, 7);
 
     c.save();
     c.globalAlpha = easeOut((t - 0.62) / 0.55);
-    arText(c, s.kicker, W - M, panelTop + 412, 50, 500, g.soft, TITLE.w);
+    arText(c, s.kicker, W - M, modelY + 136, 50, 500, g.soft, TITLE.w);
     c.restore();
 
     drawChapters(c, GROUNDS.light, index, project.scenes.length, enter * 0.9);
   }
 
+  /**
+   * Two spec compositions, chosen per scene. Nine frames built from one
+   * template read as a slideshow however good the template is; two that
+   * trade which element owns the frame read as a cut.
+   */
   function sceneSpec(c, s, t, index) {
     const g = groundOf(s);
     const enter = easeOut(t / 0.6);
+    const specScenes = project.scenes.filter((x) => x.type === 'spec');
+    const ordinal = specScenes.indexOf(s) + 1;
+    const counter = `${String(ordinal).padStart(2, '0')} / ${String(specScenes.length).padStart(2, '0')}`;
+    const raw = String(s.value ?? '');
 
+    if (s.layout === 'photo') {
+      // Photograph owns the frame; the type sits on a colour panel.
+      c.fillStyle = MPS.white;
+      c.fillRect(0, 0, W, H);
+      drawCover(
+        c,
+        imageOf(s.image),
+        0,
+        0,
+        W,
+        1140,
+        s.focus ?? 50,
+        (s.zoom ?? 100) * lerp(1.05, 1.0, easeInOut(t / (s.dur || 2.4))),
+      );
+
+      const panelTop = 960;
+      drawPhotoPanel(c, g, panelTop);
+
+      c.save();
+      c.globalAlpha = enter * 0.85;
+      eyebrow(c, counter, M, panelTop + 74, 30, g.faint, 'left', '0.22em');
+      eyebrow(c, String(s.unit ?? ''), W - M, panelTop + 74, 42, g.accent, 'right');
+      c.restore();
+
+      const hero = heroNumber(c, raw, t, TITLE.w, 300);
+      const numY = panelTop + 104 + hero.cap;
+
+      c.save();
+      c.globalAlpha = easeOut((t - 0.1) / 0.5);
+      c.font = laFont(700, hero.size);
+      c.textAlign = 'right';
+      c.textBaseline = 'alphabetic';
+      c.fillStyle = g.ink;
+      c.fillText(hero.shown, W - M, numY);
+      c.restore();
+
+      const lEnter = easeOut((t - 0.3) / 0.6);
+      c.save();
+      c.globalAlpha = lEnter;
+      c.translate(0, lerp(28, 0, lEnter));
+      const hs = fitFont(c, s.headline || '', TITLE.w, 700, AR, 66);
+      const end = arText(c, s.headline, W - M, numY + 100, hs, 700, g.ink, TITLE.w);
+      if (s.kicker) arText(c, s.kicker, W - M, end + 66, 38, 400, g.soft, TITLE.w);
+      c.restore();
+
+      drawChapters(c, GROUNDS.light, index, project.scenes.length, enter * 0.9);
+      return;
+    }
+
+    // 'stat': the number owns the frame, the photograph anchors it.
     c.fillStyle = g.bg;
     c.fillRect(0, 0, W, H);
     drawPattern(c, 0, 0, W, H, g.pattern, g.patternAlpha);
 
-    // Image plate: inside title-safe, opening downward as the scene
-    // starts so the eye is pulled to the stat that follows it.
-    const plateY = TITLE.y + 6;
-    const plateH = 764;
-    const grow = easeOut(t / 0.55);
     c.save();
-    roundRect(c, M, plateY, TITLE.w, plateH * grow, 44);
-    if (g === GROUNDS.light) {
-      c.strokeStyle = 'rgba(11,18,117,0.12)';
-      c.lineWidth = 2;
-      c.stroke();
-    }
-    c.clip();
-    c.fillStyle = g.plate;
-    c.fillRect(M, plateY, TITLE.w, plateH);
-    drawCover(
-      c,
-      imageOf(s.image),
-      M,
-      plateY,
-      TITLE.w,
-      plateH,
-      s.focus ?? 50,
-      (s.zoom ?? 100) * lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4))),
-    );
+    c.globalAlpha = enter * 0.85;
+    eyebrow(c, counter, M, TITLE.y + 52, 30, g.faint, 'left', '0.22em');
+    eyebrow(c, String(s.unit ?? ''), W - M, TITLE.y + 52, 44, g.accent, 'right');
     c.restore();
 
-    // The index is real information: spec scenes are a numbered run.
-    const specScenes = project.scenes.filter((x) => x.type === 'spec');
-    const ordinal = specScenes.indexOf(s) + 1;
-    const vy = plateY + plateH + 232;
+    const hero = heroNumber(c, raw, t, TITLE.w, 400);
+    const numY = TITLE.y + 96 + hero.cap;
 
+    const numEnter = easeOut((t - 0.08) / 0.5);
     c.save();
-    c.globalAlpha = enter * 0.8;
-    c.font = laFont(600, 30);
-    c.textAlign = 'left';
-    c.textBaseline = 'alphabetic';
-    c.letterSpacing = '0.22em';
-    c.fillStyle = g.faint;
-    c.fillText(
-      `${String(ordinal).padStart(2, '0')} / ${String(specScenes.length).padStart(2, '0')}`,
-      M,
-      vy,
-    );
-    c.letterSpacing = '0px';
-    c.restore();
-
-    // Numeric values count up — the cheapest way to make a still frame
-    // feel like footage.
-    const raw = String(s.value ?? '');
-    const numeric = /^\d+(\.\d+)?$/.test(raw);
-    const decimals = raw.includes('.') ? 1 : 0;
-    const count = easeOut((t - 0.12) / 0.75);
-    const shown = numeric ? (parseFloat(raw) * count).toFixed(decimals) : raw;
-
-    c.save();
-    c.globalAlpha = easeOut((t - 0.1) / 0.5);
+    c.globalAlpha = numEnter;
+    c.translate(W / 2, numY);
+    c.scale(lerp(1.06, 1, numEnter), lerp(1.06, 1, numEnter));
+    c.translate(-W / 2, -numY);
+    c.font = laFont(700, hero.size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
-    c.font = laFont(700, 74);
-    const uw = s.unit ? c.measureText(s.unit).width + 18 : 0;
-    if (s.unit) {
-      c.fillStyle = g.accent;
-      c.fillText(s.unit, W - M, vy);
-    }
-    c.font = laFont(700, raw.length > 4 ? 176 : 232);
     c.fillStyle = g.ink;
-    c.fillText(shown, W - M - uw, vy);
+    c.fillText(hero.shown, W - M, numY);
     c.restore();
 
-    const lEnter = easeOut((t - 0.3) / 0.6);
+    const lEnter = easeOut((t - 0.28) / 0.6);
+    let panelTop = numY + 150;
     c.save();
     c.globalAlpha = lEnter;
-    c.translate(0, lerp(30, 0, lEnter));
-    const end = arText(c, s.headline, W - M, vy + 108, 64, 700, g.ink, TITLE.w);
+    c.translate(0, lerp(26, 0, lEnter));
+    const hs = fitFont(c, s.headline || '', TITLE.w, 700, AR, 72);
+    const end = arText(c, s.headline, W - M, numY + 104, hs, 700, g.ink, TITLE.w);
+    panelTop = end + 50;
     if (s.kicker) {
-      arText(c, s.kicker, W - M, end + 78, 42, 400, g.soft, TITLE.w);
+      arText(c, s.kicker, W - M, end + 64, 38, 400, g.soft, TITLE.w);
+      panelTop = end + 110;
     }
     c.restore();
+
+    // The plate takes whatever height is left down to the safe edge, so
+    // a two-line headline shrinks the image instead of overflowing it.
+    const plateH = BOTTOM - panelTop;
+    if (plateH > 160) {
+      const grow = easeOut((t - 0.15) / 0.6);
+      c.save();
+      roundRect(c, M, panelTop, TITLE.w, plateH * grow, 40);
+      if (g === GROUNDS.light) {
+        c.strokeStyle = 'rgba(11,18,117,0.12)';
+        c.lineWidth = 2;
+        c.stroke();
+      }
+      c.clip();
+      c.fillStyle = g.plate;
+      c.fillRect(M, panelTop, TITLE.w, plateH);
+      drawCover(
+        c,
+        imageOf(s.image),
+        M,
+        panelTop,
+        TITLE.w,
+        plateH,
+        s.focus ?? 50,
+        (s.zoom ?? 100) * lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4))),
+      );
+      c.restore();
+    }
 
     drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
@@ -1797,56 +2017,64 @@
 
     c.save();
     c.globalAlpha = enter;
-    arText(c, s.headline, W - M, TITLE.y + 96, 82, 700, g.ink, TITLE.w);
-    if (s.kicker) arText(c, s.kicker, W - M, TITLE.y + 176, 44, 400, g.soft, TITLE.w);
+    const hs = fitFont(c, s.headline || '', TITLE.w, 700, AR, 96);
+    arText(c, s.headline, W - M, TITLE.y + 110, hs, 700, g.ink, TITLE.w);
+    if (s.kicker) arText(c, s.kicker, W - M, TITLE.y + 190, 44, 400, g.soft, TITLE.w);
     c.restore();
 
-    const items = (s.colors || []).slice(0, 4);
+    const items = (s.colors || []).slice(0, 5);
     if (!items.length) return;
 
-    // Size the card to the artwork instead of guessing: these are
-    // portrait phone backs, and a fixed height left a third of every
-    // card empty. Then centre the row in the space under the heading.
-    const gap = 26;
-    const cellW = (TITLE.w - gap * (items.length - 1)) / items.length;
+    // Overlapping the colourways lets each phone be half again as large
+    // as a four-up grid allows, and a fanned row is how a colour range
+    // is actually shown.
+    const n = items.length;
+    const OVER = 0.28;
+    const span = W - 40;
+    const cw = Math.min(360, span / (n - OVER * (n - 1)));
+    const step = cw * (1 - OVER);
     const sample = items.map((i) => imageOf(i.image)).find(Boolean);
-    const ratio = sample ? sample.height / sample.width : 2.1;
-    const cellH = Math.min(780, cellW * ratio + 64);
-    const regionTop = TITLE.y + 260;
-    const top = regionTop + Math.max(0, (BOTTOM - 90 - regionTop - cellH - 80) / 2);
+    const ch = cw * (sample ? sample.height / sample.width : 2.1);
+    const total = cw + step * (n - 1);
+    const left = (W - total) / 2;
+    const top = TITLE.y + 300;
 
-    items.forEach((item, i) => {
-      // Right to left: the first colour named is the first seen.
-      const x = W - M - cellW - i * (cellW + gap);
-      const a = easeOut((t - 0.18 - i * 0.11) / 0.6);
-      if (a <= 0) return;
+    // Draw left to right so the first colour named ends up on top.
+    for (let i = n - 1; i >= 0; i--) {
+      const a = easeOut((t - 0.18 - i * 0.1) / 0.6);
+      if (a <= 0) continue;
       c.save();
       c.globalAlpha = a;
-      c.translate(0, lerp(48, 0, a));
-
-      roundRect(c, x, top, cellW, cellH, 30);
-      c.fillStyle = g.plate;
-      c.fill();
-      if (g === GROUNDS.light) {
-        c.strokeStyle = 'rgba(11,18,117,0.12)';
-        c.lineWidth = 2;
-        c.stroke();
-      }
-
-      c.save();
-      roundRect(c, x, top, cellW, cellH, 30);
-      c.clip();
-      drawContain(c, imageOf(item.image), x, top + 18, cellW, cellH - 36, 96);
+      c.translate(0, lerp(44, 0, a));
+      drawContain(
+        c,
+        imageOf(items[i].image),
+        left + (n - 1 - i) * step,
+        top,
+        cw,
+        ch,
+        100,
+      );
       c.restore();
+    }
 
-      c.direction = 'rtl';
-      c.textAlign = 'center';
-      c.textBaseline = 'alphabetic';
-      c.font = arFont(600, 38);
-      c.fillStyle = g.ink;
-      c.fillText(item.label || '', x + cellW / 2, top + cellH + 68);
-      c.restore();
-    });
+    // One legend line: names under overlapping phones would collide.
+    c.save();
+    c.globalAlpha = easeOut((t - 0.55) / 0.5);
+    c.direction = 'rtl';
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    c.font = arFont(600, 40);
+    c.fillStyle = g.ink;
+    c.fillText(
+      items
+        .map((i) => i.label)
+        .filter(Boolean)
+        .join('  ·  '),
+      W / 2,
+      Math.min(BOTTOM - 20, top + ch + 96),
+    );
+    c.restore();
 
     drawChapters(c, g, index, project.scenes.length, enter * 0.9);
   }
@@ -1861,56 +2089,51 @@
 
     c.save();
     c.globalAlpha = enter;
-    c.font = laFont(700, 42);
-    c.textAlign = 'right';
-    c.textBaseline = 'alphabetic';
-    c.letterSpacing = '0.2em';
-    c.fillStyle = g.soft;
-    c.fillText(
-      `${project.device.maker.toUpperCase()} ${project.device.model}`,
+    eyebrow(
+      c,
+      `${String(project.device.maker || '').toUpperCase()} ${project.device.model || ''}`.trim(),
       W - M,
       TITLE.y + 84,
+      42,
+      g.soft,
+      'right',
+      '0.2em',
     );
-    c.letterSpacing = '0px';
-    arText(c, s.headline, W - M, TITLE.y + 190, 60, 500, g.ink, TITLE.w);
+    arText(c, s.headline, W - M, TITLE.y + 186, 58, 500, g.ink, TITLE.w);
     c.restore();
 
     const price = String(project.device.price || '').trim();
-    const mid = TITLE.y + 660;
+    const old = String(project.device.oldPrice || '').trim();
 
     if (price) {
       const pEnter = easeOut((t - 0.15) / 0.6);
+      // The currency is a label, so the number gets the whole column.
+      const size = fitFont(c, price, TITLE.w, 700, LA, 340);
+      const priceY = TITLE.y + 430 + capOf(size);
+
       c.save();
       c.globalAlpha = pEnter;
-      c.translate(0, lerp(36, 0, pEnter));
+      c.translate(0, lerp(34, 0, pEnter));
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
-
-      const cur = 'د.ع';
-      c.font = arFont(600, 60);
-      const curW = c.measureText(cur).width;
-      c.font = laFont(700, 200);
-      const pw = c.measureText(price).width;
-      const totalW = pw + curW + 26;
-
+      c.font = laFont(700, size);
       c.fillStyle = g.ink;
-      c.fillText(price, W / 2 + (totalW / 2 - pw / 2), mid);
-      c.font = arFont(600, 60);
-      c.fillStyle = g.soft;
-      c.fillText(cur, W / 2 - (totalW / 2 - curW / 2), mid);
+      c.fillText(price, W / 2, priceY);
+      c.font = arFont(600, 56);
+      c.fillStyle = g.accent;
+      c.fillText('دينار عراقي', W / 2, priceY + 88);
       c.restore();
 
-      const old = String(project.device.oldPrice || '').trim();
       if (old) {
         c.save();
         c.globalAlpha = easeOut((t - 0.35) / 0.5);
-        c.font = laFont(700, 64);
+        c.font = laFont(600, 62);
         c.textAlign = 'center';
         c.textBaseline = 'alphabetic';
         c.fillStyle = g.faint;
-        c.fillText(old, W / 2, mid + 94);
+        c.fillText(old, W / 2, priceY + 176);
         const ow = c.measureText(old).width;
-        c.fillRect(W / 2 - ow / 2 - 8, mid + 72, ow + 16, 4);
+        c.fillRect(W / 2 - ow / 2 - 8, priceY + 154, ow + 16, 4);
         c.restore();
       }
     } else {
@@ -1922,20 +2145,29 @@
       c.setLineDash([14, 12]);
       c.lineWidth = 4;
       c.strokeStyle = g.faint;
-      roundRect(c, M, mid - 190, TITLE.w, 250, 28);
+      roundRect(c, M, TITLE.y + 380, TITLE.w, 250, 28);
       c.stroke();
       c.setLineDash([]);
       c.direction = 'rtl';
       c.font = arFont(600, 44);
       c.fillStyle = g.soft;
-      c.fillText('اكتب السعر من لوحة التحرير', W / 2, mid - 65);
+      c.fillText('اكتب السعر من لوحة التحرير', W / 2, TITLE.y + 505);
       c.restore();
     }
 
     if (project.device.badge) {
       c.save();
       c.globalAlpha = easeOut((t - 0.5) / 0.5);
-      pill(c, project.device.badge, W / 2, mid + 176, 42, g.accent, MPS.blue, false);
+      pill(
+        c,
+        project.device.badge,
+        W / 2,
+        TITLE.y + 880,
+        42,
+        g.accent,
+        MPS.blue,
+        false,
+      );
       c.restore();
     }
 
@@ -1948,7 +2180,7 @@
     c.direction = 'rtl';
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
-    c.font = arFont(500, 44);
+    c.font = arFont(500, 42);
     c.fillStyle = g.soft;
     c.fillText(s.kicker || '', W / 2, BOTTOM - 40);
     c.restore();
@@ -1965,34 +2197,37 @@
 
     // drawLogo anchors the mark by its TOP edge, so every following
     // baseline is measured from the bottom of the mark.
-    const LOGO_TOP = TITLE.y + 210;
-    const LOGO_H = 168;
+    const LOGO_TOP = TITLE.y + 170;
+    const LOGO_H = 210;
     const LOGO_BOTTOM = LOGO_TOP + LOGO_H;
 
     const logoEnter = easeOut(t / 0.7);
     c.save();
     c.globalAlpha = logoEnter;
-    c.translate(0, lerp(28, 0, logoEnter));
+    c.translate(0, lerp(26, 0, logoEnter));
     drawLogo(c, 'wordmark', W / 2, LOGO_TOP, LOGO_H, g.ink, 'center');
     c.restore();
 
     c.save();
     c.globalAlpha = easeOut((t - 0.2) / 0.6);
-    c.font = laFont(600, 36);
-    c.textAlign = 'center';
-    c.textBaseline = 'alphabetic';
-    c.letterSpacing = '0.3em';
-    c.fillStyle = g.soft;
-    c.fillText(project.brand.store.toUpperCase(), W / 2, LOGO_BOTTOM + 74);
-    c.letterSpacing = '0px';
+    const store = String(project.brand.store || '').toUpperCase();
+    eyebrow(
+      c,
+      store,
+      W / 2,
+      LOGO_BOTTOM + 82,
+      fitFont(c, store, TITLE.w * 0.82, 600, LA, 40),
+      g.soft,
+      'center',
+      '0.3em',
+    );
     c.restore();
 
     c.save();
     c.globalAlpha = easeOut((t - 0.34) / 0.6);
-    pill(c, s.headline || '', W / 2, LOGO_BOTTOM + 130, 50, g.accent, MPS.blue, false);
+    pill(c, s.headline || '', W / 2, LOGO_BOTTOM + 142, 52, g.accent, MPS.blue, false);
     c.restore();
 
-    // Contact rows — real data from the project, never placeholder text
     const rows = [
       project.brand.handle,
       project.brand.phone,
@@ -2005,14 +2240,14 @@
       if (a <= 0) return;
       c.save();
       c.globalAlpha = a;
-      c.translate(0, lerp(20, 0, a));
+      c.translate(0, lerp(18, 0, a));
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
       const latin = /^[\s@+0-9A-Za-z._-]+$/.test(row);
-      c.font = latin ? laFont(700, 46) : arFont(500, 46);
+      c.font = latin ? laFont(700, 48) : arFont(500, 46);
       c.direction = latin ? 'ltr' : 'rtl';
       c.fillStyle = i === 0 ? g.accent : g.soft;
-      c.fillText(row, W / 2, LOGO_BOTTOM + 320 + i * 86);
+      c.fillText(row, W / 2, LOGO_BOTTOM + 330 + i * 88);
       c.restore();
     });
 
@@ -2427,6 +2662,32 @@
     sceneFields.append(
       field('الخلفية', chips, 'ألوان دليل الهوية فقط — ما بيها أسود.'),
     );
+
+    if (s.type === 'spec') {
+      // Which element owns the frame. Alternating it is what stops four
+      // spec scenes from reading as one slide shown four times.
+      const lay = document.createElement('div');
+      lay.className = 'chips';
+      for (const [key, label] of [
+        ['stat', 'الرقم يملأ الأعلى'],
+        ['photo', 'الصورة تملأ الإطار'],
+      ]) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = label;
+        b.setAttribute('aria-pressed', String((s.layout || 'stat') === key));
+        b.addEventListener('click', () => {
+          s.layout = key;
+          buildInspector();
+          commit();
+        });
+        lay.appendChild(b);
+      }
+      sceneFields.append(
+        field('التوزيع', lay, 'بدّل بينهن حتى المشاهد ما تصير نسخة واحدة.'),
+      );
+    }
 
     if (['hook', 'spec'].includes(s.type)) {
       const vr = document.createElement('div');
@@ -3069,6 +3330,118 @@
 
   const SIZE_TAG = `${W}x${H}`;
 
+  /* ---------------------------------------------------------- the sheet
+     Every export ends here rather than firing a download straight away.
+     Recording the reel takes as long as the reel does, so the browser's
+     user-activation has expired by the time the file exists — and
+     navigator.share, the only route from a web page to the camera roll,
+     needs a live one. The sheet's button is that fresh tap. */
+
+  const sheetEl = document.getElementById('sheet');
+  let sheetFiles = [];
+  let sheetUrl = '';
+
+  function closeSheet() {
+    sheetEl.hidden = true;
+    if (sheetUrl) URL.revokeObjectURL(sheetUrl);
+    sheetUrl = '';
+    document.getElementById('sheetMedia').innerHTML = '';
+    sheetFiles = [];
+  }
+
+  function openSheet(label, files) {
+    if (!files.length) return;
+    sheetFiles = files;
+
+    // "1080×1920" set as one Arabic run comes out as "1920×1080": the
+    // digits reorder around the ×. The size gets its own LTR island,
+    // the same rule the storefront uses for prices and SKUs.
+    const titleEl = document.getElementById('sheetTitle');
+    titleEl.textContent = '';
+    const name = document.createElement('span');
+    name.textContent = label;
+    const size = document.createElement('span');
+    size.className = 'num';
+    size.textContent = `${W}×${H}`;
+    titleEl.append(name, document.createTextNode(' · '), size);
+
+    const media = document.getElementById('sheetMedia');
+    media.innerHTML = '';
+    const first = files[0];
+    sheetUrl = URL.createObjectURL(first.blob);
+    let el;
+    if (first.blob.type.startsWith('video')) {
+      el = document.createElement('video');
+      el.controls = true;
+      el.playsInline = true;
+      el.muted = true;
+    } else {
+      el = document.createElement('img');
+      el.alt = first.filename;
+    }
+    el.src = sheetUrl;
+    media.append(el);
+
+    document.getElementById('sheetHint').textContent =
+      files.length > 1
+        ? `${files.length} ملفات · إذا ما اشتغل الزر، اضغط مطوّلاً على الصورة واختر «حفظ الصورة».`
+        : 'إذا ما اشتغل الزر، اضغط مطوّلاً على الملف فوق واختر «حفظ».';
+    sheetEl.hidden = false;
+  }
+
+  /**
+   * Save to the phone's camera roll. Three routes, in the order that
+   * actually reaches Photos / Gallery:
+   *  1. the OS share sheet, which is where "Save Image" and "Save Video"
+   *     live on both iOS and Android, and the only route a web page has;
+   *  2. the platform's own save, which the Claude iOS app turns into
+   *     that same share sheet and the Android app writes directly;
+   *  3. long-press on the preview, which always works and costs a
+   *     sentence of explanation.
+   */
+  async function saveToPhone() {
+    if (!sheetFiles.length) return;
+    const files = sheetFiles.map(
+      (f) => new File([f.blob], f.filename, { type: f.blob.type }),
+    );
+
+    // Must run inside the click's own task: transient activation is what
+    // makes share legal, and an await before it throws it away.
+    if (navigator.canShare && navigator.canShare({ files })) {
+      try {
+        await navigator.share({ files, title: project.name || 'MPS' });
+        toast('اختار «حفظ الصورة» أو «حفظ الفيديو» من القائمة', 'good');
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        // Any other failure (a frame without web-share permission, an
+        // unsupported type) falls through to the platform save.
+      }
+    }
+
+    if (downloads) {
+      for (const f of sheetFiles) {
+        const ok = await deliver(f.filename, f.blob);
+        if (!ok) return;
+      }
+      return;
+    }
+
+    toast('اضغط مطوّلاً على الملف فوق واختر «حفظ الصورة»', 'bad');
+  }
+
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  document.getElementById('sheetPhone').addEventListener('click', saveToPhone);
+  document.getElementById('sheetDownload').addEventListener('click', async () => {
+    for (const f of sheetFiles) {
+      const ok = await deliver(f.filename, f.blob);
+      if (!ok) return;
+    }
+  });
+  sheetEl.addEventListener('click', (e) => {
+    if (e.target === sheetEl) closeSheet();
+  });
+
   function safeName(suffix, ext) {
     return `${fileBase()}-${suffix}.${ext}`;
   }
@@ -3118,23 +3491,24 @@
 
   async function exportFrames() {
     toast('جاري تجهيز الصور…');
-    let saved = 0;
+    const files = [];
     for (let i = 0; i < project.scenes.length; i++) {
-      const s = project.scenes[i];
       const blob = await frameBlob(i, restT(i));
-      const ok = await deliver(
-        `${String(i + 1).padStart(2, '0')}-${s.type}-${SIZE_TAG}.png`,
+      files.push({
+        filename: `${String(i + 1).padStart(2, '0')}-${project.scenes[i].type}-${SIZE_TAG}.png`,
         blob,
-      );
-      if (!ok) break;
-      saved++;
+      });
     }
-    if (saved) toast(`صُدّر ${saved} مشهد بمقاس ${W}×${H}`, 'good');
+    // One share with every frame attached: iOS and Android both offer
+    // "Save N Images" from a single sheet, so nine files stay one tap.
+    openSheet(`${files.length} مشاهد`, files);
   }
 
   async function exportCover() {
     const blob = await frameBlob(selected, restT(selected));
-    await deliver(safeName(`cover-${SIZE_TAG}`, 'png'), blob);
+    openSheet(`المشهد ${selected + 1}`, [
+      { filename: safeName(`${selected + 1}-${SIZE_TAG}`, 'png'), blob },
+    ]);
   }
 
   const VIDEO_TYPES = [
@@ -3194,11 +3568,13 @@
     const blob = await done;
     stream.getTracks().forEach((tr) => tr.stop());
 
-    const ok = await deliver(safeName(SIZE_TAG, ext), blob);
-    if (ok && ext === 'webm') {
-      toast('صُدّر WebM — انستكرام يفضّل MP4، حوّله بـ CapCut قبل الرفع', 'bad');
-    }
     renderStage();
+    openSheet(`فيديو الريل ${ext.toUpperCase()}`, [
+      { filename: safeName(SIZE_TAG, ext), blob },
+    ]);
+    if (ext === 'webm') {
+      toast('صيغة WebM — انستكرام يفضّل MP4، حوّله بـ CapCut قبل الرفع', 'bad');
+    }
   }
 
   function exportProject() {
@@ -3325,7 +3701,10 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setMenu(false);
+    if (e.key === 'Escape') {
+      setMenu(false);
+      closeSheet();
+    }
     if (e.target.matches('input, textarea, select')) return;
     if (e.code === 'Space') {
       e.preventDefault();

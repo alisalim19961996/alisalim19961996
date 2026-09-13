@@ -728,15 +728,31 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
 - **Latin type is Cabin** — the humanist sans drawn after Gill Sans, which
   is the book's face and has no web licence. Arabic is IBM Plex Sans Arabic,
   the storefront's own face.
-- **A reel is data.** Scene type, ground, copy, numbers, images and timings
-  live in a project object. Another device or another brand is a new project,
-  never a code change.
+- **A reel is data.** Scene type, ground, `layout`, copy, numbers, images and
+  timings live in a project object. Another device or another brand is a new
+  project, never a code change.
+- **Hero type is fitted to its column, not set at a fixed size** (`fitFont`).
+  A number that is merely large reads as body copy blown up; one that spans
+  the measure reads as a poster, and that difference was most of what made
+  the first build look weak.
+- **Spec scenes carry one of two layouts and alternate.** `stat` gives the
+  frame to the number with the photograph beneath; `photo` gives it to the
+  photograph with the type on a colour panel. Four scenes built from one
+  template read as one slide shown four times however good the template is.
+- **Copy sells the benefit, the small line carries the spec.** "بطارية
+  سيليكون–كاربون" is a datasheet line; "يومين بشحنة وحدة" is why somebody
+  buys the phone. The number is the proof, the Arabic headline is the
+  reason, the kicker is the spec for whoever wants it — and a claim that
+  needs a figure nobody has (charge time) is not written at all (§13.12).
+- **The page carries its own `charset` and `viewport` meta.** The artifact
+  wrapper supplies both, but the copy served from `public/` has no head of
+  its own: without them Arabic renders as mojibake and a phone lays the page
+  out at ~980px and scales the whole desktop layout down, so the tabbed
+  phone view never runs.
 - **No invented commercial data**, same rule as §13.12: the price scene renders
   a dashed "type the price" box until the owner types one. The seeded X9d specs
   came from a web summary because `honor.com` is blocked from this environment,
   and the studio says so in a banner until dismissed.
-- Fonts are Lato (nearest free stand-in for the brand's Gill Sans) and IBM Plex
-  Sans Arabic, the storefront's own Arabic face.
 
 Saving has two paths because the page runs in two places. Inside a claude.ai
 artifact viewer it uses `db` for named projects plus an autosave that restores
@@ -748,10 +764,18 @@ its name is used only for file names. Served from `public/` neither capability
 exists, and the `.json` project file — which does inline uploads — is the whole
 story; the studio says which mode it is in rather than hiding a dead button.
 
-Export runs through `claude.use('downloads')` in the viewer and falls back to an
-anchor download when served from `public/`. Video is MP4 where `MediaRecorder`
-supports it and WebM otherwise — Instagram rejects WebM, and the studio says
-which one it produced.
+Every export ends at a result sheet rather than firing a file straight out, and
+that is a constraint rather than a flourish: `navigator.share` — the only route
+a web page has to a phone's camera roll — needs live user activation, and
+recording the reel takes as long as the reel does, so the tap that started the
+export has expired by the time the file exists. The sheet's button is the fresh
+tap. From there the order is share sheet (iOS "Save Video", Android "Save"),
+then `claude.use('downloads')` (the Claude iOS app turns it into that same
+share sheet; the Android app writes the file), then long-press on the preview,
+which always works. Nine frames go into one share so "save all" stays one tap.
+
+Video is MP4 where `MediaRecorder` supports it and WebM otherwise — Instagram
+rejects WebM, and the studio says which one it produced.
 
 `public/studio/` is not excluded anywhere: Prettier formats it with the
 project's own config, so `pnpm check` already covers it.
