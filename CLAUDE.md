@@ -260,8 +260,17 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
 catalogue-shaped `products/loading.tsx`.
 
-**Linked but not built yet** (header/footer point at them, they 404 today):
-`/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/account`, `/wishlist`.
+**Linked but not built yet** (the footer still points at them, they 404
+today): `/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/account`,
+`/wishlist`.
+
+**The header and mobile drawer only link to routes that exist.** The account
+icon points at `/sign-in`, not `/account`: there is no account page yet, so it
+404'd and sign-in was unreachable from the UI entirely. `/sign-in` is right in
+every state because that page already decides where a visitor belongs — form
+when signed out, dashboard for staff, home for a signed-in customer. The header
+cannot decide that itself without reading the session, which would opt every
+route into dynamic rendering.
 
 **Redirects around the dashboard distinguish two cases**, because conflating
 them produced a loop: _not signed in_ goes to `/sign-in?next=admin`, while
@@ -306,7 +315,11 @@ ghost/danger/link; sizes sm/md/lg/icon, 44px touch target), `Badge`, `Card`,
 `Input`, `Skeleton`.
 
 **Layout** — `components/layout/`: `SiteHeader` (server; only search, language
-switcher and mobile nav ship JS), `SiteFooter` (reserves bottom space for the
+switcher and mobile nav ship JS. **Conditional classes go through `cn()`** —
+`hidden sm:inline-flex` appended to a template literal already containing
+`inline-flex` hid nothing, because CSS source order decides, not the order in
+the string; the phone header carried 13 controls and customers tapped the
+language switch while aiming for their account), `SiteFooter` (reserves bottom space for the
 mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 `Logo`.
 
@@ -628,7 +641,7 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **155 tests**: 138 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **156 tests**: 138 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers)
 plus 17 architecture guardrail cases in `tests/architecture.test.ts`.
@@ -662,25 +675,26 @@ fix** — a guardrail that only says "violation found" costs more time than it
 saves. Comments are stripped before matching, so a rule quoted in a comment is
 not a false hit.
 
-| Guardrail                                                 | Catches                                                 |
-| --------------------------------------------------------- | ------------------------------------------------------- |
-| Translation keys identical in `ar.json` / `en.json`       | A raw `nav.offers` shown to half the customers          |
-| No empty translation strings                              | A label that renders as nothing                         |
-| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`               | Arabic laid out mirrored, silently                      |
-| No hex colours in UI files                                | A second, slightly different red                        |
-| No `aspect-[4/5]` literals                                | A ratio that cannot be changed centrally                |
-| No Prisma client imported from UI                         | Layer bypass that still "works" in review               |
-| `lib/` imports neither `next` nor `server/`               | Pure logic that stops being testable                    |
-| `components/ui` imports neither `features/` nor `server/` | A Button that only works for products                   |
-| Client components import from `server/` as types only     | Server code dragged into the browser bundle             |
-| No literal IQD prices in UI                               | A price only a developer can change                     |
-| No Arabic string literals in UI                           | Copy the owner cannot edit, with no English twin        |
-| Every `config/` export has a consumer                     | A config file that lies about being the source          |
-| No route file over 420 lines                              | Business logic hiding in `app/`                         |
-| Every `server/` file starts with `import 'server-only'`   | Database code shipped to the browser                    |
-| The `server-only` stub stays inside tests/integration     | Silently disabling that guard app-wide                  |
-| better-auth imported only by its two seam modules         | An auth provider welded into feature code               |
-| Every admin query/service export calls a guard            | Customer addresses exposed to anyone with the action id |
+| Guardrail                                                  | Catches                                                 |
+| ---------------------------------------------------------- | ------------------------------------------------------- |
+| Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers          |
+| No empty translation strings                               | A label that renders as nothing                         |
+| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                      |
+| No hex colours in UI files                                 | A second, slightly different red                        |
+| No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                |
+| No Prisma client imported from UI                          | Layer bypass that still "works" in review               |
+| `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                    |
+| `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                   |
+| Client components import from `server/` as types only      | Server code dragged into the browser bundle             |
+| No literal IQD prices in UI                                | A price only a developer can change                     |
+| No Arabic string literals in UI                            | Copy the owner cannot edit, with no English twin        |
+| Every `config/` export has a consumer                      | A config file that lies about being the source          |
+| No route file over 420 lines                               | Business logic hiding in `app/`                         |
+| Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                    |
+| The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                  |
+| better-auth imported only by its two seam modules          | An auth provider welded into feature code               |
+| Every admin query/service export calls a guard             | Customer addresses exposed to anyone with the action id |
+| No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing          |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the

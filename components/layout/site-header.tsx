@@ -7,6 +7,7 @@ import { MobileNav } from './mobile-nav';
 import { HeaderSearch } from '@/features/search/components/search-box';
 import { HEADER_ACTIONS, PRIMARY_NAV } from '@/config/nav';
 import { CartCountBadge } from '@/features/cart/components/cart-count-badge';
+import { cn } from '@/lib/utils';
 
 /**
  * Header.
@@ -57,9 +58,15 @@ export async function SiteHeader() {
                 key={action.href}
                 href={action.href}
                 aria-label={t(action.labelKey)}
-                className={`relative inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas [&_svg]:size-5 ${
-                  action.desktopOnly ? 'hidden sm:inline-flex' : ''
-                }`}
+                // cn(), not a template literal: `hidden` and `inline-flex`
+                // are both display utilities, so a plain string leaves CSS
+                // source order to decide — and `inline-flex` won, which meant
+                // `desktopOnly` hid nothing and the phone header carried 13
+                // controls. tailwind-merge drops the loser for us.
+                className={cn(
+                  'relative inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas [&_svg]:size-5',
+                  action.desktopOnly && 'hidden sm:inline-flex',
+                )}
               >
                 <Icon />
                 {/*

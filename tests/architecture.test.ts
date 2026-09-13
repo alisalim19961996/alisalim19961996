@@ -483,6 +483,46 @@ describe('admin data is guarded', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('conditional classes go through cn()', () => {
+  /**
+   * A template-literal className puts every class in the attribute and lets
+   * CSS source order decide which wins. That is invisible in review and
+   * silent at runtime: `hidden sm:inline-flex` appended after a base string
+   * containing `inline-flex` hid nothing at all, so the phone header carried
+   * thirteen controls and customers tapped the language switch while aiming
+   * for their account.
+   *
+   * cn() runs tailwind-merge, which knows the two are the same display group
+   * and keeps the later one. Only display conflicts are checked here — a
+   * colour or alignment toggle in a template literal is harmless.
+   */
+  const DISPLAY = /\b(?:inline-flex|inline-block|block|flex|grid|contents|inline)\b/;
+
+  it('never mixes a display utility with `hidden` in a template literal', () => {
+    const offences: string[] = [];
+
+    for (const file of uiFiles.filter((f) => f.endsWith('.tsx'))) {
+      const source = readFileSync(join(ROOT, file), 'utf8');
+      // Each className={`...`} template, backtick to backtick.
+      for (const match of source.matchAll(/className=\{`([\s\S]*?)`\}/g)) {
+        const body = match[1] ?? '';
+        if (/\bhidden\b/.test(body) && DISPLAY.test(body)) {
+          const line = source.slice(0, match.index).split('\n').length;
+          offences.push(`${file}:${line}`);
+        }
+      }
+    }
+
+    expect(
+      offences,
+      'Use cn() so tailwind-merge resolves the conflict. In a plain string the ' +
+        'CSS source order decides, not the order you wrote them in.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('config stays honest', () => {
   /**
    * A config file whose constants nothing reads is worse than no config file:
