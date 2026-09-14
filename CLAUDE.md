@@ -704,6 +704,12 @@ come from the format actually detected. Uploads are **optional**: with no keys
 configured the form asks for a path under `public/`, which is all a local
 machine needs.
 
+**Verified against the owner's real Supabase project**, not just in code:
+`pnpm check:services` uploaded a file and deleted it again, which is the pair
+that matters — writing proves the key, deleting proves it is the privileged
+one and that the bucket's policies are what §18 describes. The dashboard's
+"upload an image" button works on their machine.
+
 **Phase 5.3 — Google sign-in**: optional, additive, and conditional on the
 local account being verified before anything is linked (§7). Needs no schema
 change — better-auth's `Account` table already carries the provider tokens.
