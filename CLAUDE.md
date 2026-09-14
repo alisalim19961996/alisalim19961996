@@ -284,6 +284,10 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/products`                 | Dynamic      | Catalogue list: published/draft tabs, search, paging, publish toggle     |
 | `/[locale]/admin/products/new`             | Dynamic      | Add a product                                                            |
 | `/[locale]/admin/products/[id]`            | Dynamic      | Edit a product; delete refused once it has been sold                     |
+| `/[locale]/admin/brands`                   | Dynamic      | Brands: list, add, edit; delete refused once products use one            |
+| `/[locale]/admin/categories`               | Dynamic      | Category tree; a category cannot descend from itself                     |
+| `/[locale]/admin/product-types`            | Dynamic      | Product types, and which specifications each one asks for                |
+| `/[locale]/admin/attributes`               | Dynamic      | Specification definitions; the value type locks once values exist        |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
 | `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)              |
@@ -401,6 +405,12 @@ sold product renders as a disabled marker carrying the reason rather than an
 absent control, so a row that cannot be deleted does not read as a missing
 feature — the service refuses it again regardless), `AdminShell` (plain by design —
 density beats atmosphere for someone processing forty orders a day),
+`TaxonomyForm` (the frame all four taxonomy forms sit in — submit, save state,
+translated errors, and a delete control that shows the reason it is refused
+rather than going missing), `BrandForm` / `CategoryForm` / `ProductTypeForm` /
+`AttributeForm` (the category parent picker never offers a category's own
+descendants, and the product-type form is where a new type's specifications are
+chosen — see §12),
 `OrderStatusBadge` (only PENDING is brand-coloured, because it is the only one
 that means "act now"), `OrderActions` (buttons come from the state machine, so
 an illegal move cannot be offered), `DeliveryRatesTable` (saves per row),
@@ -604,6 +614,48 @@ spec table with nothing to say it failed.
   then silently degrades to "something went wrong" against the real database.
   That is exactly how it was found here.
 
+**Shaping the catalogue** — `server/services/admin-taxonomy.ts`, with the pure
+parts in `lib/domain/taxonomy.ts`. This is what finally makes §6's "adding
+laptops is one `ProductType` row and some attribute rows — no code" reachable:
+it was true and useless, because it needed a database client. Brands,
+categories, product types and attribute definitions are now created from the
+dashboard, and the product form grows the new type's fields without a line
+changing — verified by driving the built site, where inventing a type and
+linking two new specifications made the product form ask for exactly those two,
+and switching to "phone" swapped them for its 19.
+
+- **A row something points at is never deleted, it is deactivated.** Brands,
+  categories and product types are referenced by products, and products by
+  orders. Each delete counts the rows in the way first and refuses with that
+  number, because Postgres would refuse it too — as a foreign-key error nobody
+  can read. Deleting a category with children is refused for a different
+  reason: `CategoryTree` is `SetNull`, so it would silently promote them to the
+  top level, and the grouping would be gone with nothing saying so.
+- **A category cannot descend from itself.** Not a crash if allowed — the loop
+  detaches from every root, so the branch disappears from the tree and from the
+  storefront's navigation with its products still attached. The parent picker
+  never offers a descendant, and the service refuses it again.
+- **An attribute's `type` locks once values exist.** `parseAttributeValue`
+  routes a value into one of five typed columns from it, so changing it strands
+  every stored value in the wrong column — present, invisible on the page, and
+  surviving every later edit unseen. The form disables the control and says how
+  many values are in the way; a new attribute is the answer.
+- **Product-type attribute links are replaced wholesale; attribute options
+  never are.** A `ProductTypeAttribute` carries no history — the stored value
+  lives on `ProductAttributeValue`, which points at the _definition_ — so
+  unlinking hides the field and keeps the data, and re-linking brings it back.
+  An `AttributeOption` **is** pointed at, by `ProductAttributeValue.optionId`,
+  so options are matched by value and updated in place, and one still in use is
+  left alone rather than deleted.
+- **A unique violation names slug or key by the column, not the word.**
+  Postgres calls the index on `Brand.slug` `brand_slug_key`, so an
+  `includes('key')` test reported every duplicate slug as a duplicate key and
+  sent the owner to fix the wrong field. `collidingField()` in
+  `lib/domain/taxonomy.ts` strips that suffix first. An integration test caught
+  it; no unit test could have, because the index name only exists once Postgres
+  has refused the write — so both tests now exist, and the unit one covers the
+  shapes.
+
 ---
 
 ## 13. DO NOT CHANGE without explicit owner approval
@@ -714,6 +766,17 @@ one and that the bucket's policies are what §18 describes. The dashboard's
 local account being verified before anything is linked (§7). Needs no schema
 change — better-auth's `Account` table already carries the provider tokens.
 
+**Phase 5.4a — the catalogue's shape in the owner's hands**: brands,
+categories, product types and specification definitions, all from the
+dashboard. Adding "laptops" is now genuinely complete without a database
+client: create the specifications, create the type, tick the ones it asks for,
+and the product form draws them. Proved twice — by an integration suite that
+invents a type through the ordinary services and asserts the product form's
+reference data grows, and by driving the built site through sign-in, two new
+specifications (one decimal with a unit, one enum with options), a new type,
+and a product form that then asked for exactly those two and swapped them for
+19 on switching to "phone".
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -741,7 +804,7 @@ review, performance pass, e2e tests (Phase 6).
 | Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                      | Sweep by prefix when a product is deleted                                                     |
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                        | `next/image` optimises on the fly; revisit at scale                                           |
 | Coupons are schema-only                            | `discountIqd` is always 0                                                              | Phase 5; `orderTotals` already takes a discount                                               |
-| Brands, categories and product types are seed-only | A new brand still needs Studio                                                         | Phase 5.3                                                                                     |
+| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                        | Rare enough to wait; the form offers the groups that exist                                    |
 | No sign-up or account pages                        | Customers order as guests; staff are seeded                                            | Phase 5                                                                                       |
 | Staff roles are set in the database                | No user management screen                                                              | Phase 5                                                                                       |
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit with account pages (Phase 5.4) and before any deployment |
@@ -777,16 +840,22 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **252 tests**: 225 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **294 tests**: 267 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
 combinations, both shapes of a Prisma unique-constraint error, image
-signatures including four ways of disguising an SVG, and the `.env` editor
-against **both** LF and CRLF files) plus 27
+signatures including four ways of disguising an SVG, the `.env` editor
+against **both** LF and CRLF files, and the taxonomy rules — keys, a category
+tree that terminates on a cycle, and which field a unique violation names) plus
+27
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **34 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order), run by
+`pnpm test:integration` — **51 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+product type invented through the services with its own decimal and enum
+specifications, the product form's reference data growing to match, the value
+type locking once values exist, an option row keeping its id across a rename,
+and every delete that would orphan a product refused), run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
 money, and what makes it correct — a transaction that must roll back whole, a
 conditional UPDATE two checkouts race for, constraints Postgres enforces —
@@ -1002,24 +1071,23 @@ uploads enforce that **by content, not by file name** — renaming an SVG to
 
 ## 19. NEXT STEPS
 
-**Phases 1–4 and 5.1–5.3 complete.** The store sells (cart, checkout, COD
-orders, tracking), the owner runs it (sign-in, order queue, status changes with
-stock and payment settlement, delivery pricing, store settings), **and the
-owner owns the catalogue** (add, edit, publish, delete products; specifications
-generated per product type; photographs uploaded to Supabase Storage).
-Customers sign in with a password or with Google.
+**Phases 1–4, 5.1–5.3 and 5.4a complete.** The store sells (cart, checkout,
+COD orders, tracking), the owner runs it (sign-in, order queue, status changes
+with stock and payment settlement, delivery pricing, store settings), **owns
+the catalogue** (add, edit, publish, delete products; specifications generated
+per product type; photographs uploaded to Supabase Storage) **and owns its
+shape** (brands, categories, product types and the specifications each type
+asks for — so selling a category nobody planned for is data entry, not a
+release). Customers sign in with a password or with Google.
 
-**Phase 5.4 — next:**
+**Phase 5.4 — remaining:**
 
-1. **Brands, categories and product types from the dashboard**, so adding
-   "laptops" is complete without Studio. The services are the same shape as
-   `admin-products.ts`; the schema already allows it.
-2. **Sign-up and account pages** — order history for a signed-in customer,
+1. **Sign-up and account pages** — order history for a signed-in customer,
    using the same `findOwnedOrder` path that already exists.
-3. **User management** so staff can be created without touching the database.
-4. Offers and coupons: `orderTotals` already takes a discount and the schema
+2. **User management** so staff can be created without touching the database.
+3. Offers and coupons: `orderTotals` already takes a discount and the schema
    and constraints exist; nothing computes one yet.
-5. Wishlist, compare, reviews, blog.
+4. Wishlist, compare, reviews, blog.
 
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 accessibility audit, security review, performance pass and a cache layer.

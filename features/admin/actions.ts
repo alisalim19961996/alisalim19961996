@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { z } from 'zod';
 import { advanceOrder, OrderAdminError } from '@/server/services/admin-orders';
 import {
   updateDeliveryRate,
@@ -14,11 +15,28 @@ import {
   updateProduct,
 } from '@/server/services/admin-products';
 import {
+  deleteAttribute,
+  deleteBrand,
+  deleteCategory,
+  deleteProductType,
+  saveAttribute,
+  saveBrand,
+  saveCategory,
+  saveProductType,
+  TaxonomyError,
+} from '@/server/services/admin-taxonomy';
+import {
   advanceOrderSchema,
   deliveryRateSchema,
   siteSettingsSchema,
 } from '@/schemas/admin';
 import { productFormSchema } from '@/schemas/product';
+import {
+  attributeFormSchema,
+  brandFormSchema,
+  categoryFormSchema,
+  productTypeFormSchema,
+} from '@/schemas/taxonomy';
 import { InvalidOrderTransitionError } from '@/lib/domain/order-state';
 import { ForbiddenError, UnauthenticatedError } from '@/server/auth/guards';
 
@@ -44,6 +62,22 @@ export interface AdminActionResult {
 }
 
 /**
+ * The first Zod issue, as a result the form can render.
+ *
+ * One issue, not all of them: the forms show the error against the field it
+ * names, and a list of six the owner has to scroll is how the one that
+ * actually blocks the save gets missed.
+ */
+function firstIssue(error: { issues: readonly z.core.$ZodIssue[] }): AdminActionResult {
+  const issue = error.issues[0];
+  return {
+    ok: false,
+    errorKey: issue?.message ?? 'invalidRequest',
+    field: issue?.path.join('.'),
+  };
+}
+
+/**
  * Turn a thrown error into a translatable key.
  *
  * Authorisation failures return the same generic key as anything else: telling
@@ -58,6 +92,9 @@ function toResult(error: unknown): AdminActionResult {
     return { ok: false, errorKey: error.code };
   }
   if (error instanceof ProductAdminError) {
+    return { ok: false, errorKey: error.code, field: error.field };
+  }
+  if (error instanceof TaxonomyError) {
     return { ok: false, errorKey: error.code, field: error.field };
   }
   if (error instanceof UnauthenticatedError || error instanceof ForbiddenError) {
@@ -160,12 +197,7 @@ export async function saveProductAction(
 ): Promise<SaveProductActionResult> {
   const parsed = productFormSchema.safeParse(input);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return {
-      ok: false,
-      errorKey: issue?.message ?? 'invalidRequest',
-      field: issue?.path.join('.'),
-    };
+    return firstIssue(parsed.error);
   }
 
   let result;
@@ -218,5 +250,158 @@ export async function deleteProductAction(id: string): Promise<AdminActionResult
   revalidatePath('/admin/products', 'page');
   revalidatePath('/[locale]/products', 'page');
   revalidatePath('/[locale]', 'page');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// The shape of the catalogue: brands, categories, product types, attributes
+// ---------------------------------------------------------------------------
+
+/**
+ * Every one of these revalidates the storefront as well as the dashboard.
+ *
+ * A brand rename that shows only in the admin is the bug that makes the owner
+ * think the save failed and do it again: the homepage, the catalogue and every
+ * product page are pre-rendered (§8), so nothing changes for a customer until
+ * those paths are dropped.
+ */
+function revalidateStorefront(): void {
+  revalidatePath('/[locale]', 'page');
+  revalidatePath('/[locale]/products', 'page');
+  revalidatePath('/[locale]/products/[slug]', 'page');
+}
+
+export interface SaveTaxonomyActionResult extends AdminActionResult {
+  id?: string;
+}
+
+export async function saveBrandAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = brandFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveBrand(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/brands', 'page');
+  revalidateStorefront();
+  return { ok: true, id: result.id };
+}
+
+export async function deleteBrandAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteBrand(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/brands', 'page');
+  revalidateStorefront();
+  return { ok: true };
+}
+
+export async function saveCategoryAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = categoryFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveCategory(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/categories', 'page');
+  revalidateStorefront();
+  return { ok: true, id: result.id };
+}
+
+export async function deleteCategoryAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteCategory(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/categories', 'page');
+  revalidateStorefront();
+  return { ok: true };
+}
+
+export async function saveProductTypeAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = productTypeFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveProductType(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/product-types', 'page');
+  // The product form draws its specification fields from these links, so a
+  // changed type has to reach the pages that render the form too.
+  revalidatePath('/admin/products/new', 'page');
+  revalidatePath('/admin/products/[id]', 'page');
+  revalidateStorefront();
+  return { ok: true, id: result.id };
+}
+
+export async function deleteProductTypeAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteProductType(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/product-types', 'page');
+  revalidateStorefront();
+  return { ok: true };
+}
+
+export async function saveAttributeAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = attributeFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveAttribute(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/attributes', 'page');
+  revalidatePath('/admin/product-types', 'page');
+  revalidatePath('/admin/products/new', 'page');
+  revalidatePath('/admin/products/[id]', 'page');
+  revalidateStorefront();
+  return { ok: true, id: result.id };
+}
+
+export async function deleteAttributeAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteAttribute(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/attributes', 'page');
+  revalidatePath('/admin/product-types', 'page');
   return { ok: true };
 }

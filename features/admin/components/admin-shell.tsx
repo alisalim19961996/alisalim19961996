@@ -1,4 +1,15 @@
-import { Boxes, LayoutDashboard, Package, Settings, Store, Truck } from 'lucide-react';
+import {
+  Boxes,
+  FolderTree,
+  LayoutDashboard,
+  Package,
+  Settings,
+  Shapes,
+  SlidersHorizontal,
+  Store,
+  Tags,
+  Truck,
+} from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Logo } from '@/components/layout/logo';
 import { SignOutButton } from '@/features/auth/components/sign-out-button';
@@ -17,6 +28,10 @@ export interface AdminLabels {
   dashboard: string;
   orders: string;
   products: string;
+  brands: string;
+  categories: string;
+  productTypes: string;
+  attributes: string;
   settings: string;
   delivery: string;
   viewStore: string;
@@ -24,10 +39,22 @@ export interface AdminLabels {
   menu: string;
 }
 
+/**
+ * Daily work first, then the catalogue, then the shape of it.
+ *
+ * Orders and products are opened every day; brands and categories a few times
+ * a month; product types and specifications when something genuinely new is
+ * being sold. Ordering by frequency rather than by how the database is
+ * arranged is what keeps the two-tap targets where the hand expects them.
+ */
 const NAV = [
   { href: '/admin', labelKey: 'dashboard', icon: LayoutDashboard },
   { href: '/admin/orders', labelKey: 'orders', icon: Package },
   { href: '/admin/products', labelKey: 'products', icon: Boxes },
+  { href: '/admin/brands', labelKey: 'brands', icon: Tags },
+  { href: '/admin/categories', labelKey: 'categories', icon: FolderTree },
+  { href: '/admin/product-types', labelKey: 'productTypes', icon: Shapes },
+  { href: '/admin/attributes', labelKey: 'attributes', icon: SlidersHorizontal },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },
 ] as const;
