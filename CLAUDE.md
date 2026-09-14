@@ -212,6 +212,32 @@ under `server/auth/` carries `import 'server-only'`.
 
 - Email + password, minimum 8 characters. Email verification is **off** until a
   mail provider is configured.
+- **Mail is a seam, not a dependency.** `server/mail/provider.ts` exposes
+  `getMailProvider()`, which returns a Resend sender when `RESEND_API_KEY` and
+  `MAIL_FROM` are both set and **null** otherwise. Nothing outside that
+  directory names Resend; a second provider is another function of the same
+  shape and one line. It speaks REST over `fetch` for the reason
+  `admin-storage.ts` does: one POST does not justify a dependency that must
+  satisfy `minimumReleaseAge` and stay pinned for the life of the store.
+- **Unconfigured mail is a supported state.** The store sells without it —
+  checkout sends nothing, tracking needs no inbox, the account works on a
+  password. Only _reset_ depends on it, and `/forgot-password` then renders no
+  form at all and says why. A form that answers "check your inbox" for a
+  message nobody sent is the worst option: the customer waits, retries, and
+  concludes their account is gone.
+- **The reset email says nothing about whether the address exists.**
+  `/request-password-reset` answers identically either way, and the form shows
+  the same confirmation for every submission — the same reasoning as the single
+  sign-in error and the tracking form. A send failure is logged and swallowed
+  for the same reason: a provider outage must not become an oracle for which
+  addresses have accounts.
+- **Reset copy is in `lib/domain/mail-templates.ts`, not `messages/*.json`.**
+  next-intl resolves a locale from the request, and `sendResetPassword` runs
+  inside better-auth's handler with no request context — reaching for one there
+  is how the email goes out in whichever language the server booted in. It is
+  Arabic, because the store is Arabic-first; writing the customer's own
+  language needs a column on `User` first. Being pure, it is unit-tested, which
+  matters for the one piece of UI nobody sees before a customer does.
 - **Google sign-in is optional and additive.** Configured only when
   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set; otherwise no
   provider is registered and no button is rendered. Email + password stays
@@ -330,13 +356,10 @@ Google two dead URLs. The account icon points at `/account` now that it exists;
 back on it, so the common case — already signed in — costs no redirect. Only
 `/wishlist` is still unbuilt, and therefore still unlinked.
 
-**The header and mobile drawer only link to routes that exist.** The account
-icon points at `/sign-in`, not `/account`: there is no account page yet, so it
-404'd and sign-in was unreachable from the UI entirely. `/sign-in` is right in
-every state because that page already decides where a visitor belongs — form
-when signed out, dashboard for staff, home for a signed-in customer. The header
-cannot decide that itself without reading the session, which would opt every
-route into dynamic rendering.
+**The header and mobile drawer only link to routes that exist**, which is why
+the account icon pointed at `/sign-in` for as long as `/account` 404'd. The
+header still reads no session — that would opt every route into dynamic
+rendering — so the link is the same for everyone and the destination decides.
 
 **Redirects around the dashboard distinguish two cases**, because conflating
 them produced a loop: _not signed in_ goes to `/sign-in?next=admin`, while
@@ -439,15 +462,25 @@ rather than going missing), `BrandForm` / `CategoryForm` / `ProductTypeForm` /
 `AttributeForm` (the category parent picker never offers a category's own
 descendants, and the product-type form is where a new type's specifications are
 chosen — see §12),
-`OrderStatusBadge` (only PENDING is brand-coloured, because it is the only one
-that means "act now"), `OrderActions` (buttons come from the state machine, so
+`OrderActions` (buttons come from the state machine, so
 an illegal move cannot be offered), `DeliveryRatesTable` (saves per row),
 `SettingsForm`.
 
-**Auth** — `features/auth/`: `SignInForm`, `GoogleSignInButton` (rendered only
+`OrderStatusBadge` lives in `features/order/`, not here: it describes an order,
+not an administrator, and the customer's own history renders the same badge.
+Only PENDING is brand-coloured, because it is the only one that means "act
+now".
+
+**Auth** — `features/auth/`: `SignInForm`, `SignUpForm`, `ForgotPasswordForm`,
+`ResetPasswordForm`, `GoogleSignInButton` (rendered only
 when Google is configured; the mark lives in `public/brand/google.svg` because
 its four colours belong to Google, are not design tokens, and must never enter
-`@theme`), `SignOutButton`, `auth-client.ts`.
+`@theme`), `SignOutButton` (also drops `mps.recent_order` — see §7),
+`auth-client.ts`.
+
+**Order** — `features/order/`: `OrderDetail`, `TrackForm`, `OrderStatusBadge`,
+`OrderHistory` (the account's list; every row links to `/orders/<number>`,
+which checks ownership itself, so there is no second detail view).
 
 **Domain helpers** — `lib/`: `money.ts`, `phone.ts` (Iraqi E.164 normalisation),
 `search.ts` (Arabic folding + transliteration), `video.ts` (YouTube id
@@ -524,7 +557,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **481 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **665 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -842,31 +875,31 @@ and a product form that then asked for exactly those two and swapped them for
 
 ### Not started
 
-Sign-in / account UI · admin dashboard (Phase 4) · wishlist, compare, reviews,
-recommendations, blog, analytics (Phase 5) · accessibility audit, security
-review, performance pass, e2e tests (Phase 6).
+User management · wishlist, compare, reviews, recommendations, blog, analytics
+· security review, performance pass, e2e tests (Phase 6). The accessibility
+pass has been done once — see §19 for exactly what it did and did not check.
 
 ---
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                                                                 | Plan                                                                                          |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| No e2e tests                                       | Filter/variant behaviour verified manually                                             | Playwright in Phase 6                                                                         |
-| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured                                         | Fold into the Playwright suite in Phase 6                                                     |
-| No cache layer                                     | Catalogue runs 2 queries per visit                                                     | `unstable_cache` + tags when the catalogue grows                                              |
-| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                      | Sweep by prefix when a product is deleted                                                     |
-| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                        | `next/image` optimises on the fly; revisit at scale                                           |
-| Coupons are schema-only                            | `discountIqd` is always 0                                                              | Phase 5; `orderTotals` already takes a discount                                               |
-| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                        | Rare enough to wait; the form offers the groups that exist                                    |
-| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch             | Phase 5.5                                                                                     |
-| Staff roles are set in the database                | No user management screen                                                              | Phase 5                                                                                       |
-| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit with account pages (Phase 5.4) and before any deployment |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                          | Split to JSON if it grows                                                                     |
-| No wishlist page                                   | The header links no wishlist rather than 404ing                                        | Phase 5.5                                                                                     |
-| No mail provider                                   | Password reset cannot send                                                             | `MailProvider` abstraction before launch                                                      |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                                                          | Consider sticky panel                                                                         |
-| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                           | Keep                                                                                          |
+| Item                                               | Impact                                                                                      | Plan                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| No e2e tests                                       | Filter/variant behaviour verified manually                                                  | Playwright in Phase 6                                       |
+| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured                                              | Fold into the Playwright suite in Phase 6                   |
+| No cache layer                                     | Catalogue runs 2 queries per visit                                                          | `unstable_cache` + tags when the catalogue grows            |
+| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                           | Sweep by prefix when a product is deleted                   |
+| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                             | `next/image` optimises on the fly; revisit at scale         |
+| Coupons are schema-only                            | `discountIqd` is always 0                                                                   | Phase 5; `orderTotals` already takes a discount             |
+| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                             | Rare enough to wait; the form offers the groups that exist  |
+| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                  | Phase 5.5                                                   |
+| Staff roles are set in the database                | No user management screen                                                                   | Phase 5                                                     |
+| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one      | Owner deferred it knowingly; revisit before any deployment  |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                               | Split to JSON if it grows                                   |
+| No wishlist page                                   | The header links no wishlist rather than 404ing                                             | Phase 5.5                                                   |
+| Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                                                               | Consider sticky panel                                       |
+| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                | Keep                                                        |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -902,18 +935,21 @@ combinations, both shapes of a Prisma unique-constraint error, image
 signatures including four ways of disguising an SVG, the `.env` editor
 against **both** LF and CRLF files, and the taxonomy rules — keys, a category
 tree that terminates on a cycle, and which field a unique violation names,
-hreflang alternates, and the buying guide's price bands) plus
-27
+hreflang alternates, the buying guide's price bands, and the reset email in
+both languages including an escaped hostile display name) plus 31
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **57 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **63 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
 and every delete that would orphan a product refused; and a customer's order
 history, which is six assertions that it shows NOTHING belonging to anybody
 else — another account's order, a guest order sharing the phone number, and
-anything at all when nobody is signed in), run by
+anything at all when nobody is signed in). Six of the 63 need no database at
+all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
+than what Resend does with it; they live here only because this config is where
+`server-only` is stubbed. Run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
 money, and what makes it correct — a transaction that must roll back whole, a
 conditional UPDATE two checkouts race for, constraints Postgres enforces —
@@ -1031,17 +1067,19 @@ payload, and `grep -c` counts lines, which is meaningless on minified markup.
 `.env` is gitignored and must never be committed, pasted into chat, or shared.
 `.env.example` lists the variables with placeholder values.
 
-| Variable                    | Purpose                                      |
-| --------------------------- | -------------------------------------------- |
-| `DATABASE_URL`              | PostgreSQL connection string                 |
-| `BETTER_AUTH_SECRET`        | Session signing key, ≥32 chars               |
-| `BETTER_AUTH_URL`           | Full site URL                                |
-| `NEXT_PUBLIC_APP_URL`       | Full site URL, used for canonical/OG/JSON-LD |
-| `SUPABASE_URL`              | Optional. Project URL for image upload       |
-| `SUPABASE_SERVICE_ROLE_KEY` | Optional. **Secret** — see below             |
-| `SUPABASE_STORAGE_BUCKET`   | Defaults to `product-images`                 |
-| `GOOGLE_CLIENT_ID`          | Optional. Enables "continue with Google"     |
-| `GOOGLE_CLIENT_SECRET`      | Optional. **Secret** — server-side only      |
+| Variable                    | Purpose                                       |
+| --------------------------- | --------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL connection string                  |
+| `BETTER_AUTH_SECRET`        | Session signing key, ≥32 chars                |
+| `BETTER_AUTH_URL`           | Full site URL                                 |
+| `NEXT_PUBLIC_APP_URL`       | Full site URL, used for canonical/OG/JSON-LD  |
+| `SUPABASE_URL`              | Optional. Project URL for image upload        |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional. **Secret** — see below              |
+| `SUPABASE_STORAGE_BUCKET`   | Defaults to `product-images`                  |
+| `GOOGLE_CLIENT_ID`          | Optional. Enables "continue with Google"      |
+| `GOOGLE_CLIENT_SECRET`      | Optional. **Secret** — server-side only       |
+| `RESEND_API_KEY`            | Optional. **Secret** — enables password reset |
+| `MAIL_FROM`                 | Optional. Sender address on a verified domain |
 
 **Every optional variable is preprocessed through `blankToUndefined`**
 (`lib/env-value.ts`). An empty string means "not set", which is not how a Zod
@@ -1157,6 +1195,15 @@ has never required one and still does not. Driving this found two cookie bugs
 that had nothing to do with accounts and everything to do with commerce — see
 §7.
 
+**Phase 5.4c — password reset**: a `MailProvider` seam with a Resend sender,
+`/forgot-password` and `/reset-password`, and a reset email written natively in
+Arabic. Optional like every other integration: with no key the form says reset
+is unavailable rather than promising an inbox, and `pnpm check:services` proves
+the key the same way it proves the Supabase one — by asking Resend, which
+distinguishes a bad key from an unverified sender domain. **This is also what
+unlocks `requireEmailVerification`**, and with it the safe half of account
+linking (§7) for addresses that already have a password here.
+
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 security review, performance pass and a cache layer.
 
@@ -1180,9 +1227,9 @@ key being _written_ is not the same as a key that _works_, which is the other
 half of why the check exists. Remaining: real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
 production `DATABASE_URL`, a Google OAuth client (`docs/extending-ar.md` §9.6),
-and a mail provider for password reset — which is also what unlocks email
-verification, and with it the safe half of account linking for addresses that
-already have a password here.
+and the two mail keys — `RESEND_API_KEY` and `MAIL_FROM`, via `pnpm keys` —
+which unlock password reset, and after it email verification and the safe half
+of account linking for addresses that already have a password here.
 
 # This is NOT the Next.js you know
 

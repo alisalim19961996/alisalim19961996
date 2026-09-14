@@ -164,7 +164,21 @@
     "passwordHint": "At least 8 characters",
     "emailTaken": "That email already has an account. Try signing in.",
     "signUpFailed": "We could not create the account. Please try again.",
-    "haveAccount": "Already have an account?"
+    "haveAccount": "Already have an account?",
+    "forgotPasswordHint": "Enter your email and we will send you a link to change it.",
+    "sendResetLink": "Send the link",
+    "resetSent": "If that email has an account with us, a link is on its way.",
+    "resetSentHint": "Check your inbox and spam. The link works for one hour, and once only.",
+    "resetFailed": "We could not send the link. Please try again.",
+    "resetUnavailable": "Resetting a password by email is not set up on this store yet. Get in touch and we will help.",
+    "resetUnavailableHint": "This needs to be configured by the store owner.",
+    "chooseNewPassword": "New password",
+    "newPassword": "New password",
+    "savePassword": "Save password",
+    "resetTokenInvalid": "That link has expired or has already been used. Ask for a new one.",
+    "requestAnotherLink": "Ask for a new link",
+    "passwordChanged": "Your password has changed. Sign in with the new one.",
+    "backToSignIn": "Back to sign in"
   },
   "validation": {
     "required": "This field is required",

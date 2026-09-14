@@ -26,4 +26,11 @@ export const signIn = client.signIn;
 */
 export const signUp = client.signUp;
 export const signOut = client.signOut;
+/*
+  Password reset, over the same router again — the limiter allows 3 requests
+  per 5 minutes, and an unthrottled "email this address a link" endpoint is a
+  way to use the shop as a mailbomb against somebody else.
+*/
+export const requestPasswordReset = client.requestPasswordReset;
+export const resetPassword = client.resetPassword;
 export const useSession = client.useSession;

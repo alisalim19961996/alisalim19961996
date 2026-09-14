@@ -73,6 +73,18 @@ const storageEnvSchema = z.object({
  * the shop's domain. Google is an additional door, never a replacement for the
  * one that already works.
  */
+/**
+ * Mail. Optional in exactly the same way as storage and Google.
+ *
+ * `MAIL_FROM` is not a convenience: Resend rejects a `from` on a domain the
+ * account has not verified, so there is no sensible default to fall back to —
+ * and a hard-coded one would be a commercial detail living in code (§13.13).
+ */
+const mailEnvSchema = z.object({
+  RESEND_API_KEY: z.preprocess(blankToUndefined, z.string().min(10).optional()),
+  MAIL_FROM: z.preprocess(blankToUndefined, z.string().min(3).optional()),
+});
+
 const googleEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.preprocess(blankToUndefined, z.string().min(10).optional()),
   GOOGLE_CLIENT_SECRET: z.preprocess(blankToUndefined, z.string().min(10).optional()),
@@ -199,3 +211,21 @@ export const googleEnv = parseGoogleEnv();
 export const isGoogleSignInConfigured = Boolean(
   googleEnv.GOOGLE_CLIENT_ID && googleEnv.GOOGLE_CLIENT_SECRET,
 );
+
+function parseMailEnv() {
+  const parsed = mailEnvSchema.safeParse(process.env);
+  if (!parsed.success) throw envError('mail', parsed.error.issues);
+  return parsed.data;
+}
+
+export const mailEnv = parseMailEnv();
+
+/**
+ * Whether MPS can send an email at all.
+ *
+ * Both halves again: a key with no verified `from` address is refused by the
+ * provider, and an address with no key has nothing to send through. The
+ * password-reset form asks this before promising anything, because "check your
+ * inbox" for a message that was never sent is the worst possible answer.
+ */
+export const isMailConfigured = Boolean(mailEnv.RESEND_API_KEY && mailEnv.MAIL_FROM);

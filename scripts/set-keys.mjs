@@ -87,6 +87,29 @@ const KEYS = [
     },
   },
   {
+    name: 'RESEND_API_KEY',
+    label: 'مفتاح Resend لإرسال الإيميل',
+    where: 'resend.com ← API Keys ← Create',
+    example: 're_...',
+    secret: true,
+    check(value) {
+      if (!value.startsWith('re_')) return 'مفاتيح Resend تبدي بـ re_';
+      if (value.length < 20) return 'قصير جدًا — يبين ناقص';
+      return null;
+    },
+  },
+  {
+    name: 'MAIL_FROM',
+    label: 'عنوان المرسِل',
+    where: 'لازم دومين مثبّت بـ Resend ← Domains',
+    example: 'MPS <no-reply@yourdomain.com>',
+    afterNote: 'الدومين لازم يكون مثبّت بـ Resend، وإلا الرسائل تنرفض',
+    check(value) {
+      if (!value.includes('@')) return 'لازم يحتوي على @';
+      return null;
+    },
+  },
+  {
     name: 'DEMO_ADMIN_PASSWORD',
     label: 'كلمة مرور حسابات التجربة',
     where: 'إنت تختارها — للتطوير فقط، تُستعمل لـ admin@mps.local',

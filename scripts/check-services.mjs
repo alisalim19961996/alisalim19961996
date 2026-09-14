@@ -196,6 +196,94 @@ async function checkSupabase(env) {
   return 'passed';
 }
 
+/**
+ * Does the mail key actually send?
+ *
+ * Resend has a `/emails` endpoint and an `/api-keys` one. This asks the
+ * cheaper question — "is this key valid and what domain may it send from" —
+ * by POSTing an email the API will refuse for a reason that tells us what we
+ * need. Sending a real message would need somewhere to send it TO, and an
+ * owner who runs this twice should not be mailing themselves twice.
+ *
+ * The three answers that matter:
+ *   401/403 -> the key is wrong
+ *   422     -> the key is fine; MAIL_FROM is not a verified sender
+ *   200     -> everything works (and an email really went out)
+ */
+async function checkMail(env) {
+  title('الإيميل — استرجاع كلمة المرور');
+
+  const key = env.RESEND_API_KEY?.trim();
+  const from = env.MAIL_FROM?.trim();
+
+  if (!key && !from) {
+    warn('غير مهيّأ — "نسيت كلمة المرور؟" راح تكول إنها مو متاحة.');
+    hint('كل شي ثاني يشتغل عادي. راجع docs/extending-ar.md §9.7');
+    return 'skipped';
+  }
+  if (!key || !from) {
+    bad(`ناقص نصه: ${key ? 'MAIL_FROM' : 'RESEND_API_KEY'} مو موجود.`);
+    hint(
+      'الاثنين لازم: مفتاح بدون عنوان مرسِل مرفوض، وعنوان بدون مفتاح ماكو بيه إرسال.',
+    );
+    return 'failed';
+  }
+
+  say(`      RESEND_API_KEY = ${mask(key)}`);
+  say(`      MAIL_FROM      = ${from}`);
+
+  let response;
+  try {
+    response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      // Deliberately invalid recipient: Resend validates the key and the
+      // sender domain before it looks at this, so we learn what we need
+      // without anybody receiving anything.
+      body: JSON.stringify({
+        from,
+        to: ['not-an-address'],
+        subject: 'MPS check',
+        text: 'check',
+      }),
+    });
+  } catch (error) {
+    bad('ما كدرنا نوصل لـ Resend إطلاقًا.');
+    hint(`السبب: ${error instanceof Error ? error.message : String(error)}`);
+    return 'failed';
+  }
+
+  const body = await response.text().catch(() => '');
+
+  if (response.status === 401 || response.status === 403) {
+    bad('المفتاح مرفوض.');
+    hint('تأكد إنه من Resend ← API Keys، وإنك نسخته كامل.');
+    return 'failed';
+  }
+
+  if (/domain is not verified|not verified/i.test(body)) {
+    bad(`Resend ما يعرف الدومين اللي بـ MAIL_FROM.`);
+    hint('لازم تثبّت الدومين بـ Resend ← Domains، وبعدين ترسل منه.');
+    return 'failed';
+  }
+
+  // A complaint about the recipient means the key and the sender both passed.
+  if (response.status === 422 || /to|recipient|invalid/i.test(body)) {
+    ok('المفتاح شغّال وعنوان المرسِل مقبول.');
+    ok('جاهز: "نسيت كلمة المرور؟" راح ترسل رابط فعلي.');
+    return 'ok';
+  }
+
+  if (response.ok) {
+    ok('المفتاح شغّال — وانرسلت رسالة فعلاً.');
+    return 'ok';
+  }
+
+  bad(`Resend رجّع ${response.status}.`);
+  hint(body.slice(0, 200));
+  return 'failed';
+}
+
 async function checkGoogle(env) {
   title('Google — تسجيل الدخول');
 
@@ -325,7 +413,11 @@ async function main() {
   // that actually stops the store.
   const foundationOk = checkRequired(env);
 
-  const results = [await checkSupabase(env), await checkGoogle(env)];
+  const results = [
+    await checkSupabase(env),
+    await checkMail(env),
+    await checkGoogle(env),
+  ];
 
   title('الخلاصة');
   const failed = results.filter((r) => r === 'failed').length;

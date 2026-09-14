@@ -5,6 +5,8 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { nextCookies, toNextJsHandler } from 'better-auth/next-js';
 import { db } from '@/server/db/client';
 import { googleEnv, isGoogleSignInConfigured, serverEnv } from '@/config/env';
+import { getMailProvider } from '@/server/mail/provider';
+import { passwordResetMail } from '@/lib/domain/mail-templates';
 
 /**
  * Authentication is deliberately isolated behind this module and the guards in
@@ -22,6 +24,43 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     // Verification is switched on once an email provider is configured.
     requireEmailVerification: false,
+    resetPasswordTokenExpiresIn: 3600,
+
+    /**
+     * Send the reset link — when there is anything to send it with.
+     *
+     * better-auth calls this from `/request-password-reset`. Returning without
+     * sending is deliberate when no provider is configured: the endpoint
+     * answers the same either way, and the FORM is what tells the customer
+     * that reset is unavailable (it asks `isMailConfigured` before promising
+     * an inbox). Throwing here would turn a known, documented gap into a 500.
+     *
+     * Failures are logged and swallowed for the same reason the endpoint
+     * always answers the same: a provider outage must not become an oracle
+     * for which addresses have accounts here.
+     */
+    async sendResetPassword({ user, url }) {
+      const provider = getMailProvider();
+      if (!provider) {
+        console.warn('[auth] password reset requested with no mail provider set');
+        return;
+      }
+
+      /*
+        Arabic, because the store is Arabic-first (§1) and there is no locale
+        to read: `sendResetPassword` runs inside better-auth's handler, which
+        has no request context, and reaching for next-intl there would give
+        whichever locale the server booted in. Writing the customer's language
+        needs a column on `User` first — a schema change, not a guess here.
+      */
+      const mail = passwordResetMail({ name: user.name, url, locale: 'ar' });
+
+      try {
+        await provider.send({ to: user.email, ...mail });
+      } catch (error) {
+        console.error('[auth] reset email failed to send', error);
+      }
+    },
   },
 
   /**

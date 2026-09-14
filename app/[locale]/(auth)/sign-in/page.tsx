@@ -23,9 +23,12 @@ export default async function SignInPage({
   searchParams,
 }: {
   params: Promise<{ locale: Locale }>;
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; reset?: string }>;
 }) {
-  const [{ locale }, { next, error }] = await Promise.all([params, searchParams]);
+  const [{ locale }, { next, error, reset }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   setRequestLocale(locale);
 
   const t = await getTranslations('auth');
@@ -86,7 +89,30 @@ export default async function SignInPage({
           )}
         </div>
 
+        {/*
+          Confirmation that the new password took. Without it the customer
+          arrives at a plain sign-in form and cannot tell whether the reset
+          worked or silently failed.
+        */}
+        {reset === '1' && (
+          <p
+            role="status"
+            className="mt-6 rounded-[--radius-control] bg-success-soft px-4 py-3 text-center text-sm text-success"
+          >
+            {t('passwordChanged')}
+          </p>
+        )}
+
         <p className="mt-6 text-center text-sm text-muted">
+          <Link
+            href="/forgot-password"
+            className="font-medium text-primary hover:underline"
+          >
+            {t('forgotPassword')}
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-sm text-muted">
           {t('noAccount')}{' '}
           <Link href="/sign-up" className="font-medium text-primary hover:underline">
             {t('createAccount')}
