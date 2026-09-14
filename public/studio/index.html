@@ -1358,6 +1358,13 @@
   function defaultProject() {
     return {
       version: 3,
+      // Minted here, not on the first cloud save. An autosave written
+      // before any manual save carried no id, so restoring it and saving
+      // minted a fresh one and wrote a NEW document — which is how five
+      // identical "HONOR X9d — إطلاق" rows pile up in the list. The id
+      // travels with the project, so saving the same project twice
+      // updates one row.
+      id: 'p-' + Math.random().toString(36).slice(2, 10),
       name: 'HONOR X9d — إطلاق',
       brand: {
         store: 'MODERN PHONE STORE',
@@ -3546,6 +3553,7 @@
    * own, minted once and saved with it.
    */
   function docId() {
+    // Older saves predate the id, so mint one for them on the way past.
     if (!project.id) project.id = 'p-' + Math.random().toString(36).slice(2, 10);
     return project.id;
   }
@@ -3641,9 +3649,14 @@
       const main = document.createElement('div');
       main.className = 'row-item-main';
       const when = row.updatedAt ? new Date(row.updatedAt) : null;
+      const scenes = Array.isArray(row.data?.scenes) ? row.data.scenes : [];
+      const secs = scenes.reduce((sum, x) => sum + (Number(x.dur) || 0), 0);
+      // Every project here is likely to carry the same device name, so the
+      // row needs something of its own to be told apart by.
+      const shape = scenes.length ? `${scenes.length} مشاهد · ${secs.toFixed(1)}s` : '';
       main.innerHTML =
         `<b>${row.auto ? '⟲ ' : ''}${String(row.name || d.id)}</b>` +
-        `<small>${when ? when.toLocaleString('ar-IQ') : ''}</small>`;
+        `<small>${shape}${shape && when ? ' · ' : ''}${when ? when.toLocaleString('ar-IQ') : ''}</small>`;
       const acts = document.createElement('div');
       acts.className = 'row-item-acts';
 

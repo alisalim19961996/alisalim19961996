@@ -748,6 +748,11 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
   a reload never loses a reel even where no cloud store is served — telling
   the owner to download a .json after every change is a chore, not a save,
   and on a phone it is barely possible.
+- **A project mints its id at creation, not at its first cloud save.** An
+  autosave written before any manual save carried no id, so restoring it and
+  saving minted a fresh one and wrote a NEW document — the owner ended up
+  with five identical rows in the saved list. The id travels in the project,
+  so saving the same project twice updates one row.
 - **A late restore must never overwrite live edits.** The capabilities
   resolve seconds after the studio is interactive, so adopting a saved copy
   then replaced the project wholesale and threw away whatever had just been
