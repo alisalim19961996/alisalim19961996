@@ -9,6 +9,7 @@ import {
   Store,
   Tags,
   Truck,
+  Users,
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Logo } from '@/components/layout/logo';
@@ -32,6 +33,7 @@ export interface AdminLabels {
   categories: string;
   productTypes: string;
   attributes: string;
+  users: string;
   settings: string;
   delivery: string;
   viewStore: string;
@@ -56,6 +58,7 @@ const NAV = [
   { href: '/admin/product-types', labelKey: 'productTypes', icon: Shapes },
   { href: '/admin/attributes', labelKey: 'attributes', icon: SlidersHorizontal },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
+  { href: '/admin/users', labelKey: 'users', icon: Users },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },
 ] as const;
 

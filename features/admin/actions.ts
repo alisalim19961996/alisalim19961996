@@ -15,6 +15,11 @@ import {
   updateProduct,
 } from '@/server/services/admin-products';
 import {
+  setUserActive,
+  setUserRole,
+  UserAdminError,
+} from '@/server/services/admin-users';
+import {
   deleteAttribute,
   deleteBrand,
   deleteCategory,
@@ -31,6 +36,7 @@ import {
   siteSettingsSchema,
 } from '@/schemas/admin';
 import { productFormSchema } from '@/schemas/product';
+import { userActiveSchema, userRoleSchema } from '@/schemas/admin';
 import {
   attributeFormSchema,
   brandFormSchema,
@@ -96,6 +102,9 @@ function toResult(error: unknown): AdminActionResult {
   }
   if (error instanceof TaxonomyError) {
     return { ok: false, errorKey: error.code, field: error.field };
+  }
+  if (error instanceof UserAdminError) {
+    return { ok: false, errorKey: error.code };
   }
   if (error instanceof UnauthenticatedError || error instanceof ForbiddenError) {
     return { ok: false, errorKey: 'notAllowed' };
@@ -403,5 +412,43 @@ export async function deleteAttributeAction(id: string): Promise<AdminActionResu
 
   revalidatePath('/admin/attributes', 'page');
   revalidatePath('/admin/product-types', 'page');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+export async function setUserRoleAction(input: {
+  userId: string;
+  role: string;
+}): Promise<AdminActionResult> {
+  const parsed = userRoleSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  try {
+    await setUserRole(parsed.data.userId, parsed.data.role);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/users', 'page');
+  return { ok: true };
+}
+
+export async function setUserActiveAction(input: {
+  userId: string;
+  isActive: boolean;
+}): Promise<AdminActionResult> {
+  const parsed = userActiveSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  try {
+    await setUserActive(parsed.data.userId, parsed.data.isActive);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/users', 'page');
   return { ok: true };
 }

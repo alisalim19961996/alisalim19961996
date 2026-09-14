@@ -345,6 +345,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/categories`               | Dynamic      | Category tree; a category cannot descend from itself                     |
 | `/[locale]/admin/product-types`            | Dynamic      | Product types, and which specifications each one asks for                |
 | `/[locale]/admin/attributes`               | Dynamic      | Specification definitions; the value type locks once values exist        |
+| `/[locale]/admin/users`                    | Dynamic      | Roles and access (ADMIN only); no password is ever typed here            |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
 | `/api/auth/*`                              | Route        | better-auth; not locale-prefixed (`proxy.ts` excludes /api)              |
@@ -750,6 +751,32 @@ in code that belongs to the owner.**
   experience, volume or reputation (§13.12). The governorate count is read from
   the enum, so it cannot drift from what checkout offers.
 
+**Handing out access** — `server/services/admin-users.ts`, with the rules in
+`lib/domain/user-roles.ts`.
+
+- **There is no "create a staff account".** The employee registers at
+  `/sign-up` and an admin promotes them. The alternative is an admin typing
+  somebody else's password into a form, which means knowing a credential that
+  is not theirs and would put hashing in this module rather than better-auth's
+  (§7). One extra step for the employee buys that, and the screen says so — an
+  absent "add user" button otherwise reads as a missing feature.
+- **Four things are refused, all unrecoverable from inside the app**: changing
+  your own role, deactivating yourself, and demoting or deactivating the last
+  active admin. A store with no reachable ADMIN needs a database client to fix,
+  which is the situation this screen exists to end. Changing your own role is
+  refused even when other admins exist — the click cannot be undone from where
+  you are standing, and "ask a colleague" is not a recovery path for a shop
+  with two staff.
+- **Self is checked before the count**, so the last admin demoting themselves
+  reads "you cannot change your own role" rather than being sent to look for a
+  second account they do not need.
+- **Only ACTIVE admins count.** An inactive one cannot sign in to unlock
+  anything (§7), so counting it would let the store be emptied.
+- **Deactivating deletes the sessions too.** The guard already rejects an
+  inactive user holding a valid cookie; this is the difference between "cannot
+  act" and "is signed out", and a dismissed employee should see the latter
+  immediately.
+
 ---
 
 ## 13. DO NOT CHANGE without explicit owner approval
@@ -882,8 +909,8 @@ and a product form that then asked for exactly those two and swapped them for
 
 ### Not started
 
-User management · wishlist, compare, reviews, recommendations, blog, analytics
-· security review, performance pass, e2e tests (Phase 6). The accessibility
+Wishlist, compare, reviews, recommendations, blog, analytics · security
+review, performance pass, e2e tests (Phase 6). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
 
 ---
@@ -900,7 +927,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | Coupons are schema-only                            | `discountIqd` is always 0                                                                   | Phase 5; `orderTotals` already takes a discount             |
 | Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                             | Rare enough to wait; the form offers the groups that exist  |
 | No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                  | Phase 5.5                                                   |
-| Staff roles are set in the database                | No user management screen                                                                   | Phase 5                                                     |
+| Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                 | Deliberate — see §12                                        |
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one      | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                               | Split to JSON if it grows                                   |
 | No wishlist page                                   | The header links no wishlist rather than 404ing                                             | Phase 5.5                                                   |
@@ -965,6 +992,15 @@ cannot be tested with a fake. `vitest.integration.config.mts` stubs
 every other config and out of application code. The concurrency test was
 verified by replacing the atomic UPDATE with a read-then-write and watching it
 sell one unit twice.
+
+**An integration fixture that mutates a row it did not create must restore it
+in `afterEach`, not `afterAll`.** The users suite parks every existing ADMIN as
+a CUSTOMER so the "last admin" refusals can fire at all — the counts are global
+— and an early version restored them only at the end. An interrupted run left
+the dev database with **zero active admins**: exactly the state the feature
+under test exists to prevent, reached by the test for it. `afterEach` narrows
+the window to one test, and `pnpm db:seed` is the recovery, because its upsert
+sets `admin@mps.local`'s role every time.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/`, which is why that
@@ -1205,10 +1241,17 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. **User management** so staff can be created without touching the database.
+1. **Buying guides as real articles** — the owner asked for this explicitly and
+   it is _not_ what `/guides` is today. That page is entry points built from
+   live data (types, brands, price bands) and deliberately holds no prose,
+   because `BlogPost` exists in the schema with **no screen to write into it**
+   and a page backed by an empty table stays empty (§12). Coming back to it
+   means building that editor first: a `BlogPost` admin in the same shape as
+   `admin-taxonomy.ts`, then a guides index and article page that read it.
+   Until then the entry points are the honest version, not a placeholder.
 2. Offers and coupons: `orderTotals` already takes a discount and the schema
    and constraints exist; nothing computes one yet.
-3. Wishlist, compare, reviews, blog.
+3. Wishlist, compare, reviews.
 
 **The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
 caps build workers and the pool together, after `pnpm build` died against
@@ -1223,6 +1266,12 @@ detail view where an address could leak. An account stays optional: checkout
 has never required one and still does not. Driving this found two cookie bugs
 that had nothing to do with accounts and everything to do with commerce — see
 §7.
+
+**Phase 5.4d — user management**: roles and access from the dashboard, ADMIN
+only. Four refusals guard the one state the app cannot recover from — a store
+with no reachable admin — and each is unit-tested for the rule and
+integration-tested for the count, which is read from Postgres inside the same
+call that acts on it.
 
 **Phase 5.4c — password reset** (**verified on the owner's own machine**: they
 registered, asked for a link, received it, set a new password and signed in

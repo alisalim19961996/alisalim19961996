@@ -51,6 +51,7 @@ export default async function AdminLayout({
         categories: t('categories'),
         productTypes: t('productTypes'),
         attributes: t('attributes'),
+        users: t('users'),
         settings: t('settings'),
         delivery: t('delivery'),
         viewStore: t('viewStore'),

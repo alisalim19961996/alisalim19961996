@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Role } from '@prisma/client';
 import { GOVERNORATE_VALUES } from './checkout';
 import { normalizeOrderNumber } from '@/lib/domain/order-number';
 
@@ -91,3 +91,20 @@ function emptyToNull(value: string | undefined): string | null {
 export type AdvanceOrderInput = z.infer<typeof advanceOrderSchema>;
 export type DeliveryRateInput = z.infer<typeof deliveryRateSchema>;
 export type SiteSettingsInput = z.infer<typeof siteSettingsSchema>;
+
+/**
+ * Who may be what.
+ *
+ * The role arrives from a `<select>`, so it is parsed against the enum rather
+ * than trusted: a crafted payload asking for a value Prisma has never heard of
+ * would otherwise reach the database as a write.
+ */
+export const userRoleSchema = z.object({
+  userId: z.string().min(1, 'required'),
+  role: z.enum(Role),
+});
+
+export const userActiveSchema = z.object({
+  userId: z.string().min(1, 'required'),
+  isActive: z.boolean(),
+});
