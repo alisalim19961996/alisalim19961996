@@ -776,6 +776,15 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
   buys the phone. The number is the proof, the Arabic headline is the
   reason, the kicker is the spec for whoever wants it — and a claim that
   needs a figure nobody has (charge time) is not written at all (§13.12).
+- **A canvas inherits `direction` from its element, and this page is RTL.**
+  So `fillText` treats every string as an RTL paragraph unless told
+  otherwise, and "01 / 04" — two European number runs around a neutral
+  slash — comes out "04 / 01". A published reel carried the reversed
+  counter on its first spec scene before this was caught. Every Latin draw
+  now states `c.direction = 'ltr'` (`eyebrow`, `heroNumber`, the model name,
+  the price); Arabic draws already stated `'rtl'`. A single Latin run
+  survives either way, which is why only the counter showed it — do not
+  take that as proof the next one will.
 - **The page carries its own `charset` and `viewport` meta.** The artifact
   wrapper supplies both, but the copy served from `public/` has no head of
   its own: without them Arabic renders as mojibake and a phone lays the page

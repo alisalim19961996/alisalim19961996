@@ -1802,10 +1802,20 @@
     drawPattern(c, 0, panelTop, W, H - panelTop, g.pattern, g.patternAlpha);
   }
 
-  /** Small letterspaced label — the eyebrow above a hero number. */
+  /**
+   * Small letterspaced Latin label — the eyebrow above a hero number.
+   *
+   * The direction is set explicitly and is not cosmetic. A canvas inherits
+   * `direction` from its element, and this page is `dir=rtl`, so fillText
+   * treats every string as an RTL paragraph: "01 / 04" is two European
+   * number runs around a neutral slash, and an RTL paragraph swaps them —
+   * a published reel carried "04 / 01" on its first spec scene. Everything
+   * drawn here is Latin, so it is stated once, here.
+   */
   function eyebrow(c, text, x, y, size, color, align, spacing = '0.26em') {
     if (!text) return;
     c.save();
+    c.direction = 'ltr';
     c.font = laFont(600, size);
     c.letterSpacing = spacing;
     c.textAlign = align;
@@ -1843,6 +1853,9 @@
    * value so the type does not jitter as the digits change.
    */
   function heroNumber(c, raw, t, measure, maxSize) {
+    // Same trap as eyebrow(): a value carrying a separator ("6.79 / 120")
+    // would reorder in this page's inherited RTL.
+    c.direction = 'ltr';
     const numeric = /^\d+(\.\d+)?$/.test(raw);
     const decimals = raw.includes('.') ? 1 : 0;
     const size = fitFont(c, raw, measure, 700, LA, maxSize);
@@ -1895,6 +1908,7 @@
     c.translate(W / 2, numY);
     c.scale(lerp(1.1, 1, numEnter), lerp(1.1, 1, numEnter));
     c.translate(-W / 2, -numY);
+    c.direction = 'ltr';
     c.font = laFont(700, hero.size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
@@ -1965,6 +1979,7 @@
     c.save();
     c.globalAlpha = mEnter;
     c.translate(0, lerp(38, 0, mEnter));
+    c.direction = 'ltr';
     c.font = laFont(700, size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
@@ -2069,6 +2084,7 @@
     c.translate(W / 2, numY);
     c.scale(lerp(1.06, 1, numEnter), lerp(1.06, 1, numEnter));
     c.translate(-W / 2, -numY);
+    c.direction = 'ltr';
     c.font = laFont(700, hero.size);
     c.textAlign = 'right';
     c.textBaseline = 'alphabetic';
@@ -2232,6 +2248,7 @@
       c.translate(0, lerp(34, 0, pEnter));
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
+      c.direction = 'ltr';
       c.font = laFont(700, size);
       c.fillStyle = g.ink;
       c.fillText(price, W / 2, priceY);
