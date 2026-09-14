@@ -770,12 +770,13 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **229 tests**: 202 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **252 tests**: 225 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
-combinations, both shapes of a Prisma unique-constraint error, and image
-signatures including four ways of disguising an SVG) plus 27
+combinations, both shapes of a Prisma unique-constraint error, image
+signatures including four ways of disguising an SVG, and the `.env` editor
+against **both** LF and CRLF files) plus 27
 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **34 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order), run by
@@ -956,6 +957,31 @@ with **no** policies, so anon and authenticated clients cannot write to it at
 all. If the key leaks, reset it in the Supabase dashboard; nothing else has to
 change.
 
+**The `.env` tooling is tested against Windows line endings, and must stay
+that way.** The owner is on Windows, so their `.env` is CRLF, and JavaScript
+treats a lone `\r` as a line terminator. Two bugs shipped from that, both
+invisible on Linux and both in code that edits the owner's only copy of their
+database URL:
+
+- `check-services.mjs` carried its **own** parser ending in `(.*)$`. `.` does
+  not match `\r`, so it matched **nothing** on a CRLF file and reported a
+  perfectly good `.env` as having no variables — then advised `pnpm setup`,
+  which would have overwritten it. The shared module's header had already
+  warned against a second copy of this logic; the warning was ignored, and
+  that copy is what lied. There is now one parser, in `scripts/lib/env-file.mjs`.
+- `writeEnvValue` used `^\s*KEY\s*=.*$` with the `m` flag. `^` also matches
+  after `\r`, so the leading `\s*` ate the `\n` before the line being
+  replaced and glued two variables onto one line, losing both. It now rebuilds
+  the lines instead of letting a pattern near a line boundary.
+
+`parseEnv` splits on `\r\n`, `\r` **and** `\n`, which also means the
+repaired tools can still read a file the old writer already damaged — recovery
+is a rewrite, not a retype. `writeEnvValue` preserves whichever convention the
+file uses. `pnpm keys` copies `.env` to `.env.bak` before its first change and
+refuses to save a rewrite that would lose a variable (`assertNoKeysLost`).
+`.gitignore` sweeps `.env*` with `!.env.example`, because `.env.bak` matched
+none of the three patterns that were there and this repository is public.
+
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
 **session pooler** connection string, not a direct connection; security headers
@@ -997,7 +1023,7 @@ so **run `pnpm check:services` before telling the owner a key is missing**: it
 uploads a file to Supabase and deletes it, and asks Google whether the id and
 secret are a pair. Saying "you still need to fill X" when they filled it last
 week wastes their time and makes the rest of the list look equally stale. A
-key being *written* is not the same as a key that *works*, which is the other
+key being _written_ is not the same as a key that _works_, which is the other
 half of why the check exists. Remaining: real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
 production `DATABASE_URL`, a Google OAuth client (`docs/extending-ar.md` §9.6),

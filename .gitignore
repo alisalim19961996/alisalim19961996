@@ -17,10 +17,12 @@ coverage/
 test-results/
 playwright-report/
 
-# environment
-.env
-.env.local
-.env*.local
+# environment — everything .env* is secret except the committed template.
+# Written as a sweep rather than a list because `.env.bak`, which `pnpm keys`
+# now writes before it edits, matched none of the three patterns that were
+# here, and this repository is public.
+.env*
+!.env.example
 
 # misc
 .DS_Store

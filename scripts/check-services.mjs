@@ -13,8 +13,8 @@
  *
  * Usage:  pnpm check:services
  */
-import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { ENV_PATH, detectEol, parseEnv, readEnvFile } from './lib/env-file.mjs';
 
 const ESC = String.fromCharCode(27);
 const c = {
@@ -57,6 +57,7 @@ function diagnoseMissing(env, names) {
   hint(
     `المتغيّرات الموجودة بهذا الملف (${names_.length}): ${names_.join(', ') || '(ولا واحد)'}`,
   );
+  hint(`نهايات الأسطر: ${envEol === '\r\n' ? 'Windows (CRLF)' : 'Unix (LF)'}`);
   say();
   hint('أشهر سببين:');
   hint('  1) عدّلت ملف .env.example بدل .env — لازم .env بالضبط');
@@ -77,21 +78,26 @@ function mask(value) {
 
 /** The file actually read, so "I edited it" can be checked against reality. */
 let envPath = '';
+let envEol = '\n';
 
+/**
+ * Read `.env` through the shared parser, never a copy of it.
+ *
+ * A private parser lived here and reported the owner's file as having no
+ * variables at all, on a file where every value was present and correct: its
+ * pattern ended in `(.*)$`, and JavaScript's `.` does not match `\r`, so every
+ * line of a CRLF file failed to match. The owner is on Windows. They were then
+ * told to run `pnpm setup` to repair a file that was never broken.
+ *
+ * One parser, in `lib/env-file.mjs`, is the fix — and it is what that module's
+ * own header already asked for.
+ */
 function readEnv() {
-  envPath = resolve('.env');
-  if (!existsSync(envPath)) return null;
-  const env = {};
-  for (const line of readFileSync('.env', 'utf8').split('\n')) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
-    if (!match) continue;
-    let value = match[2].trim();
-    const quoted =
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"));
-    env[match[1]] = quoted ? value.slice(1, -1) : value;
-  }
-  return env;
+  envPath = resolve(ENV_PATH);
+  const text = readEnvFile();
+  if (text === null) return null;
+  envEol = detectEol(text);
+  return parseEnv(text);
 }
 
 /** The smallest thing that is unmistakably a PNG: one transparent pixel. */

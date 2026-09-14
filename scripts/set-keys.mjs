@@ -16,13 +16,17 @@
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
+import { copyFileSync } from 'node:fs';
 import {
   ENV_PATH,
+  assertNoKeysLost,
   parseEnv,
   readEnvFile,
   saveEnvFile,
   writeEnvValue,
 } from './lib/env-file.mjs';
+
+const BACKUP_PATH = '.env.bak';
 
 const ESC = String.fromCharCode(27);
 const c = {
@@ -196,7 +200,30 @@ async function main() {
       }
     }
 
-    text = writeEnvValue(text, key.name, value);
+    /*
+      A copy before the first change, because this tool is the only thing
+      between the owner and their database URL — and it has damaged that file
+      once already, by gluing two variables onto one line on a CRLF file. The
+      backup is what makes the next bug an inconvenience instead of an evening.
+    */
+    if (changed === 0) {
+      copyFileSync(ENV_PATH, BACKUP_PATH);
+      hint(`نسخة احتياطية: ${BACKUP_PATH}`);
+    }
+
+    const next = writeEnvValue(text, key.name, value);
+    try {
+      assertNoKeysLost(text, next);
+    } catch (error) {
+      bad('وقفنا قبل الحفظ — الكتابة كانت راح تضيّع متغيّرات.');
+      hint(error instanceof Error ? error.message : String(error));
+      hint(`ملفك ما انلمس. النسخة الاحتياطية: ${BACKUP_PATH}`);
+      process.exitCode = 1;
+      rl.close();
+      return;
+    }
+
+    text = next;
     saveEnvFile(text);
     changed += 1;
     ok(`انحفظت بـ ${ENV_PATH}`);
