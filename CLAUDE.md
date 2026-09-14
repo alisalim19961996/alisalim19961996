@@ -731,6 +731,20 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
 - **A reel is data.** Scene type, ground, `layout`, copy, numbers, images and
   timings live in a project object. Another device or another brand is a new
   project, never a code change.
+- **A cover-fit crops the axis the source is longer on, which here is the
+  horizontal one.** The stock art is 1920×1080 landscape and every box is
+  portrait, so filling a box discards 43–49% of the WIDTH and none of the
+  height — and the first build exposed only a vertical focus, a control on
+  the one axis that was already intact. `drawCover` takes `focusX` too,
+  `drawFitted` is the single entry point (and records the destination box in
+  a `WeakMap` so the inspector measures the real one), and a scene can choose
+  `fit: 'contain'` to lose nothing at all. The inspector shows the whole
+  source with the kept rectangle over it and the discarded part dimmed,
+  draggable on both axes — "which part of the photo goes away" is answered by
+  showing it rather than by a number.
+- **The bar states whether the work is saved**, because "how do I save my
+  edits" is a question the interface should answer by itself. It doubles as
+  the save button, and says `احفظ ملف المشروع` where no cloud store exists.
 - **Hero type is fitted to its column, not set at a fixed size** (`fitFont`).
   A number that is merely large reads as body copy blown up; one that spans
   the measure reads as a poster, and that difference was most of what made

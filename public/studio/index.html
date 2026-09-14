@@ -145,6 +145,31 @@
     font-size: 10.5px;
   }
 
+  /* "How do I save my edits?" is a question the interface should answer by
+     itself, so the answer lives in the bar and is also the save button. */
+  .save-state {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-dim);
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .save-state[data-state='saved'] {
+    color: var(--blue);
+    border-color: rgba(11, 18, 117, 0.3);
+    background: rgba(11, 18, 117, 0.06);
+  }
+  .save-state[data-state='dirty'] {
+    color: var(--red);
+    border-color: rgba(242, 41, 41, 0.4);
+    background: #fdecec;
+    font-weight: 600;
+  }
+
   /* ---------------------------------------------------------- buttons */
   .btn {
     display: inline-flex;
@@ -630,6 +655,29 @@
     box-shadow: 0 0 0 2px rgba(242, 41, 41, 0.25);
   }
 
+  .crop {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .crop-cv {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--field);
+    cursor: grab;
+    /* Without this a drag scrolls the page instead of moving the crop. */
+    touch-action: none;
+  }
+  .crop-cv:active {
+    cursor: grabbing;
+  }
+  .crop-cv[hidden] {
+    display: none;
+  }
+
   /* Saved projects */
   .row-item {
     display: grid;
@@ -923,6 +971,7 @@
 
   <div class="bar-spacer"></div>
 
+  <button class="save-state" id="saveState" type="button" data-state="idle">…</button>
   <button class="btn btn-sm" id="btnOpen" type="button">فتح ملف</button>
   <button class="btn btn-sm" id="btnSaveCloud" type="button">حفظ المشروع</button>
   <div class="menu-host">
@@ -1539,13 +1588,51 @@
     c.closePath();
   }
 
-  /** Cover-fit an image into a box, honouring a focal point and zoom. */
-  function drawCover(c, img, x, y, w, h, focus = 50, zoom = 100) {
+  /**
+   * Cover-fit an image into a box, honouring a focal point on BOTH axes.
+   *
+   * The axis that loses picture is whichever one the source is longer on,
+   * and for this library that is the horizontal: the stock art is
+   * 1920×1080 landscape and every box here is portrait, so filling the
+   * box throws away 43–49% of the WIDTH and none of the height. A
+   * vertical-only focus therefore moved the one axis that was already
+   * intact and could never reframe a badly cropped shot.
+   */
+  function drawCover(c, img, x, y, w, h, focusY = 50, zoom = 100, focusX = 50) {
     if (!img) return;
     const scale = Math.max(w / img.width, h / img.height) * (zoom / 100);
     const dw = img.width * scale;
     const dh = img.height * scale;
-    c.drawImage(img, x + (w - dw) / 2, y + (h - dh) * (focus / 100), dw, dh);
+    c.drawImage(
+      img,
+      x + (w - dw) * (focusX / 100),
+      y + (h - dh) * (focusY / 100),
+      dw,
+      dh,
+    );
+  }
+
+  /**
+   * Where each scene's photograph lands, recorded as the frame is drawn so
+   * the crop picker in the inspector measures the real box rather than a
+   * second copy of the numbers that could drift from it. Keyed weakly so
+   * it never reaches the saved project.
+   */
+  const imageBox = new WeakMap();
+
+  /**
+   * One entry point for every scene photograph. `fit: 'contain'` keeps the
+   * whole picture and lets the ground show around it — the honest choice
+   * when a shot cannot survive a portrait crop.
+   */
+  function drawFitted(c, img, x, y, w, h, s, owner = s) {
+    imageBox.set(owner, { w, h });
+    if (!img) return;
+    if (s.fit === 'contain') {
+      drawContain(c, img, x, y, w, h, s.zoom ?? 100);
+    } else {
+      drawCover(c, img, x, y, w, h, s.focus ?? 50, s.zoom ?? 100, s.focusX ?? 50);
+    }
   }
 
   /** Contain-fit, used where the product must never be cropped. */
@@ -1765,15 +1852,15 @@
 
     c.fillStyle = MPS.white;
     c.fillRect(0, 0, W, H);
-    drawCover(
+    drawFitted(
       c,
       imageOf(s.image),
       0,
       0,
       W,
       1060,
-      s.focus ?? 45,
-      (s.zoom ?? 100) * drift,
+      { ...s, zoom: (s.zoom ?? 100) * drift },
+      s,
     );
 
     const panelTop = 880;
@@ -1833,15 +1920,15 @@
 
     c.fillStyle = MPS.white;
     c.fillRect(0, 0, W, H);
-    drawCover(
+    drawFitted(
       c,
       imageOf(s.image),
       0,
       0,
       W,
       1200,
-      s.focus ?? 40,
-      (s.zoom ?? 100) * drift,
+      { ...s, zoom: (s.zoom ?? 100) * drift },
+      s,
     );
 
     const panelTop = 1020;
@@ -1907,15 +1994,18 @@
       // Photograph owns the frame; the type sits on a colour panel.
       c.fillStyle = MPS.white;
       c.fillRect(0, 0, W, H);
-      drawCover(
+      drawFitted(
         c,
         imageOf(s.image),
         0,
         0,
         W,
         1140,
-        s.focus ?? 50,
-        (s.zoom ?? 100) * lerp(1.05, 1.0, easeInOut(t / (s.dur || 2.4))),
+        {
+          ...s,
+          zoom: (s.zoom ?? 100) * lerp(1.05, 1.0, easeInOut(t / (s.dur || 2.4))),
+        },
+        s,
       );
 
       const panelTop = 960;
@@ -2008,15 +2098,18 @@
       c.clip();
       c.fillStyle = g.plate;
       c.fillRect(M, panelTop, TITLE.w, plateH);
-      drawCover(
+      drawFitted(
         c,
         imageOf(s.image),
         M,
         panelTop,
         TITLE.w,
         plateH,
-        s.focus ?? 50,
-        (s.zoom ?? 100) * lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4))),
+        {
+          ...s,
+          zoom: (s.zoom ?? 100) * lerp(1.04, 1.0, easeInOut(t / (s.dur || 2.4))),
+        },
+        s,
       );
       c.restore();
     }
@@ -2605,6 +2698,119 @@
     return box;
   }
 
+  const clampPct = (v) => Math.max(0, Math.min(100, v));
+
+  /** The visible slice of the source, in source pixels, for a scene. */
+  function cropRect(scene) {
+    const img = imageOf(scene.image);
+    if (!img) return null;
+    const dest = imageBox.get(scene) || { w: W, h: 1100 };
+    const scale =
+      Math.max(dest.w / img.width, dest.h / img.height) * ((scene.zoom ?? 100) / 100);
+    const sw = Math.min(img.width, dest.w / scale);
+    const sh = Math.min(img.height, dest.h / scale);
+    return {
+      img,
+      sw,
+      sh,
+      sx: (img.width - sw) * ((scene.focusX ?? 50) / 100),
+      sy: (img.height - sh) * ((scene.focus ?? 50) / 100),
+      roomX: img.width - sw,
+      roomY: img.height - sh,
+    };
+  }
+
+  /**
+   * Answers "which part of the photo goes away" by showing it: the whole
+   * source, the kept rectangle bright, everything it loses dimmed, and the
+   * rectangle draggable on both axes. It measures the real destination box
+   * recorded during the last render, so what it promises is what exports.
+   */
+  function cropPicker(scene) {
+    const box = document.createElement('div');
+    box.className = 'crop';
+    const cv = document.createElement('canvas');
+    cv.className = 'crop-cv';
+    const readout = document.createElement('p');
+    readout.className = 'hint';
+    box.append(cv, readout);
+
+    const DPR = 2;
+
+    function paint() {
+      const r = cropRect(scene);
+      if (!r) {
+        cv.hidden = true;
+        readout.textContent = 'اختر صورة أولاً.';
+        return;
+      }
+      cv.hidden = false;
+      const cssW = 264;
+      cv.width = cssW * DPR;
+      cv.height = Math.max(80, Math.round((cssW * r.img.height) / r.img.width)) * DPR;
+      const c = cv.getContext('2d');
+      const k = cv.width / r.img.width;
+
+      c.clearRect(0, 0, cv.width, cv.height);
+      c.drawImage(r.img, 0, 0, cv.width, cv.height);
+      c.fillStyle = 'rgba(11,18,117,0.66)';
+      c.fillRect(0, 0, cv.width, cv.height);
+      c.drawImage(
+        r.img,
+        r.sx,
+        r.sy,
+        r.sw,
+        r.sh,
+        r.sx * k,
+        r.sy * k,
+        r.sw * k,
+        r.sh * k,
+      );
+      c.strokeStyle = MPS.red;
+      c.lineWidth = 3 * DPR;
+      c.strokeRect(
+        r.sx * k + 1.5 * DPR,
+        r.sy * k + 1.5 * DPR,
+        r.sw * k - 3 * DPR,
+        r.sh * k - 3 * DPR,
+      );
+
+      const lost = Math.round(100 - (r.sw * r.sh * 100) / (r.img.width * r.img.height));
+      readout.textContent = `يروح ${lost}٪ من الصورة`;
+    }
+
+    let last = null;
+    cv.addEventListener('pointerdown', (e) => {
+      if (!cropRect(scene)) return;
+      last = { x: e.clientX, y: e.clientY };
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!last) return;
+      const r = cropRect(scene);
+      if (!r) return;
+      const k = cv.getBoundingClientRect().width / r.img.width;
+      const dx = (e.clientX - last.x) / k;
+      const dy = (e.clientY - last.y) / k;
+      last = { x: e.clientX, y: e.clientY };
+      if (r.roomX > 0.5) scene.focusX = clampPct(((r.sx + dx) / r.roomX) * 100);
+      if (r.roomY > 0.5) scene.focus = clampPct(((r.sy + dy) / r.roomY) * 100);
+      paint();
+      // The stage follows the finger; the storyboard waits for the release.
+      renderStage();
+    });
+    const release = () => {
+      if (!last) return;
+      last = null;
+      commit();
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+
+    paint();
+    return box;
+  }
+
   /**
    * Thumbnails cost nine full 1080x1920 renders, so typing in a text
    * field must not trigger one per keystroke — the stage updates live,
@@ -2836,27 +3042,51 @@
           }),
         ),
       );
-      const fr = document.createElement('div');
-      fr.className = 'row-2';
-      fr.append(
+      // Fit mode first: it decides whether a crop even exists.
+      const fitChips = document.createElement('div');
+      fitChips.className = 'chips';
+      for (const [key, label] of [
+        ['cover', 'تعبئة الإطار'],
+        ['contain', 'الصورة كاملة'],
+      ]) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = label;
+        b.setAttribute('aria-pressed', String((s.fit || 'cover') === key));
+        b.addEventListener('click', () => {
+          s.fit = key;
+          buildInspector();
+          commit();
+        });
+        fitChips.appendChild(b);
+      }
+      sceneFields.append(
         field(
-          'موضع القص',
-          rangeInput(
-            s.focus ?? 50,
-            (v) => {
-              s.focus = v;
-              commit();
-            },
-            0,
-            100,
-          ),
+          'ملء الإطار',
+          fitChips,
+          '«تعبئة» تقصّ من الصورة حتى تملأ الإطار. «كاملة» ما تقصّ شيئاً.',
         ),
+      );
+
+      if ((s.fit || 'cover') === 'cover') {
+        sceneFields.append(
+          field(
+            'شنو يبقى من الصورة',
+            cropPicker(s),
+            'المستطيل هو اللي يظهر بالريل، والمعتّم يروح. اسحبه بإصبعك.',
+          ),
+        );
+      }
+
+      sceneFields.append(
         field(
           'التقريب %',
           rangeInput(
             s.zoom ?? 100,
             (v) => {
               s.zoom = v;
+              buildInspector();
               commit();
             },
             100,
@@ -2864,7 +3094,6 @@
           ),
         ),
       );
-      sceneFields.append(fr);
     }
 
     const acts = document.createElement('div');
@@ -3181,9 +3410,21 @@
     selectScene(0);
   }
 
+  function setSaveState(state, text) {
+    const el = document.getElementById('saveState');
+    el.dataset.state = state;
+    el.textContent = text;
+  }
+
   let autosaveTimer = 0;
   function queueAutosave() {
-    if (!db) return;
+    if (!db) {
+      // No cloud here — the .json file is the only durable copy, so say so
+      // rather than leaving the owner guessing whether an edit stuck.
+      setSaveState('dirty', 'عدّلت — احفظ ملف');
+      return;
+    }
+    setSaveState('dirty', 'يحفظ…');
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(() => {
       db.doc('projects/' + AUTOSAVE_ID)
@@ -3193,7 +3434,8 @@
           auto: true,
           data: serialise({ inlineUploads: false }),
         })
-        .catch(() => {});
+        .then(() => setSaveState('saved', 'محفوظ ✓'))
+        .catch(() => setSaveState('dirty', 'ما انحفظ — جرّب «حفظ المشروع»'));
     }, 1400);
   }
 
@@ -3234,6 +3476,7 @@
         data: serialise({ inlineUploads: false }),
       });
       await buildProjectList();
+      setSaveState('saved', 'محفوظ ✓');
       toast(
         stray.length
           ? `حُفظ — لكن ${stray.length} صورة مرفوعة ما انحفظت، صدّر ملف .json`
@@ -3241,6 +3484,7 @@
         stray.length ? 'bad' : 'good',
       );
     } catch (err) {
+      setSaveState('dirty', 'ما انحفظ');
       toast(`تعذّر الحفظ: ${err?.code || 'خطأ'}`, 'bad');
     }
   }
@@ -3678,6 +3922,10 @@
     document.getElementById('verifyNote').remove();
   });
 
+  document.getElementById('saveState').addEventListener('click', () => {
+    if (db) saveToCloud();
+    else exportProject();
+  });
   document.getElementById('btnSaveCloud').addEventListener('click', () => {
     if (db) saveToCloud();
     else exportProject();
@@ -3798,6 +4046,8 @@
       use('db'),
       use('assets'),
     ]);
+
+    setSaveState(db ? 'saved' : 'idle', db ? 'محفوظ ✓' : 'احفظ ملف المشروع');
 
     if (!assets) {
       document.getElementById('uploadHint').textContent =
