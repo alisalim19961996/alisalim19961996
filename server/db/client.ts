@@ -2,6 +2,19 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { serverEnv } from '@/config/env';
 import { diagnoseDatabaseError } from './diagnose';
+import { poolingPlanFor } from '@/lib/database-url';
+
+/**
+ * Connections per client, planned together with the build's worker count.
+ *
+ * Only the product of the two matters (`lib/database-url.ts` explains the
+ * arithmetic): a build runs many workers, each holding a pool, and a pooler
+ * counts clients. `DATABASE_POOL_MAX` overrides it for a deployment with a
+ * direct connection and real concurrency to serve.
+ */
+const POOL_MAX =
+  Number(process.env.DATABASE_POOL_MAX) ||
+  poolingPlanFor(serverEnv.DATABASE_URL).poolMax;
 
 /**
  * Prisma 7 connects through a driver adapter rather than a URL in the schema.
@@ -12,7 +25,7 @@ import { diagnoseDatabaseError } from './diagnose';
  */
 const createPrismaClient = () =>
   new PrismaClient({
-    adapter: new PrismaPg({ connectionString: serverEnv.DATABASE_URL }),
+    adapter: new PrismaPg({ connectionString: serverEnv.DATABASE_URL, max: POOL_MAX }),
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   }).$extends({
     query: {

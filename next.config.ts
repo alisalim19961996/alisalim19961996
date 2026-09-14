@@ -1,5 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
+import { poolingPlanFor } from './lib/database-url';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
@@ -22,9 +23,33 @@ const supabaseHost = (() => {
   }
 })();
 
+/**
+ * Build workers, capped when the database is behind a pooler.
+ *
+ * `next build` prerenders with one worker per core — 23 on the owner's machine
+ * — and each opens its own Prisma client. Supabase's session pooler allows 15
+ * clients in total, so the build died partway through with `max clients
+ * reached in session mode`, blaming whichever page happened to be rendering.
+ *
+ * Left alone for a direct connection: a local Postgres allows a hundred
+ * clients and the build should use the machine it is on. CI is unaffected — it
+ * runs against a throwaway Postgres, not a pooler.
+ */
+const { buildWorkers } = poolingPlanFor(process.env.DATABASE_URL);
+
+/*
+  An override for a pooler this does not recognise. The three shapes it does
+  cover are the ones that exist in practice, but a host that announces itself
+  some fourth way would leave the owner with a build that dies and no knob to
+  turn.
+*/
+const workerOverride = Number(process.env.BUILD_WORKERS) || undefined;
+const cpus = workerOverride ?? buildWorkers;
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  ...(cpus ? { experimental: { cpus } } : {}),
   images: {
     formats: ['image/avif', 'image/webp'],
     // Product photography comes from two places and no others: files under

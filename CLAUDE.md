@@ -1163,6 +1163,24 @@ refuses to save a rewrite that would lose a variable (`assertNoKeysLost`).
 `.gitignore` sweeps `.env*` with `!.env.example`, because `.env.bak` matched
 none of the three patterns that were there and this repository is public.
 
+**A pooler caps CLIENTS, and `next build` opens one per worker.** Supabase's
+session pooler allows 15 for the whole project; Next prerenders with one worker
+per core — 23 on the owner's machine — and each opens its own Prisma client
+with `pg`'s default pool of 10. The build died partway through with
+`(EMAXCONNSESSION) max clients reached in session mode`, naming whichever page
+happened to be rendering, which was never the problem. It surfaced the day five
+new statically-rendered pages pushed the concurrency past the ceiling.
+
+`poolingPlanFor()` in `lib/database-url.ts` returns **both** numbers, because
+only their product is the constraint: 4 workers × a pool of 3 = 12, with
+headroom for a dev server or `db:studio` open alongside. A direct connection
+gets no cap at all — Postgres allows a hundred clients and the build should use
+the machine; CI is unaffected for the same reason. A pooler is recognised by
+`pgbouncer=true`, a `.pooler.supabase.com` host, or port 6543; `BUILD_WORKERS`
+and `DATABASE_POOL_MAX` override each half for anything that announces itself a
+fourth way. A test asserts the product fits under the ceiling — setting the two
+numbers sensibly but separately is exactly how this bug was written.
+
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
 **session pooler** connection string, not a direct connection; security headers
