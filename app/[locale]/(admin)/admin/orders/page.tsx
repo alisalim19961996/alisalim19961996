@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { OrderStatusBadge } from '@/features/admin/components/order-status-badge';
+import { OrderStatusBadge } from '@/features/order/components/order-status-badge';
 import { ProductPrice } from '@/features/product/components/product-price';
 import { getAdminOrders } from '@/server/queries/admin';
 import { orderFilterSchema } from '@/schemas/admin';

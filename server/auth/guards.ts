@@ -16,6 +16,8 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
+  /** Optional: nothing in MPS requires a phone on the account itself. */
+  phone: string | null;
   role: Role;
   isActive: boolean;
 }
@@ -42,6 +44,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const user = session.user as typeof session.user & {
     role?: string;
     isActive?: boolean;
+    phone?: string | null;
   };
 
   // A deactivated account must not keep working just because it holds a
@@ -52,6 +55,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone ?? null,
     role: (user.role as Role) ?? Role.CUSTOMER,
     isActive: user.isActive ?? true,
   };

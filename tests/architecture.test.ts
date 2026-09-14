@@ -633,3 +633,46 @@ describe('one main landmark per page', () => {
     ).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('cookies decide `secure` from the URL, not NODE_ENV', () => {
+  /**
+   * CLAUDE.md §7 records this for the session cookie, and the three cookies
+   * MPS sets itself each carried the broken version anyway — so the rule was
+   * written down, fixed in one place, and silently violated in three others.
+   *
+   * `pnpm start` sets NODE_ENV=production. On http://localhost that marks the
+   * cookie `Secure`, and browsers refuse to store a Secure cookie over http.
+   * Nothing errors: the cart token is re-minted on every click so the cart is
+   * always empty, and `mps.recent_order` never sticks so a guest cannot open
+   * the confirmation page for the order they just placed. curl stores them
+   * regardless, which is why the API looks healthy while every browser is not.
+   *
+   * Everything goes through `appCookieOptions()` now, and this keeps it there.
+   */
+  it('no cookie sets secure from NODE_ENV', () => {
+    const offences: string[] = [];
+
+    for (const file of [
+      ...walk('server', ['.ts']),
+      ...walk('features', ['.ts', '.tsx']),
+      ...walk('app', ['.ts', '.tsx']),
+    ]) {
+      // readCode strips comments, so the rule quoted in this file's own
+      // explanation above is not a false hit.
+      for (const { line, text } of readCode(file)) {
+        if (/secure\s*:\s*process\.env\.NODE_ENV/.test(text)) {
+          offences.push(`${relative('.', file)}:${line}`);
+        }
+      }
+    }
+
+    expect(
+      offences,
+      'Use appCookieOptions() from server/cookies.ts. `secure` follows ' +
+        "BETTER_AUTH_URL's scheme — NODE_ENV is production under `pnpm start` " +
+        'on http://localhost, where a Secure cookie is silently discarded.',
+    ).toEqual([]);
+  });
+});

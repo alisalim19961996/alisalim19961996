@@ -155,7 +155,16 @@
     "or": "أو",
     "googleFailed": "ما زبط تسجيل الدخول بـ Google. جرب مرة ثانية.",
     "googleUnavailable": "تسجيل الدخول بـ Google مو متاح حاليًا.",
-    "googleUseYourPassword": "هذا البريد عنده حساب بكلمة مرور بهذا المتجر. سجّل دخول بكلمة المرور — بعدها نكدر نربط حساب Google."
+    "googleUseYourPassword": "هذا البريد عنده حساب بكلمة مرور بهذا المتجر. سجّل دخول بكلمة المرور — بعدها نكدر نربط حساب Google.",
+    "createAccount": "سوّي حساب",
+    "creatingAccount": "دايتسوّى...",
+    "signUpHint": "حساب واحد يخليك تشوف طلباتك السابقة، وسلتك تبقى محفوظة.",
+    "fullName": "الاسم الكامل",
+    "phoneOptional": "رقم التلفون (اختياري)",
+    "passwordHint": "٨ حروف على الأقل",
+    "emailTaken": "هذا الإيميل عنده حساب من قبل. جرّب تسجّل دخول.",
+    "signUpFailed": "ما كدرنا نسوي الحساب. جرّب مرة ثانية.",
+    "haveAccount": "عندك حساب؟"
   },
   "validation": {
     "required": "هذا الحقل مطلوب",
@@ -671,5 +680,22 @@
     "orderAnswer": "أسرع طريق: تابع طلبيتك برقم الطلب ورقم التلفون اللي طلبت بيه. تشوف حالتها مباشرة بدون ما تنطر رد.",
     "trackCta": "تابع طلبيتك",
     "warranty": "الضمان"
+  },
+  "account": {
+    "title": "حسابي",
+    "greeting": "هلا {name}",
+    "details": "معلوماتك",
+    "detailsHint": "لتعديل معلوماتك تواصل وينا.",
+    "name": "الاسم",
+    "email": "الإيميل",
+    "phone": "التلفون",
+    "recentOrders": "آخر الطلبات",
+    "myOrders": "طلباتي",
+    "allOrders": "شوف الكل ({count})",
+    "orderTotal": "{count, plural, =0 {ماكو طلبات} one {طلب واحد} two {طلبين} few {# طلبات} other {# طلب}}",
+    "itemCount": "{count, plural, =0 {ماكو منتجات} one {منتج واحد} two {منتجين} few {# منتجات} other {# منتج}}",
+    "noOrders": "ما طلبت شي بعد.",
+    "startShopping": "ابدأ التسوق",
+    "signOut": "خروج"
   }
 }

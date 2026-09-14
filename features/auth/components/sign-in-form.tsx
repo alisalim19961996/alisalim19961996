@@ -84,7 +84,9 @@ export function SignInForm({ redirectTo }: { redirectTo?: string }) {
       // account's cart now rather than waiting for their next cart action.
       await claimCartAfterSignInAction();
 
-      router.replace(redirectTo === 'admin' ? '/admin' : '/');
+      // Staff asked for the dashboard; everyone else lands in their account,
+      // which is the thing signing in actually unlocked.
+      router.replace(redirectTo === 'admin' ? '/admin' : '/account');
       router.refresh();
     });
   };

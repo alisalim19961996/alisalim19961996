@@ -6,6 +6,7 @@ import { db } from '@/server/db/client';
 import { getCurrentUser } from '@/server/auth/guards';
 import { clampQuantity, MAX_LINE_QUANTITY } from '@/lib/domain/cart';
 import { isPurchasable } from '@/lib/domain/availability';
+import { appCookieOptions } from '@/server/cookies';
 import type {
   AddToCartInput,
   RemoveCartItemInput,
@@ -183,13 +184,7 @@ async function resolveCartForWrite(): Promise<{ id: string }> {
   });
 
   const store = await cookies();
-  store.set(CART_COOKIE, freshToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: CART_COOKIE_MAX_AGE,
-  });
+  store.set(CART_COOKIE, freshToken, appCookieOptions(CART_COOKIE_MAX_AGE));
 
   return cart;
 }

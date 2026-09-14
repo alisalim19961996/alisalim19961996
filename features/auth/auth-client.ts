@@ -17,5 +17,13 @@ import { createAuthClient } from 'better-auth/react';
 const client = createAuthClient();
 
 export const signIn = client.signIn;
+/*
+  Registration goes through the same client, which means the same
+  `/api/auth/*` route — and therefore the same rate limit. better-auth applies
+  those in the router's `onRequest`, so a Server Action calling `auth.api`
+  directly would leave the documented 3 sign-ups per 5 minutes unenforced
+  (§7).
+*/
+export const signUp = client.signUp;
 export const signOut = client.signOut;
 export const useSession = client.useSession;

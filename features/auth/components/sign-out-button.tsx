@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/navigation';
 import { signOut } from '../auth-client';
+import { forgetRecentOrderAction } from '../actions';
 
 /**
  * Sign out.
@@ -30,6 +31,10 @@ export function SignOutButton({ label }: { label: string }) {
       onClick={() =>
         startTransition(async () => {
           await signOut();
+          // The session is gone, but `mps.recent_order` is not tied to it:
+          // it says this BROWSER placed an order, and on a shared computer
+          // that would show the next person the previous customer's address.
+          await forgetRecentOrderAction();
           router.replace('/');
           router.refresh();
         })

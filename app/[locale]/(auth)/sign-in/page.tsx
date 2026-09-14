@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
+import { redirect, Link } from '@/i18n/navigation';
 import { Logo } from '@/components/layout/logo';
 import { SignInForm } from '@/features/auth/components/sign-in-form';
 import { GoogleSignInButton } from '@/features/auth/components/google-sign-in-button';
@@ -32,11 +32,12 @@ export default async function SignInPage({
 
   // Already signed in: there is nothing to do here. Honour ?next=admin only
   // for someone who can actually open the dashboard — sending a customer there
-  // is what created a redirect loop with the admin layout.
+  // is what created a redirect loop with the admin layout. Everyone else lands
+  // in their account, which is where /account sent them from.
   const user = await getCurrentUser();
   if (user) {
     return redirect({
-      href: next === 'admin' && isStaff(user) ? '/admin' : '/',
+      href: next === 'admin' && isStaff(user) ? '/admin' : '/account',
       locale,
     });
   }
@@ -85,7 +86,14 @@ export default async function SignInPage({
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs text-muted">{t('guestCheckoutNote')}</p>
+        <p className="mt-6 text-center text-sm text-muted">
+          {t('noAccount')}{' '}
+          <Link href="/sign-up" className="font-medium text-primary hover:underline">
+            {t('createAccount')}
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-muted">{t('guestCheckoutNote')}</p>
       </div>
     </main>
   );

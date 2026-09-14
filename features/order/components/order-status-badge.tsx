@@ -4,6 +4,11 @@ import type { OrderStatus } from '@prisma/client';
 /**
  * One status, coloured by what it means for the person reading it.
  *
+ * It lives in `features/order/` rather than `features/admin/`, where it was
+ * written: it describes an order, not an administrator, and the customer's own
+ * order history needs exactly the same badge. A second copy would be the one
+ * that keeps PENDING neutral after someone changes it here.
+ *
  * PENDING is the only one drawn in the brand colour, because it is the only
  * one that means "somebody has to do something now". Everything in flight is
  * neutral, everything finished is green, everything failed is red — so a

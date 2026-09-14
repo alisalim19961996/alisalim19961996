@@ -3,6 +3,7 @@ import 'server-only';
 import type { Governorate, OrderStatus, Prisma } from '@prisma/client';
 import { db } from '@/server/db/client';
 import { normalizeIraqiPhone } from '@/lib/phone';
+import { requireUser } from '@/server/auth/guards';
 import type { Locale } from '@/i18n/routing';
 
 /**
@@ -170,4 +171,81 @@ export async function findOwnedOrder(
   if (!justPlaced && !ownedBySession) return null;
 
   return toView(order, locale);
+}
+
+// ---------------------------------------------------------------------------
+
+/** Orders per page in the account area. */
+export const ACCOUNT_ORDERS_PER_PAGE = 10;
+
+export interface AccountOrderRow {
+  orderNumber: string;
+  status: OrderStatus;
+  placedAt: Date;
+  totalIqd: number;
+  itemCount: number;
+  /** The first line's image, so a row is recognisable at a glance. */
+  imageUrl: string | null;
+}
+
+export interface AccountOrdersResult {
+  rows: AccountOrderRow[];
+  total: number;
+  page: number;
+  pageCount: number;
+}
+
+/**
+ * A signed-in customer's own orders.
+ *
+ * Calls `requireUser()` itself rather than taking a user id from the caller.
+ * A function that accepts an id is one mistaken argument away from serving
+ * somebody else's address and phone number — and the page above it is not the
+ * only possible caller (§7: the guard protects the data, the route only
+ * protects the route).
+ *
+ * Scoped strictly by `userId`. Matching on phone as well would fold in guest
+ * orders placed with the same number, which sounds helpful and is not: a phone
+ * number is not verified anywhere in MPS, so anyone could register with
+ * somebody else's and read their order history.
+ */
+export async function getMyOrders(page = 1): Promise<AccountOrdersResult> {
+  const user = await requireUser();
+  const take = ACCOUNT_ORDERS_PER_PAGE;
+  const current = Math.max(1, Math.floor(page));
+
+  const where: Prisma.OrderWhereInput = { userId: user.id };
+
+  const [orders, total] = await Promise.all([
+    db.order.findMany({
+      where,
+      orderBy: { placedAt: 'desc' },
+      skip: (current - 1) * take,
+      take,
+      select: {
+        orderNumber: true,
+        status: true,
+        placedAt: true,
+        totalIqd: true,
+        _count: { select: { items: true } },
+        items: {
+          take: 1,
+          orderBy: { id: 'asc' },
+          select: { imageUrl: true },
+        },
+      },
+    }),
+    db.order.count({ where }),
+  ]);
+
+  return {
+    rows: orders.map(({ _count, items, ...order }) => ({
+      ...order,
+      itemCount: _count.items,
+      imageUrl: items[0]?.imageUrl ?? null,
+    })),
+    total,
+    page: current,
+    pageCount: Math.max(1, Math.ceil(total / take)),
+  };
 }

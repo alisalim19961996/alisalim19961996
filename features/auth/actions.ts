@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { claimCartForCurrentUser } from '@/server/services/cart';
+import { RECENT_ORDER_COOKIE } from '@/server/services/order';
 
 /**
  * Auth Server Actions.
@@ -25,4 +27,23 @@ export async function claimCartAfterSignInAction(): Promise<void> {
   // The header's count is client-side, but the cart page and checkout are
   // rendered on the server and must not show the pre-merge cart.
   revalidatePath('/', 'layout');
+}
+
+/**
+ * Forget that this browser placed an order, on the way out.
+ *
+ * `mps.recent_order` is one of the three things that opens an order page
+ * (§12), and it means "this browser ordered it" — not "this account did". It
+ * outlives a sign-out, so on a shared machine the next person to use the
+ * browser could open the previous customer's order and read their name, phone
+ * number and delivery address. Found by signing out and back in as somebody
+ * else while checking the account pages.
+ *
+ * Signing out is the one unambiguous "I have finished on this computer", so
+ * that is where it is dropped. The order itself is not lost to its owner: it
+ * is in their account, which is the whole point of having one.
+ */
+export async function forgetRecentOrderAction(): Promise<void> {
+  const store = await cookies();
+  store.delete(RECENT_ORDER_COOKIE);
 }

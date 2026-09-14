@@ -240,6 +240,22 @@ requireLocalEmailVerified: true }`. Google's word that an address is verified
   store: sign-in appeared to succeed, no session existed, and every guarded
   page bounced back to the form. curl stores them regardless, so the API
   looked healthy while the browser was broken.
+- **Every cookie MPS sets goes through `appCookieOptions()`**
+  (`server/cookies.ts`), which derives `secure` from `BETTER_AUTH_URL`'s scheme
+  exactly as the session cookie does. The rule below was written for the
+  session cookie and fixed only there: `mps.cart_token` and `mps.recent_order`
+  still keyed off NODE_ENV, so under `pnpm start` on http://localhost the
+  browser silently discarded them — the cart was re-minted empty on every
+  click, and a guest could not open the confirmation page for the order they
+  had just placed. A guardrail now fails on `secure: process.env.NODE_ENV`.
+- **Signing out deletes `mps.recent_order`.** That cookie means "this BROWSER
+  ordered it", not "this account did", and it outlived the session: on a shared
+  computer the next person could open the previous customer's order and read
+  their name, phone and address. The owner loses nothing — the order is in
+  their account.
+- **Sign-up goes over HTTP too**, through the same client, so "3 sign-ups per
+  5 minutes" is enforced rather than merely documented. Verified by tripping
+  it: the form answers 429 with the Arabic "too many attempts".
 - **Sign-in goes over HTTP through `/api/auth/*`, never a direct
   `auth.api.signInEmail()` call.** better-auth applies its rate limits in the
   router's `onRequest`, which only runs for requests through that handler — a
@@ -283,6 +299,9 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/contact`                        | SSG          | Channels from `SiteSetting`; says so plainly when none are set           |
 | `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                    |
 | `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                           |
+| `/[locale]/sign-up`                        | Dynamic      | Create an account; optional — checkout never requires one                |
+| `/[locale]/account`                        | Dynamic      | The customer's details and recent orders                                 |
+| `/[locale]/account/orders`                 | Dynamic      | Full order history, paginated                                            |
 | `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                          |
 | `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                 |
 | `/[locale]/admin/orders/[orderNumber]`     | Dynamic      | One order: status controls, timeline, customer, money                    |
@@ -306,9 +325,10 @@ catalogue-shaped `products/loading.tsx`.
 **Every link in the header and footer now resolves.** `/brands`, `/offers`,
 `/guides`, `/about` and `/contact` were linked from the footer and 404'd — and
 `/brands` and `/offers` were in `sitemap.xml` as well, so the site was handing
-Google two dead URLs. `/account` and `/wishlist` are still unbuilt and
-therefore still unlinked: the header points at `/sign-in` instead, which is the
-rule below.
+Google two dead URLs. The account icon points at `/account` now that it exists;
+`/account` sends a signed-out visitor to `/sign-in?next=account` and they land
+back on it, so the common case — already signed in — costs no redirect. Only
+`/wishlist` is still unbuilt, and therefore still unlinked.
 
 **The header and mobile drawer only link to routes that exist.** The account
 icon points at `/sign-in`, not `/account`: there is no account page yet, so it
@@ -839,11 +859,11 @@ review, performance pass, e2e tests (Phase 6).
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                        | `next/image` optimises on the fly; revisit at scale                                           |
 | Coupons are schema-only                            | `discountIqd` is always 0                                                              | Phase 5; `orderTotals` already takes a discount                                               |
 | Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                        | Rare enough to wait; the form offers the groups that exist                                    |
-| No sign-up or account pages                        | Customers order as guests; staff are seeded                                            | Phase 5                                                                                       |
+| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch             | Phase 5.5                                                                                     |
 | Staff roles are set in the database                | No user management screen                                                              | Phase 5                                                                                       |
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit with account pages (Phase 5.4) and before any deployment |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                          | Split to JSON if it grows                                                                     |
-| No account or wishlist page                        | The header points at `/sign-in` rather than linking either                             | Phase 5.4                                                                                     |
+| No wishlist page                                   | The header links no wishlist rather than 404ing                                        | Phase 5.5                                                                                     |
 | No mail provider                                   | Password reset cannot send                                                             | `MailProvider` abstraction before launch                                                      |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                                                          | Consider sticky panel                                                                         |
 | `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                           | Keep                                                                                          |
@@ -886,11 +906,14 @@ hreflang alternates, and the buying guide's price bands) plus
 27
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **51 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **57 tests against a real Postgres** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
-and every delete that would orphan a product refused), run by
+and every delete that would orphan a product refused; and a customer's order
+history, which is six assertions that it shows NOTHING belonging to anybody
+else — another account's order, a guest order sharing the phone number, and
+anything at all when nobody is signed in), run by
 `pnpm check` and by CI. Order placement is the one path where being wrong costs
 money, and what makes it correct — a transaction that must roll back whole, a
 conditional UPDATE two checkouts race for, constraints Postgres enforces —
@@ -940,6 +963,7 @@ not a false hit.
 | Every admin query/service export calls a guard             | Customer addresses exposed to anyone with the action id  |
 | No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing           |
 | No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
+| No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error     |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -1118,12 +1142,20 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. **Sign-up and account pages** — order history for a signed-in customer,
-   using the same `findOwnedOrder` path that already exists.
-2. **User management** so staff can be created without touching the database.
-3. Offers and coupons: `orderTotals` already takes a discount and the schema
+1. **User management** so staff can be created without touching the database.
+2. Offers and coupons: `orderTotals` already takes a discount and the schema
    and constraints exist; nothing computes one yet.
-4. Wishlist, compare, reviews, blog.
+3. Wishlist, compare, reviews, blog.
+
+**Phase 5.4b — the customer's own account**: registration and an account
+area. Sign-up goes over the same HTTP router as sign-in, so its rate limit is
+real — verified by tripping it. `/account` shows the customer's details and
+their orders, `/account/orders` pages through the rest, and both link into the
+`/orders/<number>` page that already checks ownership, so there is no second
+detail view where an address could leak. An account stays optional: checkout
+has never required one and still does not. Driving this found two cookie bugs
+that had nothing to do with accounts and everything to do with commerce — see
+§7.
 
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 security review, performance pass and a cache layer.

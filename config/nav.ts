@@ -33,26 +33,28 @@ export const PRIMARY_NAV: readonly NavLink[] = [
 /** Secondary links, shown below the primary set in the mobile drawer. */
 export const SECONDARY_NAV: readonly NavLink[] = [
   // Same reasoning as HEADER_ACTIONS: only routes that actually exist.
-  { href: '/sign-in', labelKey: 'account' },
+  { href: '/account', labelKey: 'account' },
   { href: '/track', labelKey: 'trackOrder' },
 ];
 
 /** Icon actions on the right of the header. */
 export const HEADER_ACTIONS = [
   /**
-   * Points at /sign-in, not /account: there is no account page yet, so the
-   * icon led to a 404 and sign-in was unreachable from the UI entirely.
+   * Points at /account now that the page exists.
    *
-   * /sign-in is the right destination in every state, because that page
-   * already decides where a visitor belongs — it shows the form when signed
-   * out, sends staff to the dashboard, and sends a signed-in customer home.
-   * The header cannot make that decision itself: reading the session here
-   * would opt every route into dynamic rendering (§8).
+   * /account decides for itself: a signed-out visitor is sent to
+   * /sign-in?next=account and lands back here afterwards, so the common case —
+   * somebody who is already signed in — costs no redirect at all. It was
+   * /sign-in for exactly as long as /account 404'd.
+   *
+   * The header still reads no session: that would opt every route into
+   * dynamic rendering (§8). The link is the same for everyone; the
+   * destination works it out.
    *
    * The wishlist icon is gone until the page exists. An icon that 404s is
    * worse than no icon — it promises a feature and then breaks.
    */
-  { href: '/sign-in', labelKey: 'account', icon: 'User', desktopOnly: true },
+  { href: '/account', labelKey: 'account', icon: 'User', desktopOnly: true },
   { href: '/cart', labelKey: 'cart', icon: 'ShoppingBag', desktopOnly: false },
 ] as const;
 

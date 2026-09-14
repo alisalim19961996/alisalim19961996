@@ -14,6 +14,7 @@ import {
 import { getCartView } from '@/server/queries/cart';
 import { checkoutSchema, GOVERNORATE_VALUES } from '@/schemas/checkout';
 import { locales, type Locale } from '@/i18n/routing';
+import { appCookieOptions } from '@/server/cookies';
 
 /**
  * Checkout Server Actions.
@@ -111,13 +112,7 @@ export async function placeOrderAction(
   }
 
   const store = await cookies();
-  store.set(RECENT_ORDER_COOKIE, orderNumber, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: RECENT_ORDER_MAX_AGE,
-  });
+  store.set(RECENT_ORDER_COOKIE, orderNumber, appCookieOptions(RECENT_ORDER_MAX_AGE));
 
   revalidatePath('/', 'layout');
 

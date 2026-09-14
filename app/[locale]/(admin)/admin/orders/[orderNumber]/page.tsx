@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { OrderActions } from '@/features/admin/components/order-actions';
-import { OrderStatusBadge } from '@/features/admin/components/order-status-badge';
+import { OrderStatusBadge } from '@/features/order/components/order-status-badge';
 import { ProductPrice } from '@/features/product/components/product-price';
 import { getAdminOrder } from '@/server/queries/admin';
 import { normalizeOrderNumber } from '@/lib/domain/order-number';

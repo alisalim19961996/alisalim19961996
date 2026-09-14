@@ -7,6 +7,7 @@ import { findOrderByNumberAndPhone } from '@/server/queries/order';
 import { RECENT_ORDER_COOKIE, RECENT_ORDER_MAX_AGE } from '@/server/services/order';
 import { trackOrderSchema } from '@/schemas/checkout';
 import type { Locale } from '@/i18n/routing';
+import { appCookieOptions } from '@/server/cookies';
 
 /**
  * Public order tracking.
@@ -59,13 +60,11 @@ export async function trackOrderAction(
   if (!order) return { status: 'error', errorKey: 'notFound' };
 
   const store = await cookies();
-  store.set(RECENT_ORDER_COOKIE, order.orderNumber, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: RECENT_ORDER_MAX_AGE,
-  });
+  store.set(
+    RECENT_ORDER_COOKIE,
+    order.orderNumber,
+    appCookieOptions(RECENT_ORDER_MAX_AGE),
+  );
 
   return redirect({ href: `/orders/${order.orderNumber}`, locale });
 }
