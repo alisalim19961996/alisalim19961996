@@ -1210,6 +1210,10 @@ release). Customers sign in with a password or with Google.
    and constraints exist; nothing computes one yet.
 3. Wishlist, compare, reviews, blog.
 
+**The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
+caps build workers and the pool together, after `pnpm build` died against
+Supabase's 15-client session pooler. Verified on the owner's machine.
+
 **Phase 5.4b — the customer's own account**: registration and an account
 area. Sign-up goes over the same HTTP router as sign-in, so its rate limit is
 real — verified by tripping it. `/account` shows the customer's details and
@@ -1220,7 +1224,11 @@ has never required one and still does not. Driving this found two cookie bugs
 that had nothing to do with accounts and everything to do with commerce — see
 §7.
 
-**Phase 5.4c — password reset**: a `MailProvider` seam with a Resend sender,
+**Phase 5.4c — password reset** (**verified on the owner's own machine**: they
+registered, asked for a link, received it, set a new password and signed in
+with it — the same standard of proof as the Supabase upload, and for the same
+reason, because a key that is written is not a key that works): a
+`MailProvider` seam with a Resend sender,
 `/forgot-password` and `/reset-password`, and a reset email written natively in
 Arabic. Optional like every other integration: with no key the form says reset
 is unavailable rather than promising an inbox, and `pnpm check:services` proves
@@ -1252,9 +1260,14 @@ key being _written_ is not the same as a key that _works_, which is the other
 half of why the check exists. Remaining: real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
 production `DATABASE_URL`, a Google OAuth client (`docs/extending-ar.md` §9.6),
-and the two mail keys — `RESEND_API_KEY` and `MAIL_FROM`, via `pnpm keys` —
-which unlock password reset, and after it email verification and the safe half
-of account linking for addresses that already have a password here.
+and **a domain**. That one item now blocks three things at once: the site has
+to be served from somewhere, `MAIL_FROM` needs a sender on a domain verified
+with Resend, and until then mail goes out from Resend's shared
+`onboarding@resend.dev`, **which delivers only to the account owner's own
+address**. Which is also why `requireEmailVerification` must stay off for now:
+switching it on while only the owner can receive mail would lock every other
+customer out of their account at the first sign-in. The mail keys themselves
+are done and proven.
 
 # This is NOT the Next.js you know
 
