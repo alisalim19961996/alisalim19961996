@@ -107,6 +107,16 @@ export default async function ProductsPage({
             <EmptyState hasFilters={activeCount > 0 || Boolean(parsed.q)} />
           ) : (
             <>
+              {/*
+                A heading for the results, hidden visually because the page's
+                h1 and the filters already say what this is to a sighted
+                visitor. It exists because each card's name is an h3, so
+                without it the page jumps h1 → h3 — and because it gives a
+                screen-reader user something to jump TO, which the grid
+                otherwise lacks entirely.
+              */}
+              <h2 className="sr-only">{t('resultsHeading')}</h2>
+
               <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
                 {result.products.map((product, index) => (
                   <li key={product.id} className="flex">

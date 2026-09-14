@@ -126,7 +126,7 @@ export function ProductGallery({
 
       {slides.length > 1 && (
         <ul className="flex gap-2 overflow-x-auto pb-1">
-          {slides.map((slide) => {
+          {slides.map((slide, index) => {
             const isActive = slide.key === activeKey;
             return (
               <li key={slide.key} className="shrink-0">
@@ -137,6 +137,18 @@ export function ProductGallery({
                     setPlaying(false);
                   }}
                   aria-current={isActive ? 'true' : undefined}
+                  /*
+                    The thumbnail's own image is decorative (`alt=""`), because
+                    it repeats the picture already beside it — which left the
+                    button with no accessible name at all, announced as just
+                    "button". The label names the position instead, since the
+                    photographs have no captions to borrow.
+                  */
+                  aria-label={
+                    slide.kind === 'image'
+                      ? t('galleryImage', { number: index + 1 })
+                      : t('galleryVideo', { number: index + 1 })
+                  }
                   className={cn(
                     'relative size-16 overflow-hidden rounded-[--radius-control] border-2 transition-colors',
                     isActive

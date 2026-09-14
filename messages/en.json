@@ -102,7 +102,9 @@
     "playVideo": "Play video",
     "category": "Category",
     "warrantyMonths": "{count, plural, one {# month} other {# months}}",
-    "new": "New"
+    "new": "New",
+    "galleryImage": "Image {number}",
+    "galleryVideo": "Video {number}"
   },
   "cart": {
     "title": "Shopping cart",
@@ -210,7 +212,8 @@
       "price_asc": "Price: low to high",
       "price_desc": "Price: high to low",
       "best_selling": "Best selling"
-    }
+    },
+    "resultsHeading": "Results"
   },
   "checkout": {
     "title": "Checkout",

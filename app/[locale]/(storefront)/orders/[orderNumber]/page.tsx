@@ -60,19 +60,19 @@ export default async function OrderPage({
 
   if (!order) {
     return (
-      <main className="container-page py-16">
+      <div className="container-page py-16">
         <div className="mx-auto max-w-md rounded-[--radius-panel] border border-border bg-surface p-8 text-center">
           <p className="text-base font-semibold text-ink">{t('notFound')}</p>
           <Button asChild size="lg" className="mt-6">
             <Link href="/track">{t('trackTitle')}</Link>
           </Button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="container-page py-8 sm:py-12">
+    <div className="container-page py-8 sm:py-12">
       <div className="flex flex-col items-center rounded-[--radius-panel] border border-success-soft bg-success-soft px-6 py-8 text-center">
         <CheckCircle2 className="size-10 text-success" aria-hidden />
         <h1 className="mt-3 text-2xl font-bold text-ink">{t('confirmedTitle')}</h1>
@@ -90,6 +90,6 @@ export default async function OrderPage({
           <Link href="/products">{tCart('continueShopping')}</Link>
         </Button>
       </div>
-    </main>
+    </div>
   );
 }

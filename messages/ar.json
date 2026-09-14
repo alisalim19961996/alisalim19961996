@@ -102,7 +102,9 @@
     "playVideo": "تشغيل الفيديو",
     "category": "الفئة",
     "warrantyMonths": "{count, plural, one {شهر واحد} two {شهران} few {# أشهر} other {# شهرًا}}",
-    "new": "جديد"
+    "new": "جديد",
+    "galleryImage": "صورة {number}",
+    "galleryVideo": "فيديو {number}"
   },
   "cart": {
     "title": "سلة التسوق",
@@ -210,7 +212,8 @@
       "price_asc": "السعر: الأقل أولًا",
       "price_desc": "السعر: الأعلى أولًا",
       "best_selling": "الأكثر مبيعًا"
-    }
+    },
+    "resultsHeading": "نتائج البحث"
   },
   "checkout": {
     "title": "إتمام الطلب",

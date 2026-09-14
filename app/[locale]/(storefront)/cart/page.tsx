@@ -43,7 +43,7 @@ export default async function CartPage({
   );
 
   return (
-    <main className="container-page py-8 sm:py-12">
+    <div className="container-page py-8 sm:py-12">
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t('title')}</h1>
 
       {lines.length === 0 ? (
@@ -126,7 +126,7 @@ export default async function CartPage({
           </aside>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

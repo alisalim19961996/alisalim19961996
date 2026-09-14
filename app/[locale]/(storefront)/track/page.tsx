@@ -26,13 +26,13 @@ export default async function TrackPage({
   const t = await getTranslations('order');
 
   return (
-    <main className="container-page py-12 sm:py-16">
+    <div className="container-page py-12 sm:py-16">
       <h1 className="text-center text-2xl font-bold text-ink sm:text-3xl">
         {t('trackTitle')}
       </h1>
       <div className="mt-8">
         <TrackForm />
       </div>
-    </main>
+    </div>
   );
 }

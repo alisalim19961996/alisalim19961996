@@ -599,3 +599,37 @@ describe('file layout', () => {
     ).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('one main landmark per page', () => {
+  /**
+   * The storefront layout renders `<main id="main">` around every page, and
+   * the skip link points at that id. A page that renders its own `<main>`
+   * nests one inside the other: invalid HTML, and a screen reader offers two
+   * "main" landmarks where there is one page.
+   *
+   * Four pages did — cart, checkout, order detail and tracking — and nothing
+   * caught it, because it looks completely ordinary in review and renders
+   * fine. Found by reading the DOM of the built site.
+   *
+   * Auth pages are exempt: their layout deliberately has no chrome, so the
+   * page itself is the landmark.
+   */
+  it('no storefront page renders its own <main>', () => {
+    const offences: string[] = [];
+
+    for (const file of walk('app/[locale]/(storefront)', ['.tsx'])) {
+      if (file.endsWith('layout.tsx')) continue;
+      const source = readFileSync(join(ROOT, file), 'utf8');
+      const line = source.split('\n').findIndex((l) => /<main[\s>]/.test(l));
+      if (line !== -1) offences.push(`${relative('.', file)}:${line + 1}`);
+    }
+
+    expect(
+      offences,
+      'The (storefront) layout already provides <main id="main">. Use a <div> ' +
+        'here — a nested landmark is invalid HTML and confuses screen readers.',
+    ).toEqual([]);
+  });
+});
