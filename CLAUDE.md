@@ -276,6 +276,11 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                        |
 | `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                     |
 | `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                           |
+| `/[locale]/brands`                         | SSG          | Every brand, with product counts, linking into the catalogue             |
+| `/[locale]/offers`                         | Dynamic      | Everything discounted — the catalogue query with `onOfferOnly`           |
+| `/[locale]/guides`                         | SSG          | Buying entry points built from real types, brands and price bands        |
+| `/[locale]/about`                          | SSG          | What the shop is and how buying works                                    |
+| `/[locale]/contact`                        | SSG          | Channels from `SiteSetting`; says so plainly when none are set           |
 | `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                    |
 | `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                           |
 | `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                          |
@@ -298,9 +303,12 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 Also: `app/[locale]/loading.tsx`, `error.tsx`, `not-found.tsx`, and a
 catalogue-shaped `products/loading.tsx`.
 
-**Linked but not built yet** (the footer still points at them, they 404
-today): `/brands`, `/offers`, `/guides`, `/about`, `/contact`, `/account`,
-`/wishlist`.
+**Every link in the header and footer now resolves.** `/brands`, `/offers`,
+`/guides`, `/about` and `/contact` were linked from the footer and 404'd — and
+`/brands` and `/offers` were in `sitemap.xml` as well, so the site was handing
+Google two dead URLs. `/account` and `/wishlist` are still unbuilt and
+therefore still unlinked: the header points at `/sign-in` instead, which is the
+rule below.
 
 **The header and mobile drawer only link to routes that exist.** The account
 icon points at `/sign-in`, not `/account`: there is no account page yet, so it
@@ -656,6 +664,32 @@ and switching to "phone" swapped them for its 19.
   has refused the write — so both tests now exist, and the unit one covers the
   shapes.
 
+**The pages around the store** — `/brands`, `/offers`, `/guides`, `/about`,
+`/contact`. All five were linked from the footer and 404'd; two were in the
+sitemap as well. They are built to the same rule: **nothing on them is written
+in code that belongs to the owner.**
+
+- `/brands` and `/offers` reuse `getBrands()` and `getCatalogue({ onOfferOnly })`
+  rather than querying for themselves, so filtering and paging stay in SQL (§5)
+  and a brand added from the dashboard appears with no further work. "On offer"
+  needs no judgement: a `comparePriceIqd` may only exist when it is strictly
+  greater than the price, which a CHECK constraint enforces.
+- `/guides` is deliberately **not** articles. A guides page backed by a blog
+  table nobody can write into is permanently empty, and buying advice written
+  here would be a commercial claim living in code. Its entry points are real
+  product types, real brands, and budget bands computed from the real minimum
+  and maximum price by `lib/domain/price-bands.ts` — so they cannot describe a
+  shop that does not exist, and they move when the catalogue does.
+- `/contact` reads `server/queries/site.ts`, a **public** read that names its
+  columns, separate from the `requireAdmin()` one in `admin-settings.ts`. Every
+  channel is optional because the row genuinely starts empty: a `tel:` link to
+  nothing is worse than a line saying the number is not published yet, so the
+  page says so and points at order tracking, which needs no phone call.
+- `/about` states only what is true of the software as built — cash on
+  delivery, delivery to every governorate, prices in dinars. No claim about
+  experience, volume or reputation (§13.12). The governorate count is read from
+  the enum, so it cannot drift from what checkout offers.
+
 ---
 
 ## 13. DO NOT CHANGE without explicit owner approval
@@ -809,7 +843,7 @@ review, performance pass, e2e tests (Phase 6).
 | Staff roles are set in the database                | No user management screen                                                              | Phase 5                                                                                       |
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit with account pages (Phase 5.4) and before any deployment |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                          | Split to JSON if it grows                                                                     |
-| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404                                       | Built in Phases 4–5                                                                           |
+| No account or wishlist page                        | The header points at `/sign-in` rather than linking either                             | Phase 5.4                                                                                     |
 | No mail provider                                   | Password reset cannot send                                                             | `MailProvider` abstraction before launch                                                      |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                                                          | Consider sticky panel                                                                         |
 | `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                           | Keep                                                                                          |
@@ -840,14 +874,15 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **294 tests**: 267 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **312 tests**: 285 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
 combinations, both shapes of a Prisma unique-constraint error, image
 signatures including four ways of disguising an SVG, the `.env` editor
 against **both** LF and CRLF files, and the taxonomy rules — keys, a category
-tree that terminates on a cycle, and which field a unique violation names) plus
+tree that terminates on a cycle, and which field a unique violation names,
+hreflang alternates, and the buying guide's price bands) plus
 27
 architecture guardrail cases in `tests/architecture.test.ts`.
 
@@ -884,26 +919,27 @@ fix** — a guardrail that only says "violation found" costs more time than it
 saves. Comments are stripped before matching, so a rule quoted in a comment is
 not a false hit.
 
-| Guardrail                                                  | Catches                                                 |
-| ---------------------------------------------------------- | ------------------------------------------------------- |
-| Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers          |
-| No empty translation strings                               | A label that renders as nothing                         |
-| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                      |
-| No hex colours in UI files                                 | A second, slightly different red                        |
-| No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                |
-| No Prisma client imported from UI                          | Layer bypass that still "works" in review               |
-| `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                    |
-| `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                   |
-| Client components import from `server/` as types only      | Server code dragged into the browser bundle             |
-| No literal IQD prices in UI                                | A price only a developer can change                     |
-| No Arabic string literals in UI                            | Copy the owner cannot edit, with no English twin        |
-| Every `config/` export has a consumer                      | A config file that lies about being the source          |
-| No route file over 420 lines                               | Business logic hiding in `app/`                         |
-| Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                    |
-| The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                  |
-| better-auth imported only by its two seam modules          | An auth provider welded into feature code               |
-| Every admin query/service export calls a guard             | Customer addresses exposed to anyone with the action id |
-| No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing          |
+| Guardrail                                                  | Catches                                                  |
+| ---------------------------------------------------------- | -------------------------------------------------------- |
+| Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers           |
+| No empty translation strings                               | A label that renders as nothing                          |
+| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                       |
+| No hex colours in UI files                                 | A second, slightly different red                         |
+| No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                 |
+| No Prisma client imported from UI                          | Layer bypass that still "works" in review                |
+| `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                     |
+| `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                    |
+| Client components import from `server/` as types only      | Server code dragged into the browser bundle              |
+| No literal IQD prices in UI                                | A price only a developer can change                      |
+| No Arabic string literals in UI                            | Copy the owner cannot edit, with no English twin         |
+| Every `config/` export has a consumer                      | A config file that lies about being the source           |
+| No route file over 420 lines                               | Business logic hiding in `app/`                          |
+| Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                     |
+| The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                   |
+| better-auth imported only by its two seam modules          | An auth provider welded into feature code                |
+| Every admin query/service export calls a guard             | Customer addresses exposed to anyone with the action id  |
+| No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing           |
+| No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -1090,7 +1126,17 @@ release). Customers sign in with a password or with Google.
 4. Wishlist, compare, reviews, blog.
 
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
-accessibility audit, security review, performance pass and a cache layer.
+security review, performance pass and a cache layer.
+
+**An accessibility pass has been done once**, by reading the DOM of the built
+site rather than by eye, and it found three real defects that had survived
+every review: gallery thumbnails with no accessible name, four pages nesting
+`<main>` inside the layout's, and the catalogue jumping h1 → h3. All three are
+fixed and the nested landmark now fails a guardrail. What that scan checks —
+landmarks, heading order, accessible names, alt text, horizontal overflow — is
+clean across eleven pages in both languages. It is not a full audit: contrast
+ratios, focus order and keyboard traps have not been measured, and screen
+readers have not been used.
 
 **Owner inputs still needed before launch** — this list is a reminder, not the
 authority. `.env` lives on the owner's machine and is never in the repository,

@@ -615,5 +615,61 @@
     "enumNeedsOptions": "A choice list needs at least one option.",
     "inUseByProducts": "Cannot delete: {count} products use it.",
     "attributeInUse": "Cannot delete: it is used in {count} places."
+  },
+  "brands": {
+    "title": "Brands",
+    "intro": "Every brand we carry. Open one to see all of its products.",
+    "empty": "No brands are listed yet.",
+    "productCount": "{count, plural, =0 {No products} one {1 product} other {# products}}"
+  },
+  "offers": {
+    "title": "Offers",
+    "intro": "Everything currently discounted. The old price is shown struck through beside the new one.",
+    "empty": "No offers right now. Have a look at the rest of the store.",
+    "browseAll": "Browse all products",
+    "count": "{count, plural, =0 {No offers} one {1 offer} other {# offers}}"
+  },
+  "guides": {
+    "title": "Buying guide",
+    "intro": "Not sure what to pick? Start from wherever suits you — by type, by budget, or by brand.",
+    "byType": "By type",
+    "byTypeHint": "Know what you want? Start here.",
+    "byBudget": "By budget",
+    "byBudgetHint": "These brackets come from the store's real prices, so they move with the catalogue.",
+    "byBrand": "By brand",
+    "byBrandHint": "Happy with a particular brand? See everything we carry from it.",
+    "bandUnder": "Under {max}",
+    "bandBetween": "{min} to {max}",
+    "bandFrom": "{min} and above",
+    "productCount": "{count, plural, =0 {No products} one {1 product} other {# products}}"
+  },
+  "about": {
+    "title": "About {store}",
+    "lead": "{store} is an Iraqi online store selling phones, tablets and accessories. Prices are in dinars, payment is on delivery, and we deliver to every governorate.",
+    "codTitle": "Cash on delivery",
+    "codBody": "You pay nothing up front. See the order in your hands first, then pay.",
+    "deliveryTitle": "Delivery across Iraq",
+    "deliveryBody": "We deliver to {count} governorates. The fee and the expected days are shown before you confirm the order.",
+    "warrantyTitle": "A clear warranty",
+    "warrantyBody": "The warranty period is written on each product's own page, not left as a general claim.",
+    "howTitle": "How to buy",
+    "step_browse": "Browse the products, pick one, and choose the version — colour and storage.",
+    "step_order": "Add it to the cart and complete the order: six fields, just your name, number and address.",
+    "step_confirm": "We call to confirm, and give you a number to track the order with.",
+    "step_receive": "The order arrives, you check it, and you pay on delivery.",
+    "browseCta": "Browse products",
+    "contactCta": "Contact us"
+  },
+  "contact": {
+    "title": "Contact us",
+    "intro": "If you have a question about a product or an order, here is how to reach us.",
+    "phone": "Phone",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "noChannels": "No contact channels have been added yet. If you have an order, you can track it with the order number and your phone number.",
+    "orderQuestion": "A question about an order?",
+    "orderAnswer": "The fastest route: track it with the order number and the phone number you ordered with. You see its status straight away, without waiting for a reply.",
+    "trackCta": "Track your order",
+    "warranty": "Warranty"
   }
 }

@@ -17,17 +17,22 @@ export async function Pagination({
   page,
   pageCount,
   searchParams,
+  // `/offers` is the catalogue filtered to discounts, so it pages the same
+  // way. A second pagination component for it would be the copy that stops
+  // mirroring direction icons in RTL six months from now.
+  basePath = '/products',
 }: {
   page: number;
   pageCount: number;
   searchParams: URLSearchParams;
+  basePath?: '/products' | '/offers';
 }) {
   if (pageCount <= 1) return null;
 
   const t = await getTranslations('common');
 
   const href = (target: number) =>
-    `/products${buildCatalogueQuery(searchParams, { page: String(target) })}`;
+    `${basePath}${buildCatalogueQuery(searchParams, { page: String(target) })}` as const;
 
   return (
     <nav

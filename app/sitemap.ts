@@ -44,6 +44,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...entry('/products', 0.9, 'daily'),
     ...entry('/brands', 0.6, 'weekly'),
     ...entry('/offers', 0.7, 'daily'),
+    ...entry('/guides', 0.5, 'weekly'),
+    ...entry('/about', 0.4, 'monthly'),
+    ...entry('/contact', 0.4, 'monthly'),
+    // The tracking form is worth indexing even though everything behind it is
+    // private: "track my order" is a thing people search for by name.
+    ...entry('/track', 0.4, 'monthly'),
     ...brands.flatMap((brand) => entry(`/products?brand=${brand.slug}`, 0.5, 'weekly')),
     ...products.flatMap((product) =>
       entry(`/products/${product.slugEn}`, 0.8, 'weekly', product.updatedAt),
