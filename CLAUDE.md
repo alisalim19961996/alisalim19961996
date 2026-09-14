@@ -743,8 +743,21 @@ the guardrails walk (`app`, `components`, `features`, `lib`, `server`,
   draggable on both axes — "which part of the photo goes away" is answered by
   showing it rather than by a number.
 - **The bar states whether the work is saved**, because "how do I save my
-  edits" is a question the interface should answer by itself. It doubles as
-  the save button, and says `احفظ ملف المشروع` where no cloud store exists.
+  edits" is a question the interface should answer by itself, and it doubles
+  as the save button. Work autosaves to `localStorage` as well as to `db`, so
+  a reload never loses a reel even where no cloud store is served — telling
+  the owner to download a .json after every change is a chore, not a save,
+  and on a phone it is barely possible.
+- **A late restore must never overwrite live edits.** The capabilities
+  resolve seconds after the studio is interactive, so adopting a saved copy
+  then replaced the project wholesale and threw away whatever had just been
+  typed — which reads exactly like "I edit it and nothing changes". A
+  `touched` flag makes the live edits win; the saved copy stays on disk.
+- **A `number` input reports an empty string mid-edit.** Clamping that on
+  every keystroke snapped a scene to the 0.6s minimum the moment the owner
+  selected the old duration to replace it, re-timing the reel under them.
+  `secondsInput` applies nothing until the field parses and normalises once
+  on blur. Never clamp a partially typed field.
 - **Hero type is fitted to its column, not set at a fixed size** (`fitFont`).
   A number that is merely large reads as body copy blown up; one that spans
   the measure reads as a poster, and that difference was most of what made

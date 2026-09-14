@@ -2672,6 +2672,35 @@
     return el;
   }
 
+  /**
+   * Seconds, typed on a phone. A `number` input reports an empty string
+   * while the field is being cleared, and clamping that on every keystroke
+   * snapped the scene to the 0.6s minimum the instant the owner selected
+   * the old value to replace it — so the reel re-timed under them and the
+   * duration felt impossible to change. A half-typed field is simply not
+   * an edit: nothing is applied until it parses, and the value is
+   * normalised once on blur.
+   */
+  function secondsInput(value, apply, min = 0.6, max = 12) {
+    const el = document.createElement('input');
+    el.type = 'text';
+    el.inputMode = 'decimal';
+    el.value = String(value ?? min);
+
+    const parse = () => parseFloat(el.value.replace(',', '.').trim());
+    el.addEventListener('input', () => {
+      const v = parse();
+      if (Number.isFinite(v) && v >= min && v <= max) apply(v);
+    });
+    el.addEventListener('blur', () => {
+      const v = parse();
+      const clamped = Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : value;
+      el.value = String(clamped);
+      apply(clamped);
+    });
+    return el;
+  }
+
   function rangeInput(value, onInput, min, max) {
     const el = document.createElement('input');
     el.type = 'range';
@@ -2726,6 +2755,9 @@
    * rectangle draggable on both axes. It measures the real destination box
    * recorded during the last render, so what it promises is what exports.
    */
+  /** Repaints the crop preview currently on screen, if there is one. */
+  let repaintCrop = () => {};
+
   function cropPicker(scene) {
     const box = document.createElement('div');
     box.className = 'crop';
@@ -2808,6 +2840,7 @@
     cv.addEventListener('pointercancel', release);
 
     paint();
+    repaintCrop = paint;
     return box;
   }
 
@@ -2830,6 +2863,7 @@
 
   function buildInspector() {
     const s = project.scenes[selected];
+    repaintCrop = () => {};
     sceneFields.innerHTML = '';
     if (!s) return;
 
@@ -2853,14 +2887,10 @@
       field('نوع المشهد', typeSel),
       field(
         'المدة (ثانية)',
-        numberInput(
-          s.dur,
-          (v) => {
-            s.dur = Math.max(0.6, Math.min(12, v || 0.6));
-            commit({ thumbs: false });
-          },
-          { min: 0.6, max: 12, step: 0.1 },
-        ),
+        secondsInput(s.dur, (v) => {
+          s.dur = v;
+          commit({ thumbs: false });
+        }),
       ),
     );
     sceneFields.append(row);
@@ -3082,11 +3112,14 @@
       sceneFields.append(
         field(
           'التقريب %',
+          // Repaint the crop preview, never rebuild the panel: calling
+          // buildInspector() here destroyed the slider mid-drag, so the
+          // drag produced nothing at all.
           rangeInput(
             s.zoom ?? 100,
             (v) => {
               s.zoom = v;
-              buildInspector();
+              repaintCrop();
               commit();
             },
             100,
@@ -3392,6 +3425,15 @@
     return { ...JSON.parse(JSON.stringify(project)), uploads };
   }
 
+  /**
+   * Whether the owner has changed anything since the page opened. The
+   * capabilities resolve long after the studio is interactive, so a saved
+   * copy can arrive seconds in — and adopting it then replaces the project
+   * wholesale and throws away whatever was just typed, which reads exactly
+   * like "I edit it and nothing changes".
+   */
+  let touched = false;
+
   async function adopt(data) {
     for (const up of data.uploads || []) {
       const src = up.src || (up.assetId ? '/_blob/' + up.assetId : null);
@@ -3408,6 +3450,9 @@
     buildBrandFields();
     buildStoryboard();
     selectScene(0);
+    // selectScene rebuilds the inspector, which does not itself count as an
+    // edit — the next real change is what marks the project dirty.
+    touched = false;
   }
 
   function setSaveState(state, text) {
@@ -3416,12 +3461,56 @@
     el.textContent = text;
   }
 
+  const LOCAL_KEY = 'mps.reels.autosave';
+
+  /**
+   * The browser's own copy. Work must survive a reload even where the
+   * cloud store is unavailable — telling the owner to download a .json
+   * after every change is not a save, it is a chore, and on a phone it is
+   * barely even possible. Uploaded images are inlined when they fit;
+   * localStorage is a few megabytes, so when they do not, the text is kept
+   * and the owner is told the pictures need the project file.
+   */
+  function saveLocal() {
+    try {
+      localStorage.setItem(
+        LOCAL_KEY,
+        JSON.stringify(serialise({ inlineUploads: true })),
+      );
+      setSaveState('saved', 'محفوظ بالمتصفح ✓');
+      return true;
+    } catch {
+      try {
+        localStorage.setItem(
+          LOCAL_KEY,
+          JSON.stringify(serialise({ inlineUploads: false })),
+        );
+        setSaveState('saved', 'محفوظ — عدا الصور');
+      } catch {
+        setSaveState('dirty', 'ما انحفظ — احفظ ملف');
+      }
+      return false;
+    }
+  }
+
+  function loadLocal() {
+    try {
+      const raw = localStorage.getItem(LOCAL_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return Array.isArray(data?.scenes) ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
   let autosaveTimer = 0;
   function queueAutosave() {
+    touched = true;
     if (!db) {
-      // No cloud here — the .json file is the only durable copy, so say so
-      // rather than leaving the owner guessing whether an edit stuck.
-      setSaveState('dirty', 'عدّلت — احفظ ملف');
+      setSaveState('dirty', 'يحفظ…');
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(saveLocal, 700);
       return;
     }
     setSaveState('dirty', 'يحفظ…');
@@ -3434,7 +3523,18 @@
           auto: true,
           data: serialise({ inlineUploads: false }),
         })
-        .then(() => setSaveState('saved', 'محفوظ ✓'))
+        .then(() => {
+          // Keep a browser copy too, so a lost connection is never a lost reel.
+          try {
+            localStorage.setItem(
+              LOCAL_KEY,
+              JSON.stringify(serialise({ inlineUploads: true })),
+            );
+          } catch {
+            /* the cloud copy is the one that matters here */
+          }
+          setSaveState('saved', 'محفوظ ✓');
+        })
         .catch(() => setSaveState('dirty', 'ما انحفظ — جرّب «حفظ المشروع»'));
     }, 1400);
   }
@@ -3924,12 +4024,14 @@
 
   document.getElementById('saveState').addEventListener('click', () => {
     if (db) saveToCloud();
-    else exportProject();
+    else if (saveLocal()) toast('انحفظ بهذا المتصفح', 'good');
+    else toast('الصور ما وسعت — احفظ ملف المشروع', 'bad');
   });
   document.getElementById('btnSaveCloud').addEventListener('click', () => {
     if (db) saveToCloud();
     else exportProject();
   });
+
   document
     .getElementById('btnOpen')
     .addEventListener('click', () => document.getElementById('fileProject').click());
@@ -4047,7 +4149,7 @@
       use('assets'),
     ]);
 
-    setSaveState(db ? 'saved' : 'idle', db ? 'محفوظ ✓' : 'احفظ ملف المشروع');
+    setSaveState(db ? 'saved' : 'saved', db ? 'محفوظ ✓' : 'محفوظ بالمتصفح ✓');
 
     if (!assets) {
       document.getElementById('uploadHint').textContent =
@@ -4055,17 +4157,23 @@
     }
     await buildProjectList();
 
+    let restored = null;
     if (db) {
       try {
         const auto = await db.doc('projects/' + AUTOSAVE_ID).get();
         const data = auto.exists ? auto.data()?.data : null;
-        if (data && Array.isArray(data.scenes)) {
-          await adopt(data);
-          toast('رجّعنا آخر شغل محفوظ تلقائياً', 'good');
-        }
+        if (data && Array.isArray(data.scenes)) restored = data;
       } catch {
         /* an unreadable autosave is not worth a message */
       }
+    }
+    if (!restored) restored = loadLocal();
+    if (restored && !touched) {
+      await adopt(restored);
+      toast('رجّعنا آخر شغل محفوظ', 'good');
+    } else if (restored) {
+      // Live edits win over a late restore; the copy is still on disk.
+      toast('عندك شغل محفوظ — افتحه من «المشاريع المحفوظة»');
     }
   }
 
