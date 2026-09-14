@@ -991,8 +991,14 @@ Customers sign in with a password or with Google.
 **Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
 accessibility audit, security review, performance pass and a cache layer.
 
-**Owner inputs still needed before launch:** real product photography, the two
-Supabase storage values in `.env` (see `docs/extending-ar.md` §4.6), WhatsApp
+**Owner inputs still needed before launch** — this list is a reminder, not the
+authority. `.env` lives on the owner's machine and is never in the repository,
+so **run `pnpm check:services` before telling the owner a key is missing**: it
+uploads a file to Supabase and deletes it, and asks Google whether the id and
+secret are a pair. Saying "you still need to fill X" when they filled it last
+week wastes their time and makes the rest of the list look equally stale. A
+key being *written* is not the same as a key that *works*, which is the other
+half of why the check exists. Remaining: real product photography, WhatsApp
 and contact number, delivery fees per governorate, warranty policy text, a
 production `DATABASE_URL`, a Google OAuth client (`docs/extending-ar.md` §9.6),
 and a mail provider for password reset — which is also what unlocks email
