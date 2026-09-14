@@ -755,6 +755,21 @@
   .sheet-acts .btn {
     height: 44px;
   }
+  .sheet-warn {
+    margin: 0;
+    border: 1px solid rgba(242, 41, 41, 0.35);
+    background: #fdecec;
+    color: var(--red);
+    border-radius: var(--radius);
+    padding: 9px 11px;
+    font-size: 12px;
+    line-height: 1.7;
+    font-weight: 500;
+  }
+  .sheet-warn[hidden] {
+    display: none;
+  }
+
   .sheet p {
     margin: 0;
     font-size: 11.5px;
@@ -1086,6 +1101,7 @@
       </button>
     </div>
     <div class="sheet-media" id="sheetMedia"></div>
+    <p class="sheet-warn" id="sheetWarn" hidden></p>
     <div class="sheet-acts">
       <button class="btn btn-primary" id="sheetPhone" type="button">
         حفظ بالتلفون
@@ -3349,9 +3365,13 @@
     sheetFiles = [];
   }
 
-  function openSheet(label, files) {
+  function openSheet(label, files, warning = '') {
     if (!files.length) return;
     sheetFiles = files;
+
+    const warnEl = document.getElementById('sheetWarn');
+    warnEl.textContent = warning;
+    warnEl.hidden = !warning;
 
     // "1080×1920" set as one Arabic run comes out as "1920×1080": the
     // digits reorder around the ×. The size gets its own LTR island,
@@ -3511,22 +3531,37 @@
     ]);
   }
 
+  /**
+   * H.264 inside MP4 is the only combination Instagram takes without
+   * re-encoding, so ask for it BY NAME. A bare 'video/mp4' is a request
+   * for the container only: a browser with no H.264 encoder answers it
+   * with VP9 inside that container and `isTypeSupported` still says yes —
+   * which yields a .mp4 that Instagram rejects. Verified on a Chromium
+   * build here: 'video/mp4' reported supported, and the file it produced
+   * carried a vp09 sample entry.
+   *
+   * `ready` therefore tracks the codec, not the extension, and it is what
+   * the result sheet warns on.
+   */
   const VIDEO_TYPES = [
-    'video/mp4;codecs=avc1.42E01E',
-    'video/mp4',
-    'video/webm;codecs=vp9',
-    'video/webm',
+    { mime: 'video/mp4;codecs=avc1.42E01E', ext: 'mp4', ready: true },
+    { mime: 'video/mp4;codecs=avc1.4D401F', ext: 'mp4', ready: true },
+    { mime: 'video/mp4;codecs=avc1', ext: 'mp4', ready: true },
+    { mime: 'video/mp4;codecs=h264', ext: 'mp4', ready: true },
+    { mime: 'video/mp4', ext: 'mp4', ready: false },
+    { mime: 'video/webm;codecs=vp9', ext: 'webm', ready: false },
+    { mime: 'video/webm', ext: 'webm', ready: false },
   ];
 
   async function exportVideo() {
-    const mime = VIDEO_TYPES.find(
-      (m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m),
+    const codec = VIDEO_TYPES.find(
+      (c) => window.MediaRecorder && MediaRecorder.isTypeSupported(c.mime),
     );
-    if (!mime) {
+    if (!codec) {
       toast('متصفحك لا يدعم تسجيل الفيديو — استعمل تصدير الصور', 'bad');
       return;
     }
-    const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const { mime, ext } = codec;
 
     setPlaying(false);
     const stream = cv.captureStream(FPS);
@@ -3569,12 +3604,14 @@
     stream.getTracks().forEach((tr) => tr.stop());
 
     renderStage();
-    openSheet(`فيديو الريل ${ext.toUpperCase()}`, [
-      { filename: safeName(SIZE_TAG, ext), blob },
-    ]);
-    if (ext === 'webm') {
-      toast('صيغة WebM — انستكرام يفضّل MP4، حوّله بـ CapCut قبل الرفع', 'bad');
-    }
+    openSheet(
+      `فيديو الريل ${ext.toUpperCase()}`,
+      [{ filename: safeName(SIZE_TAG, ext), blob }],
+      codec.ready
+        ? ''
+        : 'متصفحك ما عنده مرمّز H.264، فالملف طلع بكودك ثاني وانستكرام يرفضه. ' +
+            'حوّله بـ CapCut، أو صدّر المشاهد صور وركّبها هناك.',
+    );
   }
 
   function exportProject() {

@@ -774,8 +774,21 @@ then `claude.use('downloads')` (the Claude iOS app turns it into that same
 share sheet; the Android app writes the file), then long-press on the preview,
 which always works. Nine frames go into one share so "save all" stays one tap.
 
-Video is MP4 where `MediaRecorder` supports it and WebM otherwise — Instagram
-rejects WebM, and the studio says which one it produced.
+**A `.mp4` is not automatically an Instagram-ready file, and this cost a bug.**
+Instagram wants H.264; `MediaRecorder.isTypeSupported('video/mp4')` answers for
+the CONTAINER, so a browser with no H.264 encoder returns true and then writes
+VP9 inside that container. Measured here: the Chromium in this environment
+reports `video/mp4` supported, refuses `video/mp4;codecs=avc1.42E01E`, and the
+file it produces carries a `vp09` sample entry — a structurally valid MP4 that
+Instagram rejects and that ffmpeg 7.0.1 will not even open. `VIDEO_TYPES`
+therefore asks for H.264 by name first and carries a `ready` flag per entry;
+the result sheet warns on the codec that was actually used, never on the file
+extension. Official Chrome, Edge and Safari builds ship H.264 and take the
+first entry, so a real phone gets a real MP4 — but the warning is what makes
+the other case visible instead of silent.
+
+Verified end to end rather than assumed: record → read the blob back → decode
+it in a `<video>` → seek and sample frames. 1080×1920, 22.97 s, frames drawn.
 
 `public/studio/` is not excluded anywhere: Prettier formats it with the
 project's own config, so `pnpm check` already covers it.
