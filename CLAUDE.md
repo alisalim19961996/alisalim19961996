@@ -30,6 +30,13 @@ in Arabic.** Technical terms — package names, file paths, code identifiers —
 stay in English, because translating them harms clarity. Code, comments, commit
 messages and this file are in English.
 
+**The owner runs Windows PowerShell 5.1**, where `&&` is a parse error — it
+arrived in PowerShell 7. Hand them one command per line, or `;` with the
+warning that it runs the second even when the first fails. This does not apply
+to the `&&` inside `package.json`: pnpm runs those through its own shell, so
+`pnpm check` works for them unchanged. Their `.env` is CRLF for the same
+reason, which §18 has already paid for twice.
+
 ---
 
 ## 3. Tech stack (versions are pinned for reasons — see §13)
