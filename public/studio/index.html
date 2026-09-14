@@ -3819,8 +3819,20 @@
     if (e.target === sheetEl) closeSheet();
   });
 
+  /**
+   * Exports are stamped with the time. Without it every re-export carried
+   * the identical name, so a phone's gallery filled with files called
+   * "…-1080x1920.mp4" and opening yesterday's by mistake looks exactly
+   * like an edit that did not take.
+   */
+  function stamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  }
+
   function safeName(suffix, ext) {
-    return `${fileBase()}-${suffix}.${ext}`;
+    return `${fileBase()}-${suffix}-${stamp()}.${ext}`;
   }
 
   /**
@@ -3868,11 +3880,12 @@
 
   async function exportFrames() {
     toast('جاري تجهيز الصور…');
+    const batch = stamp();
     const files = [];
     for (let i = 0; i < project.scenes.length; i++) {
       const blob = await frameBlob(i, restT(i));
       files.push({
-        filename: `${String(i + 1).padStart(2, '0')}-${project.scenes[i].type}-${SIZE_TAG}.png`,
+        filename: `${String(i + 1).padStart(2, '0')}-${project.scenes[i].type}-${SIZE_TAG}-${batch}.png`,
         blob,
       });
     }
@@ -3937,6 +3950,16 @@
     const total = totalDur();
     const started = performance.now();
     let lastPct = -1;
+    // The reel is drawn in real time through requestAnimationFrame, which a
+    // browser stops when its tab is hidden — so leaving the page or letting
+    // a phone's screen sleep mid-record freezes the capture and the file
+    // comes out the wrong length. Worth saying out loud rather than
+    // handing over a quietly broken video.
+    let interrupted = false;
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') interrupted = true;
+    };
+    document.addEventListener('visibilitychange', onHide);
     rec.start();
 
     // Render in real time so the recorder's timestamps match the reel.
@@ -3949,7 +3972,9 @@
         const pct = Math.round((t / total) * 100);
         if (pct !== lastPct) {
           lastPct = pct;
-          toast(`جاري التسجيل… ${pct}%`);
+          toast(
+            `جاري التسجيل… ${pct}% — لا تطلع من الصفحة (${total.toFixed(1)} ثانية)`,
+          );
         }
         requestAnimationFrame(step);
       }
@@ -3959,15 +3984,26 @@
     rec.stop();
     const blob = await done;
     stream.getTracks().forEach((tr) => tr.stop());
+    document.removeEventListener('visibilitychange', onHide);
 
     renderStage();
+    const warnings = [];
+    if (interrupted) {
+      warnings.push(
+        'طلعت من الصفحة أثناء التسجيل، فالفيديو غالباً طلع ناقص أو بتوقيت غلط. ' +
+          'سجّله مرة ثانية وخلّي الشاشة شغّالة وما تطلع من الصفحة.',
+      );
+    }
+    if (!codec.ready) {
+      warnings.push(
+        'متصفحك ما عنده مرمّز H.264، فالملف طلع بكودك ثاني وانستكرام يرفضه. ' +
+          'حوّله بـ CapCut، أو صدّر المشاهد صور وركّبها هناك.',
+      );
+    }
     openSheet(
-      `فيديو الريل ${ext.toUpperCase()}`,
+      `فيديو الريل ${ext.toUpperCase()} · ${total.toFixed(1)} ثانية`,
       [{ filename: safeName(SIZE_TAG, ext), blob }],
-      codec.ready
-        ? ''
-        : 'متصفحك ما عنده مرمّز H.264، فالملف طلع بكودك ثاني وانستكرام يرفضه. ' +
-            'حوّله بـ CapCut، أو صدّر المشاهد صور وركّبها هناك.',
+      warnings.join(' '),
     );
   }
 

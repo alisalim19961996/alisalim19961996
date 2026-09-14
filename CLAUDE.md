@@ -821,6 +821,20 @@ the other case visible instead of silent.
 
 Verified end to end rather than assumed: record → read the blob back → decode
 it in a `<video>` → seek and sample frames. 1080×1920, 22.97 s, frames drawn.
+Scene timing was measured the same way after a report that the video ignored
+an edited duration — stretch scene 1 to 8s, give the first three scenes
+distinct grounds, then sample the file: 13.99 s against an expected 14.0, red
+at 1/4/7.4 s, blue at 9.5 s, light at 12.5 s. The export honours durations.
+
+Two things that make a correct export _look_ stale were fixed instead, because
+both produce exactly that report: every export now carries a time stamp in its
+filename (identical names meant a gallery full of `…-1080x1920.mp4`, and
+opening yesterday's is indistinguishable from an edit that did not take), and
+the recorder watches `visibilitychange` — the reel is drawn through
+`requestAnimationFrame`, which a browser stops for a hidden tab, so leaving the
+page or letting a phone sleep mid-record freezes the capture and yields a file
+of the wrong length. That now warns in the sheet rather than handing over a
+quietly broken video, and the sheet title states the reel's duration.
 
 `public/studio/` is not excluded anywhere: Prettier formats it with the
 project's own config, so `pnpm check` already covers it.
