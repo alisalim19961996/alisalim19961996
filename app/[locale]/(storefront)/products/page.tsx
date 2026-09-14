@@ -107,7 +107,7 @@ export default async function ProductsPage({
             <EmptyState hasFilters={activeCount > 0 || Boolean(parsed.q)} />
           ) : (
             <>
-              <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+              <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
                 {result.products.map((product, index) => (
                   <li key={product.id} className="flex">
                     {/* The first row is above the fold on every breakpoint. */}

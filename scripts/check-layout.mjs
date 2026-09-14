@@ -37,8 +37,43 @@ const hint = (m) => say(`      ${c.dim}${m}${c.reset}`);
 const PAGES = ['/ar', '/ar/products', '/en'];
 const WIDTHS = [390, 1440];
 
+/**
+ * One pixel, because CSS Grid's own remainder is not a bug. Five `1fr`
+ * columns across 1216px come out as 230.391px and 230.406px alternating —
+ * a sixty-fourth of a pixel — and rounding that made one image measure 285
+ * and its neighbour 286. The bug this script was written for had a 64px
+ * spread across one row, so a whole pixel of slack costs nothing and stops
+ * the script from reporting arithmetic as a defect.
+ */
+const TOLERANCE = 1;
+
+const spread = (values) => Math.max(...values) - Math.min(...values);
+const px = (value) => String(Math.round(value * 100) / 100).padStart(7);
+
+/** Cards sharing a top edge are one visual row, whatever the grid says. */
+function groupByRow(cards) {
+  const rows = [];
+  for (const card of cards) {
+    const row = rows.find((r) => Math.abs(r[0].top - card.top) <= TOLERANCE);
+    if (row) row.push(card);
+    else rows.push([card]);
+  }
+  return rows;
+}
+
 let failures = 0;
 
+/**
+ * A card counts as being in the row only if the browser is actually painting
+ * it. A homepage rail renders five cards and hides the fifth below `xl`, where
+ * the grid is four wide — a hidden card has no box at all, and comparing its
+ * zeros against four real cards reports a bug that nobody can see.
+ *
+ * `checkVisibility()` is the question being asked, not `width > 0`: a card
+ * that collapsed to nothing while still being displayed IS the bug this
+ * script exists to catch, so an unmeasurable card defaults to visible and
+ * fails loudly rather than being skipped.
+ */
 /** One row of product cards, as the browser actually laid it out. */
 async function readCardRows(page) {
   return page.$$eval('ul', (lists) =>
@@ -48,16 +83,25 @@ async function readCardRows(page) {
         heading:
           ul.closest('section')?.querySelector('h1, h2')?.textContent?.trim() ??
           '(بدون عنوان)',
-        cards: [...ul.querySelectorAll('li > a')].map((card) => {
-          const box = card.firstElementChild?.getBoundingClientRect();
-          const rect = card.getBoundingClientRect();
-          return {
-            width: Math.round(rect.width),
-            imageHeight: box ? Math.round(box.height) : 0,
-            imageWidth: box ? Math.round(box.width) : 0,
-            name: card.querySelector('h3')?.textContent?.trim().slice(0, 20) ?? '',
-          };
-        }),
+        cards: [...ul.querySelectorAll('li > a')]
+          .filter((card) =>
+            typeof card.checkVisibility === 'function' ? card.checkVisibility() : true,
+          )
+          .map((card) => {
+            const box = card.firstElementChild?.getBoundingClientRect();
+            const rect = card.getBoundingClientRect();
+            return {
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              imageHeight: box ? box.height : 0,
+              imageWidth: box ? box.width : 0,
+              name: card.querySelector('h3')?.textContent?.trim().slice(0, 20) ?? '',
+            };
+          }),
+        hidden: [...ul.querySelectorAll('li > a')].filter((card) =>
+          typeof card.checkVisibility === 'function' ? !card.checkVisibility() : false,
+        ).length,
       }))
       .filter((row) => row.cards.length > 1),
   );
@@ -76,20 +120,45 @@ async function check(page, path, width) {
   const rows = await readCardRows(page);
   if (rows.length === 0) hint('ماكو صفوف منتجات بهذه الصفحة.');
 
-  for (const row of rows) {
-    const widths = [...new Set(row.cards.map((card) => card.width))];
-    const heights = [...new Set(row.cards.map((card) => card.imageHeight))];
+  for (const list of rows) {
+    /*
+      Width and the image box come from the grid column, so they must match
+      across the whole list. Card HEIGHT is only promised inside one visual
+      row: a grid item stretches to the tallest card beside it, not to the
+      tallest on the page, so a two-line name in row one does not oblige row
+      two to be as tall. Comparing those across rows reports a bug that is
+      really just two rows of different content.
+    */
+    const uneven = ['width', 'imageHeight'].filter(
+      (key) => spread(list.cards.map((card) => card[key])) > TOLERANCE,
+    );
+    const visualRows = groupByRow(list.cards);
+    const raggedRows = visualRows.filter(
+      (row) => spread(row.map((card) => card.height)) > TOLERANCE,
+    );
 
-    if (widths.length === 1 && heights.length === 1) {
-      ok(`${row.heading} — ${row.cards.length} كارت، كلهن ${widths[0]}×${heights[0]}`);
+    if (uneven.length === 0 && raggedRows.length === 0) {
+      const first = list.cards[0];
+      const also = list.hidden > 0 ? `، و${list.hidden} مخفي` : '';
+      ok(
+        `${list.heading} — ${list.cards.length} كارت ظاهر${also} بـ ` +
+          `${visualRows.length} صف، عرض ${Math.round(first.width)} ` +
+          `والصورة ${Math.round(first.imageHeight)}`,
+      );
       continue;
     }
 
     failures += 1;
-    bad(`${row.heading} — الكروت مو بنفس القياس`);
-    for (const card of row.cards) {
+    bad(
+      `${list.heading} — ` +
+        (uneven.length > 0
+          ? 'الكروت مو بنفس القياس'
+          : 'كروت بنفس الصف مو بنفس الارتفاع'),
+    );
+    for (const card of list.cards) {
       hint(
-        `عرض ${String(card.width).padStart(4)}  ارتفاع الصورة ${String(card.imageHeight).padStart(4)}  ${card.name}`,
+        `عرض ${px(card.width)}  ارتفاع الكارت ${px(card.height)}  ` +
+          `ارتفاع الصورة ${px(card.imageHeight)}  ${card.name}`,
       );
     }
   }

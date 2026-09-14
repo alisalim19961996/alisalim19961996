@@ -367,7 +367,10 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
   card was as wide as its product name was long — and since the image box is
   `aspect-product`, a wider card meant a taller image. Four cards in one row
   measured 209, 219, 161 and 155px across the uniform 292px grid columns
-  beneath them. `pnpm check:layout` now measures this.
+  beneath them. `pnpm check:layout` now measures this. Its text block is
+  deliberately tight (`gap-1 p-3`, `leading-tight`, both lines clamped): at the
+  five-column width a two-line Arabic name would otherwise push the card past
+  half the viewport height.
 - `VariantPicker` — client; keeps price, SKU and availability in sync;
   unreachable combinations are dimmed, never hidden.
 - `ProductGallery` — client; images + videos in one strip, player created on
@@ -457,7 +460,14 @@ letter-spacing — that is the detail that makes Arabic type look cheap.
 figures + LTR isolation for prices/SKUs/phones), `flip-rtl` (mirrors
 directional icons).
 
-**Responsive**: mobile-first. Grid is 2 columns on phones, 3 at `md`, 4 at `xl`.
+**Responsive**: mobile-first. The catalogue grid is 2 columns on phones, 3 at
+`md`, **5 at `xl`**; a homepage rail is 2, 4, then 5. Five, not four, because
+four columns at 1280px made a card 292×502px — with the 4:5 image frame, half
+the viewport for a single product, under two cards per screen. Five puts the
+card at 230×445 and still ends every breakpoint on a full row: `RAIL_SIZE` is 5
+and the fifth card is `hidden xl:flex`, so the four-column range never shows a
+lonely card. The square frame was tried first and rejected — `1 / 1` crops the
+tops off the phones.
 Filters are a sidebar at `lg`, a bottom drawer below it. Every page must have
 **zero horizontal overflow** at 390px and 1440px — verified with Playwright, not
 assumed.
@@ -842,7 +852,18 @@ because a real bug survived every test and every review — cards sized to their
 own product names — and was found by the owner looking at the page. The
 footer's clearance under the mobile buy bar is still checked by hand.
 
-Three measurement traps have already produced false bug reports here — check
+It measures **width and image height across the whole grid** (both come from
+the column, so they must match everywhere) but **card height only within one
+visual row**, grouping cards by their top edge — a grid item stretches to the
+tallest card beside it, not to the tallest on the page. Cards the browser is
+not painting are excluded via `checkVisibility()`, because a rail renders five
+and hides the fifth below `xl`; a card that collapsed to nothing while still
+displayed is the bug it exists to catch, so anything it cannot interrogate
+counts as visible and fails. Comparisons carry a **1px tolerance** — verified
+by stripping `w-full` in a live page, where the real bug still shows a 59px
+spread.
+
+Five measurement traps have already produced false bug reports here — check
 against them before believing a failure:
 
 - **`waitUntil: 'load'` is not "content is on screen".** Pages stream inside
@@ -853,6 +874,12 @@ against them before believing a failure:
   covered by the buy bar when the true clearance is 51px.
 - **`footer p:last-of-type` matches the tagline, not the copyright** — it is
   the last `p` among _its own_ siblings. Match on the text instead.
+- **`Math.round` manufactures inequality.** Five `1fr` columns across 1216px
+  come out as 230.391 and 230.406 alternating — a sixty-fourth of a pixel —
+  and rounding turned one image into 285 and its neighbour 286. Compare raw
+  values with a tolerance, and print the decimals in the failure.
+- **A `display: none` card has no box.** Comparing its zeros against four real
+  cards reports a row as broken when it is exactly as designed.
 
 Also check the data before blaming the code: "related products" is empty on a
 product with no same-type neighbour inside `RELATED_PRICE_SPREAD`, which is

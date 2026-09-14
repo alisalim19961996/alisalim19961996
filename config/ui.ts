@@ -9,11 +9,19 @@
  * `app/globals.css` under `@theme`.
  */
 
-/** Products per catalogue page. Four full rows of the 4-column desktop grid. */
-export const PRODUCTS_PER_PAGE = 24;
+/** Products per catalogue page. Five full rows of the 5-column desktop grid. */
+export const PRODUCTS_PER_PAGE = 25;
 
-/** Products in a homepage rail. One row at every breakpoint. */
-export const RAIL_SIZE = 4;
+/**
+ * Products in a homepage rail. One row at every breakpoint.
+ *
+ * Five, not four, because the desktop grid is five columns wide — at 1280px
+ * four columns made each card 292px across and, with the 4:5 image frame,
+ * 502px tall: half the viewport for one product. Below `xl` there are four
+ * columns and the fifth card is hidden, so every breakpoint still ends on a
+ * full row rather than a lonely card.
+ */
+export const RAIL_SIZE = 5;
 
 /** Related products under a product page. */
 export const RELATED_SIZE = 4;

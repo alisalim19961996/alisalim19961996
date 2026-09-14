@@ -26,7 +26,7 @@ export default function ProductsLoading() {
           ))}
         </div>
 
-        <ul className="grid min-w-0 flex-1 grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid min-w-0 flex-1 grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 8 }, (_, index) => (
             <li key={index} className="space-y-3">
               <Skeleton className="aspect-product w-full" />

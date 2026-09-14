@@ -109,12 +109,19 @@ export async function ProductCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <span className="text-[11px] font-medium tracking-wide text-subtle uppercase">
+      {/*
+        Tight on purpose. At five columns a card is 230px across, so an Arabic
+        product name wraps to two lines and the text block was taller than it
+        needed to be — 184px of a 469px card. The clamps and the smaller
+        spacing keep every card the same height whatever the name's length,
+        which is the property the grid depends on.
+      */}
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <span className="text-[10px] font-medium tracking-wide text-subtle uppercase">
           {brandName}
         </span>
 
-        <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-ink">
+        <h3 className="line-clamp-2 text-sm leading-tight font-semibold text-ink">
           {name}
         </h3>
 
@@ -125,7 +132,7 @@ export async function ProductCard({
             priceIqd={cheapest.priceIqd}
             comparePriceIqd={cheapest.comparePriceIqd}
             size="sm"
-            className="mt-auto pt-1"
+            className="mt-auto pt-1.5"
           />
         )}
       </div>

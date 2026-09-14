@@ -12,6 +12,7 @@ import {
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/features/product/components/product-card';
+import { cn } from '@/lib/utils';
 import { getBrands, getProductRail, getProductTypes } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
 import { RAIL_SIZE } from '@/config/ui';
@@ -227,9 +228,22 @@ async function ProductRail({
         </Link>
       </div>
 
-      <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-5">
         {products.map((product, index) => (
-          <li key={product.id} className="flex">
+          <li
+            key={product.id}
+            /*
+              `cn()`, not a template literal: `hidden` and `flex` are both
+              display utilities, so a plain string leaves CSS source order to
+              decide which wins — the mistake that once left thirteen controls
+              in the phone header.
+
+              The fifth card exists only where there is a fifth column. Below
+              `xl` the grid is four wide, so showing it would leave one card
+              alone on a second row.
+            */
+            className={cn('flex', index >= 4 && 'hidden xl:flex')}
+          >
             <ProductCard product={product} priority={priority && index < 2} />
           </li>
         ))}
