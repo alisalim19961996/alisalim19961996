@@ -733,22 +733,23 @@ review, performance pass, e2e tests (Phase 6).
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                            | Plan                                                |
-| -------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- |
-| No e2e tests                                       | Filter/variant behaviour verified manually        | Playwright in Phase 6                               |
-| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured    | Fold into the Playwright suite in Phase 6           |
-| No cache layer                                     | Catalogue runs 2 queries per visit                | `unstable_cache` + tags when the catalogue grows    |
-| Uploaded images are never deleted from storage     | An image removed from a product leaves its object | Sweep by prefix when a product is deleted           |
-| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`   | `next/image` optimises on the fly; revisit at scale |
-| Coupons are schema-only                            | `discountIqd` is always 0                         | Phase 5; `orderTotals` already takes a discount     |
-| Brands, categories and product types are seed-only | A new brand still needs Studio                    | Phase 5.3                                           |
-| No sign-up or account pages                        | Customers order as guests; staff are seeded       | Phase 5                                             |
-| Staff roles are set in the database                | No user management screen                         | Phase 5                                             |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                     | Split to JSON if it grows                           |
-| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404  | Built in Phases 4–5                                 |
-| No mail provider                                   | Password reset cannot send                        | `MailProvider` abstraction before launch            |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                     | Consider sticky panel                               |
-| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                      | Keep                                                |
+| Item                                               | Impact                                                                                 | Plan                                                                                          |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| No e2e tests                                       | Filter/variant behaviour verified manually                                             | Playwright in Phase 6                                                                         |
+| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured                                         | Fold into the Playwright suite in Phase 6                                                     |
+| No cache layer                                     | Catalogue runs 2 queries per visit                                                     | `unstable_cache` + tags when the catalogue grows                                              |
+| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                      | Sweep by prefix when a product is deleted                                                     |
+| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                        | `next/image` optimises on the fly; revisit at scale                                           |
+| Coupons are schema-only                            | `discountIqd` is always 0                                                              | Phase 5; `orderTotals` already takes a discount                                               |
+| Brands, categories and product types are seed-only | A new brand still needs Studio                                                         | Phase 5.3                                                                                     |
+| No sign-up or account pages                        | Customers order as guests; staff are seeded                                            | Phase 5                                                                                       |
+| Staff roles are set in the database                | No user management screen                                                              | Phase 5                                                                                       |
+| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit with account pages (Phase 5.4) and before any deployment |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                          | Split to JSON if it grows                                                                     |
+| Header/footer link to unbuilt routes               | `/brands`, `/offers`, `/guides`, `/account`… 404                                       | Built in Phases 4–5                                                                           |
+| No mail provider                                   | Password reset cannot send                                                             | `MailProvider` abstraction before launch                                                      |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                                                          | Consider sticky panel                                                                         |
+| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                           | Keep                                                                                          |
 
 **Zero `any`. Zero type suppressions.**
 
