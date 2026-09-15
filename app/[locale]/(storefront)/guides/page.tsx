@@ -7,6 +7,7 @@ import { priceBands } from '@/lib/domain/price-bands';
 import { buildAlternates } from '@/lib/seo';
 import { getBrands, getProductTypes } from '@/server/queries/catalogue';
 import { getPriceRange } from '@/server/queries/site';
+import { getGuides } from '@/server/queries/blog';
 import type { Locale } from '@/i18n/routing';
 
 export async function generateMetadata({
@@ -24,14 +25,21 @@ export async function generateMetadata({
 }
 
 /**
- * How to choose — built entirely from what the shop actually sells.
+ * How to choose: the owner's articles, then the shop's own data.
  *
- * Deliberately not articles. A guides page backed by a blog table nobody can
- * write into is a permanently empty page, and buying advice written here would
- * be a commercial claim living in code (§13.12, §13.13). Every entry point
- * below is a real product type, a real brand, or a budget bracket computed
- * from the real minimum and maximum price, and each one lands on the catalogue
- * where the filtering already works.
+ * The articles came second, and the order of this page records why. For a long
+ * time there were none — `BlogPost` sat in the schema with no screen to write
+ * into it, and a guides page backed by an empty table is a permanently empty
+ * page. So it was built from live data instead: every entry point below is a
+ * real product type, a real brand, or a budget bracket computed from the real
+ * minimum and maximum price, and each lands on the catalogue where the
+ * filtering already works.
+ *
+ * Now that the owner can write (`/admin/blog`), the articles go **above** that
+ * — and the entry points stay. With no articles published this page is exactly
+ * what it was, which is the property worth keeping: nothing here can render
+ * empty, and no buying advice is written in code where the owner cannot
+ * correct it (§13.12, §13.13).
  */
 export default async function GuidesPage({
   params,
@@ -42,10 +50,11 @@ export default async function GuidesPage({
   setRequestLocale(locale);
 
   const t = await getTranslations('guides');
-  const [types, brands, range] = await Promise.all([
+  const [types, brands, range, articles] = await Promise.all([
     getProductTypes(),
     getBrands(),
     getPriceRange(),
+    getGuides(locale),
   ]);
 
   const isAr = locale === 'ar';
@@ -59,6 +68,30 @@ export default async function GuidesPage({
       </p>
 
       <div className="mt-10 space-y-10">
+        {articles.length > 0 && (
+          <section>
+            <h2 className="text-lg font-semibold text-ink">{t('articles')}</h2>
+            <p className="mt-1 text-sm text-muted">{t('articlesHint')}</p>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {articles.map((article) => (
+                <li key={article.slug} className="flex">
+                  <Link
+                    href={`/guides/${article.slug}`}
+                    className="flex w-full flex-col rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                  >
+                    <span className="font-semibold text-ink">{article.title}</span>
+                    {article.excerpt && (
+                      <span className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">
+                        {article.excerpt}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {types.length > 0 && (
           <Section title={t('byType')} hint={t('byTypeHint')}>
             {types.map((type) => (

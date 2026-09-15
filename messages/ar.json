@@ -662,7 +662,27 @@
     "noChange": "ما تغيّر شي.",
     "previous": "السابق",
     "next": "التالي",
-    "pagination": "التنقل بين الصفحات"
+    "pagination": "التنقل بين الصفحات",
+    "guides": "أدلة الشراء",
+    "guidesHint": "مقالات تساعد الزبون يختار. تظهر بصفحة \"دليل الشراء\" فوق المداخل الجاهزة.",
+    "newGuide": "دليل جديد",
+    "editGuide": "تعديل الدليل",
+    "noGuides": "ماكو أدلة بعد.",
+    "guideTitleAr": "العنوان (عربي)",
+    "guideTitleEn": "العنوان (إنكليزي)",
+    "guideSlugHint": "يظهر بالرابط. ما ينتغير بعد النشر — الروابط القديمة تنكسر.",
+    "guideAuthor": "اسم الكاتب",
+    "guideAuthorHint": "اختياري. يظهر تحت عنوان المقال.",
+    "guideBody": "نص المقال",
+    "guideBodyHint": "سطر يبدي بـ ## يصير عنوان فرعي، وسطر يبدي بـ - يصير نقطة. أي شي غيره فقرة. ماكو HTML — اللي تكتبه ينعرض نص.",
+    "guideBodyAr": "النص (عربي)",
+    "guideBodyEn": "النص (إنكليزي)",
+    "guideExcerptAr": "مقتطف (عربي)",
+    "guideExcerptEn": "مقتطف (إنكليزي)",
+    "guideExcerptHint": "اختياري. إذا تركته فاضي ناخذ أول فقرة.",
+    "guidePublishHint": "المقال ما يظهر للزبون إلا إذا كان منشور وتاريخه وصل.",
+    "guidePublishedAt": "تاريخ النشر",
+    "guidePublishedAtHint": "اتركه فاضي حتى ينشر هسه. تاريخ بالمستقبل يخليه مخفي لحد ما يوصل."
   },
   "brands": {
     "title": "البراندات",
@@ -689,7 +709,9 @@
     "bandUnder": "أقل من {max}",
     "bandBetween": "بين {min} و {max}",
     "bandFrom": "{min} وفوك",
-    "productCount": "{count, plural, =0 {ماكو منتجات} one {منتج واحد} two {منتجين} few {# منتجات} other {# منتج}}"
+    "productCount": "{count, plural, =0 {ماكو منتجات} one {منتج واحد} two {منتجين} few {# منتجات} other {# منتج}}",
+    "articles": "مقالات",
+    "articlesHint": "نصائح مكتوبة من المتجر."
   },
   "about": {
     "title": "عن {store}",

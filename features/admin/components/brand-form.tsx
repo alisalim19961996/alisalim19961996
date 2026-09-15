@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Checkbox, Field, FormSection, TextArea } from './form-fields';
-import { TaxonomyForm } from './taxonomy-form';
+import { AdminRecordForm } from './record-form';
 import { saveBrandAction, deleteBrandAction } from '../actions';
 import { slugify } from '@/lib/domain/product';
 import { ACCENT_COLOR_EXAMPLE, EMPTY_ACCENT_INPUT } from '@/lib/domain/taxonomy';
@@ -72,7 +72,7 @@ export function BrandForm({
     setState((previous) => ({ ...previous, [key]: value }));
 
   return (
-    <TaxonomyForm
+    <AdminRecordForm
       title={brand ? t('editBrand') : t('newBrand')}
       id={brand?.id}
       name={state.nameAr || state.nameEn}
@@ -187,6 +187,6 @@ export function BrandForm({
           onChange={(event) => set('isActive', event.target.checked)}
         />
       </FormSection>
-    </TaxonomyForm>
+    </AdminRecordForm>
   );
 }

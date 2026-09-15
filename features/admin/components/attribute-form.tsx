@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Field, FormSection, Select } from './form-fields';
 import { RepeatableRow } from './form-fields';
-import { TaxonomyForm } from './taxonomy-form';
+import { AdminRecordForm } from './record-form';
 import { saveAttributeAction, deleteAttributeAction } from '../actions';
 import { keyify } from '@/lib/domain/taxonomy';
 import { ATTRIBUTE_TYPE_VALUES } from '@/lib/domain/taxonomy';
@@ -102,7 +102,7 @@ export function AttributeForm({
   const isEnum = state.type === 'ENUM';
 
   return (
-    <TaxonomyForm
+    <AdminRecordForm
       title={attribute ? t('editAttribute') : t('newAttribute')}
       id={attribute?.id}
       name={state.labelAr || state.labelEn}
@@ -279,6 +279,6 @@ export function AttributeForm({
           onChange={(event) => set('isComparable', event.target.checked)}
         />
       </FormSection>
-    </TaxonomyForm>
+    </AdminRecordForm>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Checkbox, Field, FormSection } from './form-fields';
-import { TaxonomyForm } from './taxonomy-form';
+import { AdminRecordForm } from './record-form';
 import { saveProductTypeAction, deleteProductTypeAction } from '../actions';
 import { keyify } from '@/lib/domain/taxonomy';
 import { cn } from '@/lib/utils';
@@ -103,7 +103,7 @@ export function ProductTypeForm({
     locale === 'ar' ? attribute.labelAr : attribute.labelEn;
 
   return (
-    <TaxonomyForm
+    <AdminRecordForm
       title={productType ? t('editProductType') : t('newProductType')}
       id={productType?.id}
       name={state.nameAr || state.nameEn}
@@ -285,6 +285,6 @@ export function ProductTypeForm({
           onChange={(event) => set('isActive', event.target.checked)}
         />
       </FormSection>
-    </TaxonomyForm>
+    </AdminRecordForm>
   );
 }

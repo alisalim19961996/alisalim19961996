@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Checkbox, Field, FormSection, Select, TextArea } from './form-fields';
-import { TaxonomyForm } from './taxonomy-form';
+import { AdminRecordForm } from './record-form';
 import { saveCategoryAction, deleteCategoryAction } from '../actions';
 import { slugify } from '@/lib/domain/product';
 import { descendantIds, flattenTree } from '@/lib/domain/taxonomy';
@@ -102,7 +102,7 @@ export function CategoryForm({
         : undefined;
 
   return (
-    <TaxonomyForm
+    <AdminRecordForm
       title={category ? t('editCategory') : t('newCategory')}
       id={category?.id}
       name={state.nameAr || state.nameEn}
@@ -192,6 +192,6 @@ export function CategoryForm({
           onChange={(event) => set('isActive', event.target.checked)}
         />
       </FormSection>
-    </TaxonomyForm>
+    </AdminRecordForm>
   );
 }

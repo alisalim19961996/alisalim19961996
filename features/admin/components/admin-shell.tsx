@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Boxes,
   FolderTree,
   LayoutDashboard,
@@ -37,6 +38,7 @@ export interface AdminLabels {
   settings: string;
   delivery: string;
   viewStore: string;
+  guides: string;
   signOut: string;
   menu: string;
 }
@@ -57,6 +59,7 @@ const NAV = [
   { href: '/admin/categories', labelKey: 'categories', icon: FolderTree },
   { href: '/admin/product-types', labelKey: 'productTypes', icon: Shapes },
   { href: '/admin/attributes', labelKey: 'attributes', icon: SlidersHorizontal },
+  { href: '/admin/blog', labelKey: 'guides', icon: BookOpen },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
   { href: '/admin/users', labelKey: 'users', icon: Users },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },

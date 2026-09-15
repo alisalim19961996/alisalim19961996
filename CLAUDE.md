@@ -96,8 +96,9 @@ Arabic guides for the owner live in `docs/`: `run-locally-ar.md`,
 `database-setup-ar.md`, `vscode-setup-ar.md`, and **`extending-ar.md`** —
 step-by-step recipes answering "I want to change X, where do I start?"
 (text, colours, nav links, a new page, a new specification, a whole new
-product type, brands, UI numbers, delivery fees, the line-quantity cap, what
-the order path forbids, why the header must stay static, schema changes), plus
+product type, brands, **writing a buying guide**, UI numbers, delivery fees, the
+line-quantity cap, what the order path forbids, why the header must stay
+static, schema changes), plus
 the list of what the guardrails refuse. Every recipe names the exact file and how
 to confirm the change landed.
 
@@ -345,7 +346,8 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                           |
 | `/[locale]/brands`                         | SSG          | Every brand, with product counts, linking into the catalogue             |
 | `/[locale]/offers`                         | Dynamic      | Everything discounted — the catalogue query with `onOfferOnly`           |
-| `/[locale]/guides`                         | SSG          | Buying entry points built from real types, brands and price bands        |
+| `/[locale]/guides`                         | SSG          | The owner's articles, then entry points built from real types and brands |
+| `/[locale]/guides/[slug]`                  | SSG per slug | One buying guide                                                         |
 | `/[locale]/about`                          | SSG          | What the shop is and how buying works                                    |
 | `/[locale]/contact`                        | SSG          | Channels from `SiteSetting`; says so plainly when none are set           |
 | `/[locale]/track`                          | SSG          | Public tracking form (number + phone)                                    |
@@ -363,6 +365,9 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/categories`               | Dynamic      | Category tree; a category cannot descend from itself                     |
 | `/[locale]/admin/product-types`            | Dynamic      | Product types, and which specifications each one asks for                |
 | `/[locale]/admin/attributes`               | Dynamic      | Specification definitions; the value type locks once values exist        |
+| `/[locale]/admin/blog`                     | Dynamic      | Buying guides: published/draft tabs, publish toggle                      |
+| `/[locale]/admin/blog/new`                 | Dynamic      | Write a guide                                                            |
+| `/[locale]/admin/blog/[id]`                | Dynamic      | Edit a guide; delete is a real delete — nothing points at an article     |
 | `/[locale]/admin/users`                    | Dynamic      | Roles and access (ADMIN only); no password is ever typed here            |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
@@ -482,9 +487,13 @@ sold product renders as a disabled marker carrying the reason rather than an
 absent control, so a row that cannot be deleted does not read as a missing
 feature — the service refuses it again regardless), `AdminShell` (plain by design —
 density beats atmosphere for someone processing forty orders a day),
-`TaxonomyForm` (the frame all four taxonomy forms sit in — submit, save state,
-translated errors, and a delete control that shows the reason it is refused
-rather than going missing), `BrandForm` / `CategoryForm` / `ProductTypeForm` /
+`AdminRecordForm` (the frame all five single-record forms sit in — submit,
+save state, translated errors, and a delete control that shows the reason it is
+refused rather than going missing; it was `TaxonomyForm` until the guide editor
+joined, and the name moved rather than the meaning quietly widening underneath
+it), `BlogPostForm` + `BlogPublishToggle` (write a buying guide; delete here is
+a real delete, because nothing points at an article),
+`BrandForm` / `CategoryForm` / `ProductTypeForm` /
 `AttributeForm` (the category parent picker never offers a category's own
 descendants, and the product-type form is where a new type's specifications are
 chosen — see §12),
@@ -583,7 +592,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **690 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **712 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -767,12 +776,16 @@ in code that belongs to the owner.**
   and a brand added from the dashboard appears with no further work. "On offer"
   needs no judgement: a `comparePriceIqd` may only exist when it is strictly
   greater than the price, which a CHECK constraint enforces.
-- `/guides` is deliberately **not** articles. A guides page backed by a blog
-  table nobody can write into is permanently empty, and buying advice written
-  here would be a commercial claim living in code. Its entry points are real
-  product types, real brands, and budget bands computed from the real minimum
-  and maximum price by `lib/domain/price-bands.ts` — so they cannot describe a
-  shop that does not exist, and they move when the catalogue does.
+- `/guides` is **articles first, then the shop's own data** — and the order
+  records the history. There were no articles for a long time: `BlogPost` sat
+  in the schema with no screen to write into it, and a guides page backed by an
+  empty table is a permanently empty page. So it was built from live data —
+  real product types, real brands, and budget bands computed from the real
+  minimum and maximum price by `lib/domain/price-bands.ts`. Now the owner can
+  write (`/admin/blog`), the articles go above that, **and the entry points
+  stay**: with nothing published the page is exactly what it was. Nothing on it
+  can render empty, and no buying advice lives in code where the owner cannot
+  correct it (§13.12, §13.13).
 - `/contact` reads `server/queries/site.ts`, a **public** read that names its
   columns, separate from the `requireAdmin()` one in `admin-settings.ts`. Every
   channel is optional because the row genuinely starts empty: a `tel:` link to
@@ -782,6 +795,33 @@ in code that belongs to the owner.**
   delivery, delivery to every governorate, prices in dinars. No claim about
   experience, volume or reputation (§13.12). The governorate count is read from
   the enum, so it cannot drift from what checkout offers.
+
+**Writing the guides** — `server/services/admin-blog.ts` and
+`server/queries/blog.ts`, with the format in `lib/domain/blog.ts`.
+
+- **The body is parsed into blocks, never into HTML.** `## ` opens a
+  subheading, `- ` a bullet, anything else is a paragraph, and the result is
+  rendered as React elements. A Markdown library would be a dependency to pin,
+  an XSS surface to argue about and a third thing for the CSP to accommodate —
+  for a page whose whole requirement is headings, paragraphs and bullets. What
+  the owner types is text **by construction**: there is no code path from the
+  parser to markup, so a pasted `<script>` is a sentence.
+- **Two columns decide whether an article is live**, and both are checked in
+  SQL: `isPublished` is the owner's decision, `publishedAt` is when it takes
+  effect. A guide dated next Friday is published and still hidden, which is
+  what lets three be written on a Sunday and let out one at a time.
+- **The public read cannot return a draft**, because it has no parameter that
+  could ask for one. `server/queries/blog.ts` is a separate module from
+  `admin-blog.ts` rather than a shared function with an `includeDrafts` flag —
+  a flag is one wrong argument away from putting an unfinished article on the
+  shop floor. Nine integration tests say so against a real database.
+- **One slug in both locale columns**, exactly as products do it, so
+  `/ar/guides/<slug>` and `/en/guides/<slug>` are the same URL and hreflang has
+  something to pair.
+- **Delete is a real delete.** Nothing points at a `BlogPost` — no order, no
+  cart, no product — so the "deactivate, never remove" rule that governs the
+  catalogue has nothing to protect here. That is the only way this service
+  differs in shape from `admin-taxonomy.ts`.
 
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
@@ -995,6 +1035,16 @@ Two e2e tests hold the line — a byte budget and an explicit "no validation
 library in the browser" — and both were proved by putting the import back and
 watching them report 1048 kB again.
 
+**Phase 5.5 — the buying guides the owner asked for**: `BlogPost` had been in
+the schema since Phase 1 with no screen to write into it, which is exactly why
+`/guides` was built from live data instead. The editor is now at `/admin/blog`
+— write, publish, schedule, delete — and the articles appear above the entry
+points, which stay. With nothing published the page is unchanged, so it could
+ship before a single guide was written. Verified by driving the built site:
+signing in, writing a guide in both languages, publishing it, and finding it on
+`/ar/guides`, at `/ar/guides/<slug>` and at `/en/guides/<slug>` with its
+headings and bullets intact.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -1002,7 +1052,7 @@ watching them report 1048 kB again.
   `isDemo` and badged in the UI. The owner will supply real photography; the
   pipeline is ready for it.
 - **Offers / coupons** — schema and constraints exist, no UI or service.
-- **Reviews, wishlist, blog, banners, FAQ, homepage CMS** — schema only.
+- **Reviews, wishlist, banners, FAQ, homepage CMS** — schema only.
 
 ### Not started
 
@@ -1059,7 +1109,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **403 tests**: 369 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **417 tests**: 381 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1072,7 +1122,7 @@ both languages including an escaped hostile display name, and the four
 refusals that keep a store from losing its last reachable admin) plus 34
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **76 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **85 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1247,6 +1297,13 @@ against them before believing a failure:
   that way and reported a published product as missing from the shop. Wait for
   a heading **inside `main`**; `gotoRendered()` in `tests/e2e/fixtures.ts` is
   the one place that does it.
+- **A status tab and a status badge carry the same word.** The products list
+  has tabs labelled "منشور" and "مسودة" above a table whose rows carry badges
+  saying the same, so `getByText(draft).first()` matched the **tab** and passed
+  the instant the page loaded — before the row had flipped. The storefront was
+  then read too early and the test failed about one run in ten, blaming the
+  shop. Scope a status assertion to the row (`tbody tr` filtered by the name,
+  last cell), and poll anything that depends on the server having caught up.
 - **A `next start` you did not just start is serving the previous build.** It
   has been mistaken here for a code bug more than once: the fix was already
   applied, the page still showed the old behaviour, and the hunt went into the
@@ -1459,17 +1516,14 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. **Buying guides as real articles** — the owner asked for this explicitly and
-   it is _not_ what `/guides` is today. That page is entry points built from
-   live data (types, brands, price bands) and deliberately holds no prose,
-   because `BlogPost` exists in the schema with **no screen to write into it**
-   and a page backed by an empty table stays empty (§12). Coming back to it
-   means building that editor first: a `BlogPost` admin in the same shape as
-   `admin-taxonomy.ts`, then a guides index and article page that read it.
-   Until then the entry points are the honest version, not a placeholder.
-2. Offers and coupons: `orderTotals` already takes a discount and the schema
+1. Offers and coupons: `orderTotals` already takes a discount and the schema
    and constraints exist; nothing computes one yet.
-3. Wishlist, compare, reviews.
+2. Wishlist, compare, reviews.
+
+**Phase 5.5 — buying guides** (§14) closed the item that had been first on this
+list since Phase 2: the owner writes articles at `/admin/blog` and they appear
+on `/guides` above the live-data entry points, which stay so the page can never
+render empty.
 
 **The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
 caps build workers and the pool together, after `pnpm build` died against

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { getAllProductSlugs } from '@/server/queries/product';
 import { getBrands } from '@/server/queries/catalogue';
+import { getGuideSlugs } from '@/server/queries/blog';
 import { publicEnv } from '@/config/env';
 import { routing } from '@/i18n/routing';
 
@@ -17,7 +18,11 @@ import { routing } from '@/i18n/routing';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = publicEnv.NEXT_PUBLIC_APP_URL;
 
-  const [products, brands] = await Promise.all([getAllProductSlugs(), getBrands()]);
+  const [products, brands, guides] = await Promise.all([
+    getAllProductSlugs(),
+    getBrands(),
+    getGuideSlugs(),
+  ]);
 
   const alternates = (path: string) => ({
     languages: Object.fromEntries(
@@ -51,6 +56,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // private: "track my order" is a thing people search for by name.
     ...entry('/track', 0.4, 'monthly'),
     ...brands.flatMap((brand) => entry(`/products?brand=${brand.slug}`, 0.5, 'weekly')),
+    // Only live articles: `getGuideSlugs` cannot return a draft or one dated
+    // next Friday, so a half-written guide is never handed to a crawler.
+    ...guides.flatMap((slug) => entry(`/guides/${slug}`, 0.6, 'monthly')),
     ...products.flatMap((product) =>
       entry(`/products/${product.slugEn}`, 0.8, 'weekly', product.updatedAt),
     ),

@@ -45,15 +45,29 @@ test('unpublishing takes the product off the shop floor, and publishing puts it 
     'the product was not on the shop floor to begin with',
   ).toBeGreaterThan(0);
 
+  /*
+    Scoped to the row, not the page — and that is not fussiness. The status
+    tabs above the table are also labelled "منشور" and "مسودة", so
+    `getByText(draft).first()` matched the TAB and passed the instant the page
+    loaded, before the row had flipped. The storefront was then read too early
+    and the test failed about one run in ten, blaming the shop.
+  */
+  const statusCell = (title: string) =>
+    page.locator('tbody tr').filter({ hasText: title }).first().locator('td').last();
+
   try {
     await gotoRendered(page, `/ar/admin/products?q=${encodeURIComponent(name)}`);
     await page
       .getByRole('button', { name: t('admin.unpublish') })
       .first()
       .click();
-    await expect(page.getByText(t('admin.draft')).first()).toBeVisible();
+    await expect(statusCell(name)).toContainText(t('admin.draft'));
 
-    expect(await storefrontHits(), 'a draft product is still being sold').toBe(0);
+    // Polled: the assertion is "it stops being sold", and reading the
+    // storefront once is a race with however long the server takes to say so.
+    await expect
+      .poll(storefrontHits, { message: 'a draft product is still being sold' })
+      .toBe(0);
   } finally {
     /*
       Restored here rather than in an afterAll, and that distinction is not
@@ -67,13 +81,12 @@ test('unpublishing takes the product off the shop floor, and publishing puts it 
       .getByRole('button', { name: t('admin.publish'), exact: true })
       .first()
       .click();
-    await expect(page.getByText(t('admin.published')).first()).toBeVisible();
+    await expect(statusCell(name)).toContainText(t('admin.published'));
   }
 
-  expect(
-    await storefrontHits(),
-    'republishing did not put the product back',
-  ).toBeGreaterThan(0);
+  await expect
+    .poll(storefrontHits, { message: 'republishing did not put the product back' })
+    .toBeGreaterThan(0);
 });
 
 test('the specification fields come from the product type, not from the code', async ({

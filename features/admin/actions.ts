@@ -20,6 +20,12 @@ import {
   UserAdminError,
 } from '@/server/services/admin-users';
 import {
+  BlogError,
+  deleteBlogPost,
+  saveBlogPost,
+  setBlogPostPublished,
+} from '@/server/services/admin-blog';
+import {
   deleteAttribute,
   deleteBrand,
   deleteCategory,
@@ -36,6 +42,7 @@ import {
   siteSettingsSchema,
 } from '@/schemas/admin';
 import { productFormSchema } from '@/schemas/product';
+import { blogPostFormSchema } from '@/schemas/blog';
 import { userActiveSchema, userRoleSchema } from '@/schemas/admin';
 import {
   attributeFormSchema,
@@ -105,6 +112,9 @@ function toResult(error: unknown): AdminActionResult {
   }
   if (error instanceof UserAdminError) {
     return { ok: false, errorKey: error.code };
+  }
+  if (error instanceof BlogError) {
+    return { ok: false, errorKey: error.code, field: error.field };
   }
   if (error instanceof UnauthenticatedError || error instanceof ForbiddenError) {
     return { ok: false, errorKey: 'notAllowed' };
@@ -450,5 +460,67 @@ export async function setUserActiveAction(input: {
   }
 
   revalidatePath('/admin/users', 'page');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Buying guides
+// ---------------------------------------------------------------------------
+
+/**
+ * A guide changes two public pages: the index that lists it and the article
+ * itself. Neither is in `revalidateStorefront()` — that one exists for the
+ * catalogue, and adding paths to it that only the blog cares about would make
+ * every brand save re-render pages it cannot have affected.
+ */
+function revalidateGuides(): void {
+  revalidatePath('/[locale]/guides', 'page');
+  revalidatePath('/[locale]/guides/[slug]', 'page');
+  revalidatePath('/sitemap.xml');
+}
+
+export async function saveBlogPostAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = blogPostFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveBlogPost(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/blog', 'page');
+  revalidateGuides();
+  return { ok: true, id: result.id };
+}
+
+export async function setBlogPostPublishedAction(input: {
+  id: string;
+  isPublished: boolean;
+}): Promise<AdminActionResult> {
+  try {
+    await setBlogPostPublished(input.id, input.isPublished);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/blog', 'page');
+  revalidateGuides();
+  return { ok: true };
+}
+
+export async function deleteBlogPostAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteBlogPost(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/blog', 'page');
+  revalidateGuides();
   return { ok: true };
 }

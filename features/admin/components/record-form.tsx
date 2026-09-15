@@ -8,18 +8,24 @@ import { Button } from '@/components/ui/button';
 import type { AdminActionResult } from '../actions';
 
 /**
- * The frame every taxonomy form sits in: submit, save state, errors, delete.
+ * The frame every single-record admin form sits in: submit, save state,
+ * errors, delete.
  *
- * Four forms — brand, category, product type, attribute — all save the same
- * way and fail the same way, and writing that four times is how one of them
- * ends up swallowing an error or leaving the button spinning. The forms
- * supply their fields and their values; this owns everything around them.
+ * Five forms — brand, category, product type, attribute, buying guide — all
+ * save the same way and fail the same way, and writing that five times is how
+ * one of them ends up swallowing an error or leaving the button spinning. The
+ * forms supply their fields and their values; this owns everything around
+ * them.
+ *
+ * It was called `TaxonomyForm` while the four it framed were all taxonomy. The
+ * guide editor is not, so the name moved rather than the meaning quietly
+ * widening underneath it.
  *
  * `errorKey` rather than a sentence, always: the message is looked up in
  * `messages/*.json` so the owner reads it in their own language (§11).
  */
 
-export interface TaxonomyFormProps {
+export interface AdminRecordFormProps {
   title: string;
   /** Absent when creating. Present enables the delete control. */
   id?: string;
@@ -29,7 +35,8 @@ export interface TaxonomyFormProps {
     | '/admin/brands'
     | '/admin/categories'
     | '/admin/product-types'
-    | '/admin/attributes';
+    | '/admin/attributes'
+    | '/admin/blog';
   save: () => Promise<AdminActionResult>;
   remove?: () => Promise<AdminActionResult>;
   /** Shown instead of the delete button when the row cannot be removed. */
@@ -37,7 +44,7 @@ export interface TaxonomyFormProps {
   children: ReactNode;
 }
 
-export function TaxonomyForm({
+export function AdminRecordForm({
   title,
   id,
   name,
@@ -46,7 +53,7 @@ export function TaxonomyForm({
   remove,
   deleteBlockedReason,
   children,
-}: TaxonomyFormProps) {
+}: AdminRecordFormProps) {
   const t = useTranslations('admin');
   const router = useRouter();
   const [pending, startTransition] = useTransition();

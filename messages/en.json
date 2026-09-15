@@ -662,7 +662,27 @@
     "noChange": "Nothing changed.",
     "previous": "Previous",
     "next": "Next",
-    "pagination": "Pagination"
+    "pagination": "Pagination",
+    "guides": "Buying guides",
+    "guidesHint": "Articles that help a customer choose. They appear on the guides page above the ready-made entry points.",
+    "newGuide": "New guide",
+    "editGuide": "Edit guide",
+    "noGuides": "No guides yet.",
+    "guideTitleAr": "Title (Arabic)",
+    "guideTitleEn": "Title (English)",
+    "guideSlugHint": "Appears in the URL. Do not change it after publishing — old links break.",
+    "guideAuthor": "Author name",
+    "guideAuthorHint": "Optional. Shown under the article title.",
+    "guideBody": "Article body",
+    "guideBodyHint": "A line starting with ## becomes a subheading, a line starting with - becomes a bullet. Anything else is a paragraph. No HTML — what you type is shown as text.",
+    "guideBodyAr": "Body (Arabic)",
+    "guideBodyEn": "Body (English)",
+    "guideExcerptAr": "Excerpt (Arabic)",
+    "guideExcerptEn": "Excerpt (English)",
+    "guideExcerptHint": "Optional. Left empty, the first paragraph is used.",
+    "guidePublishHint": "An article is only visible once it is published and its date has arrived.",
+    "guidePublishedAt": "Published at",
+    "guidePublishedAtHint": "Leave empty to publish now. A future date keeps it hidden until then."
   },
   "brands": {
     "title": "Brands",
@@ -689,7 +709,9 @@
     "bandUnder": "Under {max}",
     "bandBetween": "{min} to {max}",
     "bandFrom": "{min} and above",
-    "productCount": "{count, plural, =0 {No products} one {1 product} other {# products}}"
+    "productCount": "{count, plural, =0 {No products} one {1 product} other {# products}}",
+    "articles": "Articles",
+    "articlesHint": "Advice written by the shop."
   },
   "about": {
     "title": "About {store}",
