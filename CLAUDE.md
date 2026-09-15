@@ -79,6 +79,9 @@ pnpm typecheck     # tsc --noEmit
 pnpm lint          # eslint
 pnpm test          # vitest run (unit)
 pnpm test:integration  # vitest against a real database (orders, concurrency)
+pnpm test:e2e      # Playwright against the BUILT site — run `pnpm build` first.
+                   # Buys something, fails to read someone else's order, drives
+                   # the dashboard. Needs a browser: npx playwright install chromium
 pnpm format        # prettier --write .
 pnpm db:deploy     # apply migrations (production)
 pnpm db:migrate    # create a migration (development)
@@ -898,6 +901,14 @@ specifications (one decimal with a unit, one enum with options), a new type,
 and a product form that then asked for exactly those two and swapped them for
 19 on switching to "phone".
 
+**Phase 6 (part) — the flows are no longer driven by hand**: a Playwright
+suite in `tests/e2e/` drives the built site — buy a phone and track it, fail to
+read somebody else's order, run the dashboard — plus the two layout claims that
+could regress silently. It runs in CI after the build. Every test was checked
+against a deliberate break before being believed: the cart's line total, the
+footer's reserved gap and the copy guardrail were each violated on purpose and
+the right test went red.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -910,30 +921,29 @@ and a product form that then asked for exactly those two and swapped them for
 ### Not started
 
 Wishlist, compare, reviews, recommendations, blog, analytics · security
-review, performance pass, e2e tests (Phase 6). The accessibility
+review, performance pass, cache layer (Phase 6). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
 
 ---
 
 ## 15. Known issues and technical debt
 
-| Item                                               | Impact                                                                                      | Plan                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| No e2e tests                                       | Filter/variant behaviour verified manually                                                  | Playwright in Phase 6                                       |
-| Buy-bar clearance still checked by hand            | Only the mobile bar's footer gap is unmeasured                                              | Fold into the Playwright suite in Phase 6                   |
-| No cache layer                                     | Catalogue runs 2 queries per visit                                                          | `unstable_cache` + tags when the catalogue grows            |
-| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                           | Sweep by prefix when a product is deleted                   |
-| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                             | `next/image` optimises on the fly; revisit at scale         |
-| Coupons are schema-only                            | `discountIqd` is always 0                                                                   | Phase 5; `orderTotals` already takes a discount             |
-| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                             | Rare enough to wait; the form offers the groups that exist  |
-| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                  | Phase 5.5                                                   |
-| Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                 | Deliberate — see §12                                        |
-| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one      | Owner deferred it knowingly; revisit before any deployment  |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                               | Split to JSON if it grows                                   |
-| No wishlist page                                   | The header links no wishlist rather than 404ing                                             | Phase 5.5                                                   |
-| Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                                                               | Consider sticky panel                                       |
-| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                | Keep                                                        |
+| Item                                               | Impact                                                                                                                                  | Plan                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| e2e covers the flows, not the filters              | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
+| No cache layer                                     | Catalogue runs 2 queries per visit                                                                                                      | `unstable_cache` + tags when the catalogue grows            |
+| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
+| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
+| Coupons are schema-only                            | `discountIqd` is always 0                                                                                                               | Phase 5; `orderTotals` already takes a discount             |
+| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
+| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                                                              | Phase 5.5                                                   |
+| Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
+| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
+| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
+| No wishlist page                                   | The header links no wishlist rather than 404ing                                                                                         | Phase 5.5                                                   |
+| Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
+| Product page spec column is tall vs. short content | Whitespace on sparse products                                                                                                           | Consider sticky panel                                       |
+| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                                                            | Keep                                                        |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -961,7 +971,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **348 tests**: 315 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **349 tests**: 315 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -971,7 +981,7 @@ against **both** LF and CRLF files, and the taxonomy rules — keys, a category
 tree that terminates on a cycle, and which field a unique violation names,
 hreflang alternates, the buying guide's price bands, and the reset email in
 both languages including an escaped hostile display name, and the four
-refusals that keep a store from losing its last reachable admin) plus 33
+refusals that keep a store from losing its last reachable admin) plus 34
 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **76 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
@@ -1005,6 +1015,38 @@ the dev database with **zero active admins**: exactly the state the feature
 under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
+
+`pnpm test:e2e` — **12 Playwright tests** in `tests/e2e/`, driving the BUILT
+site in a real browser: buying a phone and tracking it, an unavailable variant
+that cannot be added, a stranger who cannot open somebody else's order, a
+tracking form that answers identically for a wrong phone and a number that was
+never issued, a sign-out that takes `mps.recent_order` with it, unpublishing a
+product and watching it leave the shop floor, specification fields that change
+with the product type, a dashboard a signed-out visitor cannot reach, and the
+two layout claims below. Not in `pnpm check`: it needs a browser that has to be
+installed once (`npx playwright install chromium`), and `check` must keep
+working on a machine that has not. **CI runs it after `pnpm check`**, against
+the `.next` that step produced.
+
+Three rules hold it together, each paid for during the build:
+
+- **No Arabic copy is written in a test.** Every label comes from
+  `messages/ar.json` through `t()` in `tests/e2e/fixtures.ts` — a hard-coded
+  "أضف إلى السلة" would break on a rewording, which is not a defect, and would
+  keep passing if the page ever rendered a raw key, which is. A guardrail
+  enforces it; `fixtures.ts` is exempt because the address it submits at
+  checkout is the test's own input, not UI copy.
+- **A fresh server per run, never a reused one.** `reuseExistingServer` is
+  false, so a leftover `next start` is a port-in-use error instead of the
+  previous build quietly answering the tests — a trap listed with the others
+  further down.
+- **A test is not believed until it has failed on purpose.** The cart's
+  `lineTotalIqd` was broken to a unit price and the suite stayed green, which
+  is how the subtotal-only assertion was found to be blind — the line price is
+  computed separately from the summary. The test now reads both. The footer's
+  buy-bar reservation was removed and the clearance test reported a 21.25px
+  overlap. The copy guardrail was given an Arabic literal and named the file
+  and line.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/`, which is why that
@@ -1047,6 +1089,7 @@ not a false hit.
 | No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing           |
 | No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
 | No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error     |
+| No Arabic string literals in an e2e spec                   | A test asserting a second copy of the owner's own copy   |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -1062,8 +1105,13 @@ database. `pnpm install --frozen-lockfile` makes the lockfile a control rather
 than a suggestion, and the session secret is generated per run with
 `openssl rand`, never stored in the repository.
 
-Missing: e2e (Phase 6). `@playwright/test` is installed and Chromium is
-available at `/opt/pw-browsers/chromium`.
+CI then installs Chromium only — one project, so three browsers would triple
+the slowest step for nothing — and runs `pnpm test:e2e` against the build
+`pnpm check` just produced. `DEMO_ADMIN_PASSWORD` is generated per run and
+masked, the same treatment as the session secret, because the suite signs in as
+staff and the seed has to agree with it. On failure the HTML report is uploaded:
+a trace and a screenshot of the exact moment beat "a test went red on a machine
+you cannot see".
 
 **`pnpm check:layout`** measures the §10 claims against a running site: every
 product card in a row identical in width and image height, and zero horizontal
@@ -1100,6 +1148,27 @@ against them before believing a failure:
   values with a tolerance, and print the decimals in the failure.
 - **A `display: none` card has no box.** Comparing its zeros against four real
   cards reports a row as broken when it is exactly as designed.
+- **"A heading is visible" is not "the page is rendered."** The layout renders
+  outside the Suspense boundary, and the footer's section headings are on
+  screen while `main` still holds the skeleton from `products/loading.tsx` —
+  which has no heading of its own. A catalogue search counted zero products
+  that way and reported a published product as missing from the shop. Wait for
+  a heading **inside `main`**; `gotoRendered()` in `tests/e2e/fixtures.ts` is
+  the one place that does it.
+- **A `next start` you did not just start is serving the previous build.** It
+  has been mistaken here for a code bug more than once: the fix was already
+  applied, the page still showed the old behaviour, and the hunt went into the
+  source. Kill it by PID and check the process is younger than the build before
+  measuring anything. `playwright.config.ts` sets `reuseExistingServer: false`
+  so the suite refuses rather than inheriting one.
+
+**`pnpm check:layout` and the e2e layout spec do not overlap.** `check:layout`
+is the interactive tool: it measures card widths and image heights against a
+dev server the owner already has open, and it is the one that caught the real
+bug. The spec in `tests/e2e/layout.spec.ts` takes the two claims that can
+regress with nobody looking — the buy bar's clearance above the footer, which
+§15 listed as unmeasured from the day it was built, and zero horizontal
+overflow — and puts them in CI, where no running dev server is available.
 
 Also check the data before blaming the code: "related products" is empty on a
 product with no same-type neighbour inside `RELATED_PRICE_SPREAD`, which is
@@ -1290,7 +1359,10 @@ distinguishes a bad key from an unverified sender domain. **This is also what
 unlocks `requireEmailVerification`**, and with it the safe half of account
 linking (§7) for addresses that already have a password here.
 
-**Phase 6 — QA:** Playwright e2e (the flows currently driven by hand),
+**Phase 6 — QA:** the Playwright suite is in (`tests/e2e/`, run by CI after
+the build), so the flows that used to be driven by hand before each phase are
+driven by a machine instead — including the footer's clearance under the mobile
+buy bar, which §15 had listed as unmeasured since it was built. Remaining:
 security review, performance pass and a cache layer.
 
 **An accessibility pass has been done once**, by reading the DOM of the built

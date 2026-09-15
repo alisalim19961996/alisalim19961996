@@ -61,6 +61,16 @@ jobs:
         # of one CI run against a throwaway database and is never reused.
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
 
+      - name: Generate the demo admin password for this run
+        # The e2e suite signs in as staff to drive the dashboard, so the seed
+        # and the tests have to agree on a password. Generated per run for the
+        # same reason as the secret above, and masked so a `set -x` or a failing
+        # step cannot print it into a public log.
+        run: |
+          PASSWORD="$(openssl rand -base64 18)"
+          echo "::add-mask::$PASSWORD"
+          echo "DEMO_ADMIN_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         # --frozen-lockfile fails rather than quietly resolving something new,
         # which is what makes the lockfile a supply-chain control instead of a
@@ -82,3 +92,27 @@ jobs:
         # wrong costs money, and a transaction, a row-level race and a CHECK
         # constraint cannot be tested with a fake.
         run: pnpm check
+
+      - name: Install the browser the e2e suite drives
+        # Only Chromium, and only its own dependencies: the suite runs one
+        # project, and downloading three browsers would triple the slowest step
+        # in this job for nothing.
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        # After `pnpm check`, because these drive the built site: the suite
+        # starts `next start` itself against the .next directory that step
+        # produced. Running them before it would test the previous build, or
+        # none at all.
+        run: pnpm test:e2e
+
+      - name: Upload the Playwright report
+        # Only on failure, and only the report: a trace and a screenshot of the
+        # exact moment is the difference between "a test went red in CI" and
+        # knowing what the page looked like.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

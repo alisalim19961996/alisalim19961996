@@ -317,6 +317,42 @@ describe('translated text is not inlined in components', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('end-to-end specs read the real copy', () => {
+  /**
+   * An e2e spec that hard-codes "أضف إلى السلة" is a second copy of the
+   * owner's copy. It breaks the day they reword a button — which is not a
+   * defect — and, worse, it keeps passing if the page ever renders a raw key
+   * like `cart.checkout`, which is. Going through `t()` in tests/e2e/fixtures.ts
+   * means the label the test looks for is the label the page was told to draw.
+   *
+   * `fixtures.ts` itself is exempt: the customer name, city and street it
+   * submits at checkout are the test's own input, they belong nowhere else,
+   * and an address in `messages/` would be UI copy that no page renders.
+   */
+  it('has no Arabic string literals in e2e specs', () => {
+    const ARABIC_IN_QUOTES = /['"`][^'"`]*[\u0600-\u06FF][^'"`]*['"`]/;
+    const offences: string[] = [];
+
+    for (const file of walk('tests/e2e', ['.ts'])) {
+      if (file.endsWith('fixtures.ts')) continue;
+
+      for (const { line, text } of readCode(file)) {
+        if (ARABIC_IN_QUOTES.test(text)) {
+          offences.push(`${file}:${line} → ${text.trim().slice(0, 90)}`);
+        }
+      }
+    }
+
+    expect(
+      offences,
+      "Read the label from messages/ar.json with t('namespace.key') from " +
+        'tests/e2e/fixtures.ts instead of writing the Arabic into the test.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('server layer is sealed', () => {
   /**
    * `import 'server-only'` is what makes a leak into a client bundle a BUILD
