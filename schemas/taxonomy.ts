@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { AttributeDataType } from '@prisma/client';
 import { isValidSlug } from '@/lib/domain/product';
-import { isValidAccentColor, isValidKey } from '@/lib/domain/taxonomy';
+import {
+  ATTRIBUTE_TYPE_VALUES,
+  isValidAccentColor,
+  isValidKey,
+} from '@/lib/domain/taxonomy';
 
 /**
  * Input for the screens that shape the catalogue: brands, categories, product
@@ -178,11 +182,11 @@ export const attributeFormSchema = z
 
 export type AttributeFormInput = z.infer<typeof attributeFormSchema>;
 
-/** Every data type, for the `<select>` — ordered as the owner meets them. */
-export const ATTRIBUTE_TYPE_VALUES = [
-  AttributeDataType.TEXT,
-  AttributeDataType.INT,
-  AttributeDataType.DECIMAL,
-  AttributeDataType.BOOLEAN,
-  AttributeDataType.ENUM,
-] as const;
+/*
+  Re-exported, not redefined: the list lives in lib/domain/taxonomy.ts so the
+  attribute form can import it without pulling Zod into the dashboard bundle.
+  The annotation is the point — it fails to compile if the two ever disagree
+  with Prisma's enum, which is what would strand values in the wrong column.
+*/
+const _typesMatchPrisma: readonly AttributeDataType[] = ATTRIBUTE_TYPE_VALUES;
+void _typesMatchPrisma;

@@ -1,4 +1,6 @@
 import 'server-only';
+
+import type { CatalogueSortValue } from '@/lib/domain/catalogue-url';
 import { StockStatus } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { db } from '@/server/db/client';
@@ -70,7 +72,12 @@ export interface CatalogueFilters {
   query?: string;
 }
 
-export type CatalogueSort = 'newest' | 'price_asc' | 'price_desc' | 'best_selling';
+/*
+  Derived, not repeated. The values live in lib/domain/catalogue-url.ts because
+  the toolbar needs them in the browser and that module costs no Zod; naming
+  them again here is how the two lists start disagreeing (§13.16).
+*/
+export type CatalogueSort = CatalogueSortValue;
 
 const SORT_ORDER: Record<CatalogueSort, Prisma.ProductOrderByWithRelationInput[]> = {
   // A stable secondary key keeps pagination from shuffling equal rows between

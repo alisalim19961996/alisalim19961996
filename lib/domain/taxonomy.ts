@@ -262,3 +262,26 @@ export function collidingField(constraint: string): 'slug' | 'key' | null {
   }
   return null;
 }
+
+/**
+ * The five specification data types, as plain strings.
+ *
+ * Here rather than beside the Zod schema for the same reason the catalogue's
+ * URL helpers moved to `lib/domain/catalogue-url.ts`: the attribute form is a
+ * client component and needs only this list to draw a `<select>`, but
+ * importing it from `schemas/taxonomy.ts` dragged the whole Zod runtime into
+ * the dashboard's bundle. `schemas/taxonomy.ts` proves at compile time that
+ * these match Prisma's `AttributeDataType`, so the list cannot drift from the
+ * column it writes to.
+ *
+ * Ordered as the owner meets them, not as the enum declares them.
+ */
+export const ATTRIBUTE_TYPE_VALUES = [
+  'TEXT',
+  'INT',
+  'DECIMAL',
+  'BOOLEAN',
+  'ENUM',
+] as const;
+
+export type AttributeTypeValue = (typeof ATTRIBUTE_TYPE_VALUES)[number];

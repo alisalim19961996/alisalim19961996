@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check, X } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { buildCatalogueQuery, toggleCsvValue } from '@/schemas/catalogue';
+import { buildCatalogueQuery, toggleCsvValue } from '@/lib/domain/catalogue-url';
 import type { CatalogueFacets, FacetOption } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildCatalogueQuery,
   countActiveFilters,
   parseCatalogueParams,
   toFilters,
-  toggleCsvValue,
 } from '@/schemas/catalogue';
+import { buildCatalogueQuery, toggleCsvValue } from '@/lib/domain/catalogue-url';
 
 /**
  * Catalogue params come from the address bar, which means they come from

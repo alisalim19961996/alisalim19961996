@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Loader2, MailCheck, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { forgotPasswordSchema } from '@/schemas/auth';
+import { validateForgotPassword } from '@/lib/domain/auth-form';
 import { requestPasswordReset } from '../auth-client';
 
 /**
@@ -42,18 +42,18 @@ export function ForgotPasswordForm() {
     setFieldError(null);
     setErrorKey(null);
 
-    const parsed = forgotPasswordSchema.safeParse({
-      email: new FormData(event.currentTarget).get('email'),
+    const parsed = validateForgotPassword({
+      email: String(new FormData(event.currentTarget).get('email') ?? ''),
     });
 
-    if (!parsed.success) {
-      setFieldError(parsed.error.issues[0]?.message ?? 'invalidEmail');
+    if (!parsed.ok) {
+      setFieldError(parsed.errors['email'] ?? 'invalidEmail');
       return;
     }
 
     startTransition(async () => {
       const { error } = await requestPasswordReset({
-        email: parsed.data.email,
+        email: parsed.values.email,
         // Where the link lands. better-auth appends its own token route and
         // sends the customer here afterwards, in the language they asked in.
         redirectTo: `/${locale}/reset-password`,

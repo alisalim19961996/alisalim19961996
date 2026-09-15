@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { buildCatalogueQuery, SORT_VALUES } from '@/schemas/catalogue';
+import { buildCatalogueQuery, SORT_VALUES } from '@/lib/domain/catalogue-url';
 import { FilterPanel } from './filter-panel';
 import type { CatalogueFacets } from '@/server/queries/catalogue';
 import { Button } from '@/components/ui/button';

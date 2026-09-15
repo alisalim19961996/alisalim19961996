@@ -6,7 +6,7 @@ import { Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from '@/i18n/navigation';
-import { loginSchema } from '@/schemas/auth';
+import { validateSignIn } from '@/lib/domain/auth-form';
 import { signIn } from '../auth-client';
 import { claimCartAfterSignInAction } from '../actions';
 
@@ -37,25 +37,20 @@ export function SignInForm({ redirectTo }: { redirectTo?: string }) {
     setFieldErrors({});
 
     const form = new FormData(event.currentTarget);
-    const parsed = loginSchema.safeParse({
-      email: form.get('email'),
-      password: form.get('password'),
+    const parsed = validateSignIn({
+      email: String(form.get('email') ?? ''),
+      password: String(form.get('password') ?? ''),
     });
 
-    if (!parsed.success) {
-      const errors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === 'string' && !errors[field]) errors[field] = issue.message;
-      }
-      setFieldErrors(errors);
+    if (!parsed.ok) {
+      setFieldErrors(parsed.errors);
       return;
     }
 
     startTransition(async () => {
       const { error } = await signIn.email({
-        email: parsed.data.email,
-        password: parsed.data.password,
+        email: parsed.values.email,
+        password: parsed.values.password,
       });
 
       if (error) {

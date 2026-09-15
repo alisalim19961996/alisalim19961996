@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { buildCatalogueQuery } from '@/schemas/catalogue';
+import { buildCatalogueQuery } from '@/lib/domain/catalogue-url';
 import { cn } from '@/lib/utils';
 
 /**

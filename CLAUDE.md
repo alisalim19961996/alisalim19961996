@@ -128,7 +128,7 @@ features/<domain>/actions.ts  Server Actions — 'use server', async exports onl
 server/queries              catalogue · product · cart · order reads
 server/services             cart + order logic — the only place rules live
 server/db                   Prisma client, seed, seed-data
-schemas/                    Zod, shared between client and server
+schemas/                    Zod — SERVER-side validation (see the rule below)
 config/                     nav.ts (all links) · ui.ts (tuned numbers)
 lib/                        framework-free helpers
 lib/domain/                 pure business logic, no imports from Next or Prisma runtime
@@ -142,6 +142,12 @@ messages/                   ar.json / en.json — all UI text
 - `server/queries/*` and `server/services/*` start with `import 'server-only'`.
 - Filtering, sorting and pagination happen in SQL, never in JavaScript after fetching.
 - Every query names its columns with `select`. No `include: { everything }`.
+- **A client component never imports from `schemas/`.** Anything it needs — a
+  list of sort values, a helper that edits a query string, a form check — goes
+  in `lib/` and the schema imports it from there. The reason is measured, not
+  stylistic: importing two pure functions from a module whose first line is
+  `import { z } from 'zod'` put **353 kB of Zod in the browser**, a third of
+  the catalogue page. `tests/e2e/performance.spec.ts` fails on it now.
 
 **These rules are enforced, not merely written down.** `tests/architecture.test.ts`
 fails the build on a violation and `eslint.config.mjs` flags it while it is being
@@ -960,6 +966,35 @@ accepted `requireUser()` in an admin module. No module was ever wrong; the rule
 was. Each fix was proved by putting the old code back and watching the right
 test go red.
 
+**Phase 6 (part) — the performance pass**, which began by measuring and
+therefore did the opposite of what was planned.
+
+The plan was a cache layer; §15 had carried "catalogue runs 2 queries per
+visit" as the reason. Both halves were wrong. The catalogue runs **12**
+queries — and they cost **4.8 ms of a 34 ms response**, so a cache would have
+bought about five milliseconds at the price of serving a stale price or a
+draft product. It was refused, with the numbers written down (§15).
+
+What the measuring actually found was **1048 kB of JavaScript on the
+catalogue**, a third of it Zod. Three client components imported two pure URL
+helpers from `schemas/catalogue.ts`, and importing anything from a module that
+imports Zod ships Zod. The same mistake in `schemas/auth.ts` — a module whose
+header said it validated on both sides, which **nothing on the server
+imported** — cost every auth page and the whole dashboard another 432 kB.
+
+| page           | before  | after   |
+| -------------- | ------- | ------- |
+| `/ar/products` | 1048 kB | 670 kB  |
+| `/ar/sign-in`  | 1074 kB | 642 kB  |
+| `/ar/admin/*`  | 1645 kB | 1213 kB |
+
+Zod is now absent from every page a customer opens. The pure parts live in
+`lib/domain/catalogue-url.ts` and `lib/domain/auth-form.ts`, unit-tested in
+plain Node; the schemas that guard the server did not move and did not change.
+Two e2e tests hold the line — a byte budget and an explicit "no validation
+library in the browser" — and both were proved by putting the import back and
+watching them report 1048 kB again.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -971,8 +1006,9 @@ test go red.
 
 ### Not started
 
-Wishlist, compare, reviews, recommendations, blog, analytics · security
-review, performance pass, cache layer (Phase 6). The accessibility
+Wishlist, compare, reviews, recommendations, blog, analytics. **Phase 6 is
+complete** — e2e, the security review and the performance pass are all done
+(§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
 
 ---
@@ -983,7 +1019,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | e2e covers the flows, not the filters              | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
 | Rate limiting is in process                        | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
-| No cache layer                                     | Catalogue runs 2 queries per visit                                                                                                      | `unstable_cache` + tags when the catalogue grows            |
+| No cache layer, deliberately                       | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
 | Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
 | Coupons are schema-only                            | `discountIqd` is always 0                                                                                                               | Phase 5; `orderTotals` already takes a discount             |
@@ -1023,7 +1059,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **384 tests**: 350 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **403 tests**: 369 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1068,16 +1104,18 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **16 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **18 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
 never issued, a sign-out that takes `mps.recent_order` with it, unpublishing a
 product and watching it leave the shop floor, specification fields that change
 with the product type, a dashboard a signed-out visitor cannot reach, the two
-layout claims below, and the headers — every page loaded with a listener on
+layout claims below, the headers — every page loaded with a listener on
 `securitypolicyviolation`, so a policy that silently blocks the product video
-or a stylesheet fails rather than shipping. Not in `pnpm check`: it needs a browser that has to be
+or a stylesheet fails rather than shipping — and **a budget for the JavaScript
+a customer downloads**, which is the only thing that would have caught 353 kB
+of Zod arriving in the browser behind a tidy-looking import. Not in `pnpm check`: it needs a browser that has to be
 installed once (`npx playwright install chromium`), and `check` must keep
 working on a machine that has not. **CI runs it after `pnpm check`**, against
 the `.next` that step produced.
@@ -1215,6 +1253,29 @@ against them before believing a failure:
   source. Kill it by PID and check the process is younger than the build before
   measuring anything. `playwright.config.ts` sets `reuseExistingServer: false`
   so the suite refuses rather than inheriting one.
+
+### Measuring, so the next performance pass starts from numbers
+
+The one before it did not, and planned a cache for a problem that was 4.8 ms
+wide. Three measurements, in the order they are worth taking:
+
+1. **What the browser downloads.** Load the page with Playwright and sum the
+   bodies of every `script` response. `tests/e2e/performance.spec.ts` does
+   exactly this and prints the number in its failure, so `pnpm test:e2e` is the
+   measurement. Compression is on (`next start` gzips, roughly 3.2:1), so
+   divide by three for what crosses the network.
+2. **Server time.** `curl -s -o /dev/null -w "%{time_starttransfer}"` against
+   the built site, five times, warm. The catalogue was 34 ms.
+3. **How much of that is the database.** `ALTER SYSTEM SET
+log_min_duration_statement = 0`, reload, hit the page, then sum the
+   `duration:` lines the request produced. **Reset it afterwards** — it logs
+   every parameter of every query and the file grows fast.
+
+The fonts are the largest fixed asset: **183 kB on every page**, four weights
+of IBM Plex Sans Arabic plus Inter. All four are used (`font-medium` 84 times,
+`font-bold` 57, `font-semibold` 52, plus body text at 400), so dropping one is
+a design decision for the owner, not a free optimisation — it is written here
+so the number is known rather than rediscovered.
 
 **`pnpm check:layout` and the e2e layout spec do not overlap.** `check:layout`
 is the interactive tool: it measures card widths and image heights against a
@@ -1450,7 +1511,11 @@ buy bar, which §15 had listed as unmeasured since it was built. **The security
 review is done** (§14): one live open redirect fixed, a CSP and HSTS added with
 the nonce refused for a stated reason (§18), order tracking rate limited (§12),
 and a guardrail tightened that had been admitting the failure it existed to
-prevent. Remaining: a performance pass and a cache layer.
+prevent. **The performance pass is done too** (§14), and it refused the cache
+layer this file had been planning since Phase 2.5: the database is 4.8 ms of a
+34 ms catalogue response, while the browser was downloading 1048 kB of script.
+Zod is out of the storefront, the sign-in pages and the dashboard, and a budget
+test keeps it out. **Phase 6 is complete.**
 
 What the review did **not** cover, so nobody reads it as more than it is:
 dependency auditing beyond the `minimumReleaseAge` policy, anything about the

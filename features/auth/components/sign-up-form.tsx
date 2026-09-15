@@ -6,7 +6,7 @@ import { Loader2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from '@/i18n/navigation';
-import { registerSchema } from '@/schemas/auth';
+import { validateSignUp } from '@/lib/domain/auth-form';
 import { signUp } from '../auth-client';
 import { claimCartAfterSignInAction } from '../actions';
 
@@ -39,32 +39,27 @@ export function SignUpForm() {
     const form = new FormData(event.currentTarget);
     const phone = String(form.get('phone') ?? '').trim();
 
-    const parsed = registerSchema.safeParse({
-      name: form.get('name'),
-      email: form.get('email'),
-      // Optional: an empty field must read as "not given", not as an invalid
+    const parsed = validateSignUp({
+      name: String(form.get('name') ?? ''),
+      email: String(form.get('email') ?? ''),
+      // Optional: an empty field reads as "not given", not as an invalid
       // Iraqi number — the same blank-is-undefined trap as the env schema.
-      ...(phone ? { phone } : {}),
-      password: form.get('password'),
-      confirmPassword: form.get('confirmPassword'),
+      phone,
+      password: String(form.get('password') ?? ''),
+      confirmPassword: String(form.get('confirmPassword') ?? ''),
     });
 
-    if (!parsed.success) {
-      const errors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === 'string' && !errors[field]) errors[field] = issue.message;
-      }
-      setFieldErrors(errors);
+    if (!parsed.ok) {
+      setFieldErrors(parsed.errors);
       return;
     }
 
     startTransition(async () => {
       const { error } = await signUp.email({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        password: parsed.data.password,
-        ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
+        name: parsed.values.name,
+        email: parsed.values.email,
+        password: parsed.values.password,
+        ...(parsed.values.phone ? { phone: parsed.values.phone } : {}),
       });
 
       if (error) {

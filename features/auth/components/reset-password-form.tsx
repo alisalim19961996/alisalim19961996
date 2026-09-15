@@ -6,7 +6,7 @@ import { KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from '@/i18n/navigation';
-import { resetPasswordSchema } from '@/schemas/auth';
+import { validateResetPassword } from '@/lib/domain/auth-form';
 import { resetPassword } from '../auth-client';
 
 /**
@@ -34,26 +34,21 @@ export function ResetPasswordForm({ token }: { token: string }) {
     setErrorKey(null);
 
     const form = new FormData(event.currentTarget);
-    const parsed = resetPasswordSchema.safeParse({
+    const parsed = validateResetPassword({
       token,
-      password: form.get('password'),
-      confirmPassword: form.get('confirmPassword'),
+      password: String(form.get('password') ?? ''),
+      confirmPassword: String(form.get('confirmPassword') ?? ''),
     });
 
-    if (!parsed.success) {
-      const errors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === 'string' && !errors[field]) errors[field] = issue.message;
-      }
-      setFieldErrors(errors);
+    if (!parsed.ok) {
+      setFieldErrors(parsed.errors);
       return;
     }
 
     startTransition(async () => {
       const { error } = await resetPassword({
-        token: parsed.data.token,
-        newPassword: parsed.data.password,
+        token: parsed.values.token,
+        newPassword: parsed.values.password,
       });
 
       if (error) {

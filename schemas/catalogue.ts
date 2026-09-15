@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { CatalogueFilters, CatalogueSort } from '@/server/queries/catalogue';
+import type { CatalogueFilters } from '@/server/queries/catalogue';
+import { SORT_VALUES } from '@/lib/domain/catalogue-url';
 
 /**
  * Catalogue state lives in the URL, not in React state.
@@ -9,13 +10,6 @@ import type { CatalogueFilters, CatalogueSort } from '@/server/queries/catalogue
  * strings from whatever someone typed into the address bar, so every one of
  * them is parsed and clamped here before it reaches a query.
  */
-
-export const SORT_VALUES = [
-  'newest',
-  'price_asc',
-  'price_desc',
-  'best_selling',
-] as const satisfies readonly CatalogueSort[];
 
 export { PRODUCTS_PER_PAGE as PER_PAGE } from '@/config/ui';
 
@@ -118,46 +112,4 @@ export function countActiveFilters(params: CatalogueParams): number {
     (params.stock ? 1 : 0) +
     (params.offer ? 1 : 0)
   );
-}
-
-/**
- * Build the query string for a changed filter.
- * Kept in one place so every control writes URLs the same way, and so changing
- * a filter always resets to page 1 — landing on page 7 of a 2-page result is a
- * classic way to show an empty catalogue to someone who just picked a brand.
- */
-export function buildCatalogueQuery(
-  current: URLSearchParams,
-  changes: Record<string, string | string[] | null>,
-): string {
-  const next = new URLSearchParams(current);
-
-  for (const [key, value] of Object.entries(changes)) {
-    if (value == null || (Array.isArray(value) && value.length === 0) || value === '') {
-      next.delete(key);
-    } else {
-      next.set(key, Array.isArray(value) ? value.join(',') : value);
-    }
-  }
-
-  if (!('page' in changes)) next.delete('page');
-
-  const query = next.toString();
-  return query ? `?${query}` : '';
-}
-
-/** Toggle one value inside a comma-separated param. */
-export function toggleCsvValue(
-  current: URLSearchParams,
-  key: string,
-  value: string,
-): string[] {
-  const existing = (current.get(key) ?? '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return existing.includes(value)
-    ? existing.filter((entry) => entry !== value)
-    : [...existing, value];
 }

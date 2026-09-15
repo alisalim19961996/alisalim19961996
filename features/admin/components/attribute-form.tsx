@@ -9,7 +9,7 @@ import { RepeatableRow } from './form-fields';
 import { TaxonomyForm } from './taxonomy-form';
 import { saveAttributeAction, deleteAttributeAction } from '../actions';
 import { keyify } from '@/lib/domain/taxonomy';
-import { ATTRIBUTE_TYPE_VALUES } from '@/schemas/taxonomy';
+import { ATTRIBUTE_TYPE_VALUES } from '@/lib/domain/taxonomy';
 import type { AttributeFormValues } from '@/server/queries/admin-taxonomy';
 import type { TaxonomyReference } from '@/server/queries/admin-taxonomy';
 import type { Locale } from '@/i18n/routing';
