@@ -151,7 +151,7 @@ export function CheckoutForm({
               onChange={(event) => chooseGovernorate(event.target.value)}
               aria-invalid={Boolean(fieldError('governorate'))}
               className={cn(
-                'h-11 w-full rounded-[--radius-control] border border-border bg-surface px-3',
+                'h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3',
                 'text-sm text-ink transition-colors hover:border-border-strong',
                 'focus-visible:border-primary aria-invalid:border-danger',
               )}
@@ -195,7 +195,7 @@ export function CheckoutForm({
               autoComplete="street-address"
               aria-invalid={Boolean(fieldError('addressLine'))}
               className={cn(
-                'w-full rounded-[--radius-control] border border-border bg-surface px-3 py-2.5',
+                'w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2.5',
                 'text-sm text-ink transition-colors placeholder:text-subtle',
                 'hover:border-border-strong focus-visible:border-primary',
                 'aria-invalid:border-danger',
@@ -218,7 +218,7 @@ export function CheckoutForm({
               name="notes"
               rows={2}
               placeholder={t('notesPlaceholder')}
-              className="w-full rounded-[--radius-control] border border-border bg-surface px-3 py-2.5 text-sm text-ink transition-colors placeholder:text-subtle hover:border-border-strong focus-visible:border-primary"
+              className="w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2.5 text-sm text-ink transition-colors placeholder:text-subtle hover:border-border-strong focus-visible:border-primary"
             />
           </div>
         </Section>

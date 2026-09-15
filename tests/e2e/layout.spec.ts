@@ -19,6 +19,63 @@ import {
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
 
+test.describe('typography', () => {
+  /*
+    The Arabic store was drawing its Arabic in **Arial**, and no screenshot
+    review would have named the cause: next/font packs a second face into
+    `--font-latin` called "Inter Fallback", whose source is `local("Arial")`.
+    Arial has Arabic glyphs, so the stack was satisfied one step before
+    reaching IBM Plex Sans Arabic. The documented switch for that face
+    (`adjustFontFallback: false`) does nothing under Turbopack, so the fix is
+    the CSS ordering — and this is what stops it silently coming back.
+
+    Asserted as "which family wins", not "the stack contains it": the old,
+    broken build contained IBM Plex Sans Arabic too. It was just never reached.
+  */
+  test('Arabic pages resolve to the Arabic face, English pages to the Latin one', async ({
+    page,
+  }) => {
+    const firstFamily = (selector: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate((element) =>
+          getComputedStyle(element).fontFamily.split(',')[0]!.trim().replace(/"/g, ''),
+        );
+
+    await gotoRendered(page, '/ar');
+    expect(await firstFamily('body')).toBe('IBM Plex Sans Arabic');
+    // The heading too: a heading that picked up a different family is exactly
+    // the "incidental difference between the button, the field and the title"
+    // the review described.
+    expect(await firstFamily('main h1')).toBe('IBM Plex Sans Arabic');
+
+    await gotoRendered(page, '/en');
+    expect(await firstFamily('body')).toBe('Inter');
+  });
+
+  test('the hero stays inside its size ceiling at both ends', async ({ page }) => {
+    await gotoRendered(page, '/ar');
+
+    const size = async () =>
+      page
+        .locator('main h1')
+        .first()
+        .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+
+    // It was 60px — past the ceiling — because it stepped through three
+    // breakpoints instead of scaling. The clamp lands on 56 at the container's
+    // full width and bottoms out at 30 on a phone.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    expect(await size()).toBeLessThanOrEqual(56);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone = await size();
+    expect(phone).toBeGreaterThanOrEqual(28);
+    expect(phone).toBeLessThanOrEqual(36);
+  });
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: PHONE });
 

@@ -13,6 +13,28 @@ import '../globals.css';
  * CDN, no FOIT, and no layout shift when the font swaps in. IBM Plex Sans
  * Arabic is a genuinely designed Arabic typeface rather than a Latin face with
  * Arabic bolted on, which is where most bilingual stores start to look cheap.
+ *
+ * **Arabic was not rendering in this Arabic font at all, and the reason is a
+ * font the app never asked for.**
+ *
+ * next/font emits a second face beside Inter called "Inter Fallback", whose
+ * source is `local("Arial")` with metric overrides, and puts it inside
+ * `--font-latin` right after Inter. The app's stack therefore resolved to
+ *
+ *     Inter, "Inter Fallback", "IBM Plex Sans Arabic", …
+ *
+ * and **Arial has Arabic glyphs**. On every machine that ships Arial — all
+ * Windows, all macOS, the owner's included — each Arabic character was drawn
+ * by Arial and IBM Plex Sans Arabic was never reached. That is the "Arabic
+ * looks like a thin default font" the review reported: not a loading failure,
+ * a stack satisfied one step too early. Read out of the built CSS, not guessed.
+ *
+ * `adjustFontFallback: false` is the documented switch for that face and it
+ * does nothing here — this build runs through Turbopack, whose font pipeline
+ * still emits it. Verified by setting it, clearing `.next/cache`, rebuilding,
+ * and finding the identical content hash. So the fix is in CSS, where no
+ * bundler option can quietly stop applying it: `app/globals.css` puts the
+ * Arabic face FIRST on Arabic pages, ahead of anything Latin.
  */
 const arabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic'],

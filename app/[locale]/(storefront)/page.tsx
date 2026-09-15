@@ -59,11 +59,9 @@ export default async function HomePage({
     <>
       {/* ------------------------------------------------------------- hero */}
       <section className="border-b border-border bg-surface">
-        <div className="container-page grid gap-10 py-14 lg:grid-cols-2 lg:items-center lg:py-20">
+        <div className="container-page grid gap-10 py-8 lg:grid-cols-2 lg:items-center lg:py-14">
           <div className="max-w-xl">
-            <h1 className="text-4xl leading-tight font-bold text-ink sm:text-5xl lg:text-6xl">
-              {t('heroTitle')}
-            </h1>
+            <h1 className="text-hero font-bold text-ink">{t('heroTitle')}</h1>
             <p className="mt-5 text-base leading-relaxed text-muted sm:text-lg">
               {t('heroSubtitle')}
             </p>

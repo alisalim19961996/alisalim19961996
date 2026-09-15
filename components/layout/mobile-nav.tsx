@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Menu, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
@@ -15,21 +15,61 @@ import { PRIMARY_NAV, SECONDARY_NAV } from '@/config/nav';
  * Escape closes it and body scroll is locked while it is open — without the
  * lock, scrolling the drawer at its end scrolls the page underneath, which
  * makes the whole thing feel unfinished.
+ *
+ * **It also traps focus, and that is not polish.** The panel carries
+ * `aria-modal="true"`, which tells a screen reader that everything behind it
+ * is inert. Without the trap that was a false statement: Tab walked straight
+ * out of the drawer and into the page underneath, which the reader had already
+ * been told was not there. Focus moves in on open and returns to the button
+ * that opened it on close, so a keyboard user is never left standing on
+ * nothing.
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const t = useTranslations('nav');
+  const panel = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
+    const focusable = () =>
+      [
+        ...(panel.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled])',
+        ) ?? []),
+      ].filter((element) => element.offsetParent !== null);
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const items = focusable();
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+
+      // Wrap at both ends. Without this the next Tab leaves for the page
+      // behind, which `aria-modal` has just promised is not there.
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
+
+    // The close button, not the first link: opening a menu should not read out
+    // as "phones" before saying what just happened.
+    focusable()[0]?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -37,9 +77,16 @@ export function MobileNav() {
     };
   }, [open]);
 
+  // Returned to the opener rather than left on a removed node, where the
+  // browser drops focus to <body> and the next Tab restarts from the top.
+  useEffect(() => {
+    if (!open) opener.current?.focus({ preventScroll: true });
+  }, [open]);
+
   return (
     <>
       <button
+        ref={opener}
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t('menu')}
@@ -58,7 +105,10 @@ export function MobileNav() {
             className="absolute inset-0 bg-ink/40"
           />
 
-          <div className="absolute inset-y-0 start-0 w-[78%] max-w-xs bg-surface p-5">
+          <div
+            ref={panel}
+            className="absolute inset-y-0 start-0 w-[78%] max-w-xs bg-surface p-5"
+          >
             <div className="mb-6 flex items-center justify-between">
               <span className="text-sm font-semibold text-ink">{t('menu')}</span>
               <button

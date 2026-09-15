@@ -109,7 +109,7 @@ export function TextArea({ label, hint, wide, id, ...props }: TextAreaProps) {
       <textarea
         id={fieldId}
         rows={3}
-        className="w-full rounded-[--radius-control] border border-border bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
+        className="w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
         {...props}
       />
       {hint && <p className="text-xs text-muted">{hint}</p>}
@@ -142,7 +142,7 @@ export function Select({
       <select
         id={fieldId}
         aria-invalid={error ? true : undefined}
-        className="h-11 w-full rounded-[--radius-control] border border-border bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary aria-invalid:border-danger"
+        className="h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary aria-invalid:border-danger"
         {...props}
       >
         {children}

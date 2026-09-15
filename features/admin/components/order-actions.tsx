@@ -88,7 +88,7 @@ export function OrderActions({
             rows={2}
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            className="mt-2 w-full rounded-[--radius-control] border border-border bg-surface px-3 py-2 text-sm text-ink"
+            className="mt-2 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2 text-sm text-ink"
           />
           <div className="mt-3 flex gap-2">
             <Button

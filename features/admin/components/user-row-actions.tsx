@@ -60,7 +60,7 @@ export function UserRoleSelect({
             router.refresh();
           });
         }}
-        className="h-9 rounded-[--radius-control] border border-border bg-surface px-2 text-sm text-ink transition-colors hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-9 rounded-[--radius-control] border border-border-field bg-surface px-2 text-sm text-ink transition-colors hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-60"
       >
         {roles.map((value) => (
           <option key={value} value={value}>

@@ -32,7 +32,7 @@ export function SortSelect() {
           startTransition(() => router.push(`${pathname}${query}`, { scroll: false }));
         }}
         className={cn(
-          'h-9 rounded-[--radius-control] border border-border bg-surface px-2 text-sm text-ink',
+          'h-9 rounded-[--radius-control] border border-border-field bg-surface px-2 text-sm text-ink',
           'transition-colors hover:border-border-strong focus-visible:border-primary',
         )}
       >

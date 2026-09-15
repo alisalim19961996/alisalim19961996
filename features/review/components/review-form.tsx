@@ -127,7 +127,7 @@ export function ReviewForm({
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={120}
-          className="h-11 w-full rounded-[--radius-control] border border-border bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
+          className="h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
         />
       </div>
 
@@ -143,7 +143,7 @@ export function ReviewForm({
           rows={5}
           maxLength={2000}
           aria-invalid={Boolean(fieldErrors.body)}
-          className="w-full rounded-[--radius-control] border border-border bg-surface p-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
+          className="w-full rounded-[--radius-control] border border-border-field bg-surface p-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
         />
         <p className="text-xs text-muted">{t('bodyHint')}</p>
         {fieldErrors.body && (

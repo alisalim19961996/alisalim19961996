@@ -245,7 +245,7 @@ export function ProductVariantsEditor({
                           id={`option-${index}-value-${valueIndex}-hex`}
                           type="color"
                           value={value.hex || DEFAULT_SWATCH_HEX}
-                          className="h-11 w-14 rounded-[--radius-control] border border-border bg-surface p-1"
+                          className="h-11 w-14 rounded-[--radius-control] border border-border-field bg-surface p-1"
                           onChange={(event) =>
                             patchOption(index, {
                               values: option.values.map((v, i) =>
