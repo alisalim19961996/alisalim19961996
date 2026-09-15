@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { ProductGallery } from '@/features/product/components/product-gallery';
 import { VariantPicker } from '@/features/product/components/variant-picker';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { ReviewSection } from '@/features/review/components/review-section';
 import { ProductCard } from '@/features/product/components/product-card';
 import { MobileBuyBar } from '@/features/product/components/mobile-buy-bar';
 import {
@@ -14,6 +15,7 @@ import {
   getProductBySlug,
   getRelatedProducts,
 } from '@/server/queries/product';
+import { getProductReviews, getReviewSummary } from '@/server/queries/review';
 import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
@@ -100,6 +102,11 @@ export default async function ProductPage({
   // Which rows this table has is decided by the product's type, not by this
   // file: a tablet shows stylus support and no NFC, a cable shows neither.
   const specGroups = buildSpecGroups(product, locale as Locale);
+
+  const [summary, reviews] = await Promise.all([
+    getReviewSummary(product.id),
+    getProductReviews(product.id),
+  ]);
 
   const related = await getRelatedProducts(
     product.id,
@@ -237,6 +244,13 @@ export default async function ProductPage({
             </Section>
           )}
         </div>
+
+        <ReviewSection
+          productId={product.id}
+          productSlug={product.slugEn}
+          summary={summary}
+          reviews={reviews}
+        />
 
         {related.length > 0 && (
           <section className="mt-16">

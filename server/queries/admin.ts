@@ -1,6 +1,11 @@
 import 'server-only';
 
-import { OrderStatus, type PaymentStatus, type Prisma } from '@prisma/client';
+import {
+  ReviewStatus,
+  OrderStatus,
+  type PaymentStatus,
+  type Prisma,
+} from '@prisma/client';
 import { db } from '@/server/db/client';
 import { requireStaff } from '@/server/auth/guards';
 import { allowedTransitions } from '@/lib/domain/order-state';
@@ -259,27 +264,45 @@ export async function getAdminOrder(
 export async function getAdminOverview() {
   await requireStaff();
 
-  const [pending, processing, outForDelivery, deliveredToday, products, lowStock] =
-    await Promise.all([
-      db.order.count({ where: { status: OrderStatus.PENDING } }),
-      db.order.count({
-        where: {
-          status: { in: [OrderStatus.CONFIRMED, OrderStatus.PROCESSING] },
-        },
-      }),
-      db.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
-      db.order.count({
-        where: {
-          status: OrderStatus.DELIVERED,
-          deliveredAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-        },
-      }),
-      db.product.count({ where: { isPublished: true } }),
-      // Only meaningful for variants that count units; the rest sell on status.
-      db.inventory.count({
-        where: { trackQuantity: true, onHand: { lte: 3 } },
-      }),
-    ]);
+  const [
+    pending,
+    processing,
+    outForDelivery,
+    deliveredToday,
+    products,
+    lowStock,
+    pendingReviews,
+  ] = await Promise.all([
+    db.order.count({ where: { status: OrderStatus.PENDING } }),
+    db.order.count({
+      where: {
+        status: { in: [OrderStatus.CONFIRMED, OrderStatus.PROCESSING] },
+      },
+    }),
+    db.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
+    db.order.count({
+      where: {
+        status: OrderStatus.DELIVERED,
+        deliveredAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+      },
+    }),
+    db.product.count({ where: { isPublished: true } }),
+    // Only meaningful for variants that count units; the rest sell on status.
+    db.inventory.count({
+      where: { trackQuantity: true, onHand: { lte: 3 } },
+    }),
+    // Work waiting, like the order counts beside it: a review nobody reads is
+    // a customer who wrote something and never saw it appear.
+    db.review.count({ where: { status: ReviewStatus.PENDING } }),
+  ]);
 
-  return { pending, processing, outForDelivery, deliveredToday, products, lowStock };
+  return {
+    pending,
+    processing,
+    outForDelivery,
+    deliveredToday,
+    products,
+    lowStock,
+    pendingReviews,
+  };
 }

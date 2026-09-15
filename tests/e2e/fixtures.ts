@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import arabic from '../../messages/ar.json';
 
 /**
@@ -274,15 +274,45 @@ export async function submitCheckout(
  * itself, and `?next=admin` is honoured only for someone who can actually open
  * the dashboard — the distinction that stopped a redirect loop (§8).
  */
+/**
+ * Session cookies, kept per account for the length of the run.
+ *
+ * Not an optimisation — the suite outgrew a security control. better-auth
+ * allows **five sign-ins a minute per IP** (§7), and a test runner is one IP:
+ * once seven tests needed a signed-in page, the seventh met "too many
+ * attempts" and timed out on the form. Raising the limit to suit the tests
+ * would be weakening the thing the tests exist to protect (§13.15).
+ *
+ * So the FIRST sign-in per account goes over the real HTTP router, exactly as
+ * before, and every later one restores that session's cookies. A restored
+ * cookie is not a pretend session: better-auth keeps sessions in the database,
+ * so the server checks this one the same way it checks any other.
+ */
+const sessions = new Map<string, Awaited<ReturnType<BrowserContext['cookies']>>>();
+
 export async function signIn(
   page: Page,
   credentials: { email: string; password: string },
   next?: 'admin' | 'account',
 ): Promise<void> {
+  const landing = next === 'admin' ? '/ar/admin' : '/ar/account';
+  const saved = sessions.get(credentials.email);
+
+  if (saved) {
+    await page.context().addCookies(saved);
+    await gotoRendered(page, landing);
+    return;
+  }
+
   await gotoRendered(page, next ? `/ar/sign-in?next=${next}` : '/ar/sign-in');
   await page.fill('input[name="email"]', credentials.email);
   await page.fill('input[name="password"]', credentials.password);
   await page.getByRole('button', { name: t('auth.signIn'), exact: true }).click();
+
+  // Waited for, not assumed: the cookies are only worth keeping once the
+  // router has actually answered and set them.
+  await page.waitForURL(new RegExp(next ? `/ar/(admin|account)` : '/ar/'));
+  sessions.set(credentials.email, await page.context().cookies());
 }
 
 /**

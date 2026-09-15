@@ -456,6 +456,16 @@ model Product {
   /// service whenever a variant price changes.
   minPriceIqd Int?
 
+  /// Denormalised from APPROVED reviews only, recomputed inside the same
+  /// transaction that approves or rejects one.
+  ///
+  /// Sum and count rather than an average, deliberately: an average column
+  /// bakes a rounding decision into storage, and 4.666 stored as 4.7 cannot be
+  /// added to. These two are exact, and the average is derived where it is
+  /// shown.
+  ratingCount Int @default(0)
+  ratingSum   Int @default(0)
+
   warrantyMonths Int     @default(12)
   warrantyNoteAr String?
   warrantyNoteEn String?

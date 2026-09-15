@@ -7,6 +7,7 @@ import {
   Settings,
   Shapes,
   SlidersHorizontal,
+  Star,
   Store,
   Tags,
   TicketPercent,
@@ -41,6 +42,7 @@ export interface AdminLabels {
   viewStore: string;
   guides: string;
   coupons: string;
+  reviews: string;
   signOut: string;
   menu: string;
 }
@@ -63,6 +65,7 @@ const NAV = [
   { href: '/admin/attributes', labelKey: 'attributes', icon: SlidersHorizontal },
   { href: '/admin/blog', labelKey: 'guides', icon: BookOpen },
   { href: '/admin/coupons', labelKey: 'coupons', icon: TicketPercent },
+  { href: '/admin/reviews', labelKey: 'reviews', icon: Star },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
   { href: '/admin/users', labelKey: 'users', icon: Users },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },

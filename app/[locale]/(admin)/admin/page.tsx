@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { AlertTriangle, Package, PackageCheck, Truck } from 'lucide-react';
+import { AlertTriangle, Package, PackageCheck, Star, Truck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { getAdminOverview } from '@/server/queries/admin';
 import type { Locale } from '@/i18n/routing';
@@ -61,13 +61,22 @@ export default async function AdminDashboardPage({
       icon: PackageCheck,
       tone: 'good',
     },
+    {
+      // Urgent while anything is waiting, for the same reason PENDING orders
+      // are: somebody wrote it and is waiting to see it appear.
+      key: 'reviewsPending',
+      value: overview.pendingReviews,
+      href: '/admin/reviews',
+      icon: Star,
+      tone: overview.pendingReviews > 0 ? 'urgent' : 'calm',
+    },
   ] as const;
 
   return (
     <div className="space-y-8">
       <h1 className="text-xl font-bold text-ink">{t('dashboard')}</h1>
 
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {tiles.map((tile) => {
           const Icon = tile.icon;
           return (

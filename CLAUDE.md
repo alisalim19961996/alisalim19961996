@@ -159,7 +159,7 @@ contributor — or by an assistant whose context was compacted. See §17.
 
 ## 6. Database
 
-44 tables, 12 enums, 28 CHECK constraints, 3 migrations. Schema: `prisma/schema.prisma`.
+44 tables, 12 enums, 30 CHECK constraints, 4 migrations. Schema: `prisma/schema.prisma`.
 
 ### Core relationships
 
@@ -395,6 +395,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/coupons`                  | Dynamic      | Discount codes, each shown against its usage limit                       |
 | `/[locale]/admin/coupons/new`              | Dynamic      | Create a code                                                            |
 | `/[locale]/admin/coupons/[id]`             | Dynamic      | Edit a code; delete refused once an order has used it                    |
+| `/[locale]/admin/reviews`                  | Dynamic      | Moderation queue: waiting / published / rejected, oldest first           |
 | `/[locale]/admin/users`                    | Dynamic      | Roles and access (ADMIN only); no password is ever typed here            |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
@@ -508,6 +509,17 @@ heart in the card's corner), `CompareTray` (in the storefront layout, renders
 null until something is ticked, **sticky** so it can never cover the footer),
 `CompareClearLink`, `compare-store.ts` (an external store over `localStorage`
 — see §12).
+
+**Reviews** — `features/review/`: `StarRating` (a server component; the partial
+star is a clipped overlay, so 4.2 looks like 4.2 instead of rounding itself to
+4.5 on the way to the screen), `ReviewSection` (the average, the 5-to-1
+breakdown and the approved list — all of it the same for every visitor, so all
+of it stays in the static half of a prerendered page), `ReviewComposer` (the
+one part that knows who is looking, and therefore the only part that loads
+after hydration), `ReviewForm` (a radio group wearing stars, because a radio
+group is arrowable and announced as "3 of 5" and no number of `role`
+attributes on a div matches that). `ReviewModeration` is in
+`features/admin/components/`.
 
 **Catalogue** — `features/catalogue/components/`: `FilterPanel`,
 `ActiveFilters`, `SortSelect`, `MobileFilterButton`, `Pagination`.
@@ -638,7 +650,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **789 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **829 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -1018,6 +1030,64 @@ for the tick and the tray.
   combination of `?ids=` out of a factorial number of them, each a thin
   rearrangement of pages Google already has.
 
+**Reviews** — `lib/domain/review.ts` for the arithmetic,
+`server/services/review.ts` for writing one, `admin-reviews.ts` for moderating,
+and `server/queries/review.ts` for both reads.
+
+- **Only a customer with a DELIVERED order for the product may write one.**
+  This is the decision the whole feature turns on, and it is not what the
+  schema's own comment anticipated — `isVerifiedPurchase` was written as a
+  badge on reviews anybody with an account could leave. That is the wrong trade
+  here: email verification is off (§7), so an account costs nothing to create,
+  and a competitor with ten of them can fill the queue faster than one person
+  reads it. Requiring delivery makes every review genuine by construction and
+  bounds the queue by actual sales.
+- **`isVerifiedPurchase` is still written, and still true every time**, for the
+  reason `Inventory.trackQuantity` exists: it is the column that stops the
+  other rule being a schema change. Relaxing the requirement later is one line
+  in the service.
+- **The eligibility rule has exactly one copy**, `hasDeliveredOrderFor()`, and
+  it had two until a deliberate break went unnoticed. The query decides what to
+  RENDER and the service decides what to ACCEPT; with the join written twice,
+  loosening the service's copy left the page still saying no while the write
+  went through, and the test meant to catch it passed because it only exercised
+  the other copy (§13.16).
+- **A review arrives PENDING and nothing a customer types reaches a product
+  page until a human has read it.** The customer is told so before they write,
+  and told why: to keep out advertising and abuse, not to hide criticism.
+- **`Product.ratingCount` and `ratingSum`, not an average.** An average column
+  bakes a rounding decision into storage, and 4.666 stored as 4.7 cannot be
+  added to. The average is derived where it is shown, by a pure function that
+  returns **null** for a product with no reviews — never 0.0, which is a rating
+  nobody can give and a claim the shop would be inventing (§13.12).
+- **The aggregates are recomputed from the rows inside the moderating
+  transaction**, never adjusted by a delta: a delta is right until it is
+  applied twice, and then the number is wrong forever with nothing to say when
+  it drifted. Two CHECK constraints refuse an impossible result — a negative
+  count, or a sum outside `[count, count × 5]` — so a broken recompute fails
+  loudly rather than rendering a seven-star product.
+- **Rejecting and deleting answer different questions.** Rejecting hides the
+  review and keeps the record of who decided and when; deleting is for text
+  that should not be stored at all — a phone number, an address, abuse aimed at
+  a person. Both recompute, because rejecting one that was approved has to take
+  its stars back out.
+- **What a customer typed is rendered by React**, in a paragraph, with
+  `whitespace-pre-line` for their own line breaks. There is no path from the
+  body to markup, so a pasted `<script>` is a sentence — the same property the
+  buying guides have by construction.
+- **The public read cannot return an unapproved review**, because it has no
+  parameter that could ask for one; moderation reads through a separate module
+  behind `requireStaff()`. And it never selects an email: the page is public.
+- **There is no "highest rated" sort, deliberately.** One five-star review
+  would outrank fifty averaging 4.8. That needs a weighted average, and a
+  weighted average needs enough reviews to weight — revisit when the catalogue
+  has them, with `minPriceIqd` as the precedent for a column to sort on.
+- **No stars on the product card, yet.** A rating line rendered only for
+  products that have one makes cards different heights, which is the exact bug
+  `pnpm check:layout` exists to catch (§9); reserving the line for every card
+  wastes it on a shop where most products have no reviews. Revisit when most
+  of them do.
+
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
 
@@ -1319,6 +1389,33 @@ Two things were paid for here:
   helper is now shared from `tests/e2e/fixtures.ts` rather than living in one
   spec.
 
+**Phase 5.9 — reviews**: a rating and a written review on every product page, a
+moderation queue at `/admin/reviews`, and two denormalised columns on
+`Product` so the average is a read rather than a join.
+
+The design decision is who may write one, and it is **not** what the schema's
+comment anticipated: only a customer with a **DELIVERED order** for that
+product, not anybody with an account (§12). `isVerifiedPurchase` is kept and
+written anyway, because it is the column that stops relaxing the rule being a
+schema change — the same reason `Inventory.trackQuantity` exists.
+
+Three things were found by the usual method:
+
+- **`prisma migrate dev` wrote six `DROP INDEX` lines into this migration**,
+  exactly as §6 says it does — and this time the guardrail added with the
+  wishlist caught it before it reached the repository. The migration was
+  supposed to add two integer columns; the first attempt generated NOTHING but
+  the six drops.
+- **The eligibility rule was written twice**, once in the query that renders
+  the form and once in the service that accepts the write. A deliberate break
+  to the service's copy passed every test, because the test only exercised the
+  query's. One copy now (§12), and the break fails.
+- **The e2e suite had outgrown the sign-in rate limit.** Seven tests needed a
+  signed-in page and better-auth allows five sign-ins a minute per IP (§7);
+  the seventh met "too many attempts" and timed out on the form. The limit is
+  correct, so the suite signs in once per account and restores those cookies
+  afterwards — a real session, kept in the database, not a pretend one.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -1327,11 +1424,11 @@ Two things were paid for here:
   pipeline is ready for it.
 - **Offers** — `Offer` is schema-only and stays that way on purpose (§12);
   coupons are built.
-- **Reviews, banners, FAQ, homepage CMS** — schema only.
+- **Banners, FAQ, homepage CMS** — schema only.
 
 ### Not started
 
-Reviews, recommendations, analytics. **Phase 6 is
+Recommendations and analytics. **Phase 6 is
 complete** — e2e, the security review and the performance pass are all done
 (§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
@@ -1355,6 +1452,8 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
 | A save lost to an instant navigation               | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
+| No rating on a product card                        | A line rendered only for products that have a rating makes cards different heights — the bug `check:layout` exists for                  | Revisit when most products have reviews (§12)               |
+| No "highest rated" sort                            | One five-star review would outrank fifty averaging 4.8                                                                                  | Needs a weighted average, which needs reviews (§12)         |
 | Compare ticks are per browser                      | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
 | Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                                                                                                           | Consider sticky panel                                       |
@@ -1386,7 +1485,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **461 tests**: 422 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **478 tests**: 437 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1399,12 +1498,14 @@ both languages including an escaped hostile display name, and the four
 refusals that keep a store from losing its last reachable admin, and what a
 discount code is worth and every reason it is refused — rounded down, capped
 twice, and evaluated against a clock the test supplies rather than the one on
-the wall, and the comparison — what a `?ids=` value from the address bar is
+the wall, the comparison — what a `?ids=` value from the address bar is
 allowed to mean, and the alignment of values to columns, which is a bug a
-reader would believe rather than notice) plus 39
+reader would believe rather than notice — and the rating arithmetic, where the
+interesting case is that a product with no reviews has NO average rather than
+0.0) plus 39
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **102 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **114 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1424,7 +1525,12 @@ which is mostly negatives — one account cannot read another's saved products
 and cannot delete out of their list, a draft cannot be saved, an unpublished
 product leaves the page but not the row, and deleting a product takes its
 saved items with it, which the column had no foreign key to do until this
-phase). Six of the 102 need no database at
+phase; and reviews, which are three joins deep — order to item to variant to
+product, because `OrderItem` carries no productId of its own — so the tests
+are mostly about who may NOT write one: a stranger's delivered order, a guest
+order, an order that has not arrived yet, and a second review of the same
+product; plus the rating columns moving on approval and back on rejection, and
+the storefront read never returning anything unapproved). Six of the 114 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
@@ -1446,7 +1552,7 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **24 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **27 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
@@ -1458,7 +1564,8 @@ no unit or integration test can make, because the quote and the charge are
 computed at two different times and only a page shows both — **a heart that
 does not know its own state until after hydration**, **a comparison opened in a
 second browser context**, so a page that secretly depended on this browser's
-ticks would fail, the two
+ticks would fail, **a review form that is not offered to somebody who did not
+buy the thing**, the two
 layout claims below, the headers — every page loaded with a listener on
 `securitypolicyviolation`, so a policy that silently blocks the product video
 or a stylesheet fails rather than shipping — and **a budget for the JavaScript
@@ -1480,6 +1587,12 @@ Three rules hold it together, each paid for during the build:
   false, so a leftover `next start` is a port-in-use error instead of the
   previous build quietly answering the tests — a trap listed with the others
   further down.
+- **One real sign-in per account, then its cookies.** better-auth allows five
+  sign-ins a minute per IP and a test runner is one IP: the seventh test that
+  needed a signed-in page met "too many attempts" and timed out on the form.
+  Raising the limit to suit the tests would weaken the thing the tests exist to
+  protect, so `signIn()` keeps the session and restores it — which is a real
+  session, because better-auth keeps them in the database.
 - **A test is not believed until it has failed on purpose.** The cart's
   `lineTotalIqd` was broken to a unit price and the suite stayed green, which
   is how the subtotal-only assertion was found to be blind — the line price is
@@ -1829,9 +1942,7 @@ shape** (brands, categories, product types and the specifications each type
 asks for — so selling a category nobody planned for is data entry, not a
 release). Customers sign in with a password or with Google.
 
-**Phase 5.4 — remaining:**
-
-1. Reviews.
+**Phase 5.4 is finished.** Wishlist, compare and reviews are all built.
 
 **Phase 5.5 — buying guides** (§14) closed the item that had been first on this
 list since Phase 2: the owner writes articles at `/admin/blog` and they appear
@@ -1857,18 +1968,25 @@ now fail a test if they regress.
 the URL and the ticks are `localStorage`, which is the split worth remembering:
 the finished thing is a link, the selection being assembled is not.
 
-**What is left is no longer commerce.** Reviews are a feature a store can open
-without; every path that takes money — cart, checkout, discounts, orders,
-stock, tracking — is built, guarded and tested. The remaining blockers are the
-owner's inputs below, not code.
+**Phase 5.9 — reviews** (§14) closed the list. A rating and a written review
+on every product page, a moderation queue, and one rule that decides the whole
+feature: only a customer with a delivered order may write one, so every review
+on the shop is from somebody who received the thing.
 
-**Reviews are the one with real design left in them**, and the schema already
-takes a position worth honouring: `Review.isVerifiedPurchase` is documented as
-"true only when this user actually has a DELIVERED order for the product", and
-`ReviewStatus` defaults to PENDING, so moderation is not optional. §13.12
-forbids inventing any of it. `Product` carries no rating aggregate column, so
-how the catalogue would sort by rating is still an open question —
-`minPriceIqd` is the precedent for answering it.
+**Every feature this file has planned since Phase 1 is now built.** What
+remains is not code: the owner's inputs below. The two things worth doing to
+the software when there is real traffic are named in §15 — a rating on the
+product card, and a "highest rated" sort — and both are waiting for the same
+thing, which is enough reviews to be worth sorting by.
+
+**What reviews settled**, since this section asked the questions: the schema's
+`isVerifiedPurchase` comment anticipated letting anybody with an account write
+one and badging the buyers. That was refused — an account costs nothing while
+email verification is off, so the requirement is a delivered order and the
+column stays as the switch for relaxing it later. `Product` gained
+`ratingCount` and `ratingSum` rather than an average, so nothing rounds in
+storage. Sorting the catalogue by rating is still not built, and §15 says
+why.
 
 **The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
 caps build workers and the pool together, after `pnpm build` died against

@@ -26,6 +26,11 @@ import {
   setCouponActive,
 } from '@/server/services/admin-coupons';
 import {
+  AdminReviewError,
+  deleteReview,
+  moderateReview,
+} from '@/server/services/admin-reviews';
+import {
   BlogError,
   deleteBlogPost,
   saveBlogPost,
@@ -122,6 +127,9 @@ function toResult(error: unknown): AdminActionResult {
   }
   if (error instanceof BlogError) {
     return { ok: false, errorKey: error.code, field: error.field };
+  }
+  if (error instanceof AdminReviewError) {
+    return { ok: false, errorKey: error.code };
   }
   if (error instanceof CouponError) {
     return { ok: false, errorKey: error.code, field: error.field };
@@ -581,5 +589,44 @@ export async function deleteCouponAction(id: string): Promise<AdminActionResult>
   }
 
   revalidatePath('/admin/coupons', 'page');
+  return { ok: true };
+}
+
+/**
+ * Approve or reject a review.
+ *
+ * Two revalidations, and both are needed. The queue is the screen the staff
+ * member is standing on; the product page is prerendered and now renders a
+ * different list and a different average — the same pair the publish toggle
+ * needs, and for the same reason.
+ */
+export async function moderateReviewAction(input: {
+  reviewId: string;
+  approve: boolean;
+  productSlug: string;
+}): Promise<AdminActionResult> {
+  try {
+    await moderateReview(input.reviewId, input.approve);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/reviews', 'page');
+  revalidatePath(`/products/${input.productSlug}`);
+  return { ok: true };
+}
+
+export async function deleteReviewAction(input: {
+  reviewId: string;
+  productSlug: string;
+}): Promise<AdminActionResult> {
+  try {
+    await deleteReview(input.reviewId);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/reviews', 'page');
+  revalidatePath(`/products/${input.productSlug}`);
   return { ok: true };
 }
