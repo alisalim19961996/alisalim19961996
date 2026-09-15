@@ -565,7 +565,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **665 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **689 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -961,7 +961,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **312 tests**: 285 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **348 tests**: 315 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -970,17 +970,21 @@ signatures including four ways of disguising an SVG, the `.env` editor
 against **both** LF and CRLF files, and the taxonomy rules — keys, a category
 tree that terminates on a cycle, and which field a unique violation names,
 hreflang alternates, the buying guide's price bands, and the reset email in
-both languages including an escaped hostile display name) plus 31
+both languages including an escaped hostile display name, and the four
+refusals that keep a store from losing its last reachable admin) plus 33
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **63 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **76 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
 and every delete that would orphan a product refused; and a customer's order
 history, which is six assertions that it shows NOTHING belonging to anybody
 else — another account's order, a guest order sharing the phone number, and
-anything at all when nobody is signed in). Six of the 63 need no database at
+anything at all when nobody is signed in; and access, where the counts are
+global and therefore read from Postgres inside the same call that acts on
+them — the last active admin cannot be demoted or deactivated, and an
+inactive one does not count towards keeping the store reachable). Six of the 76 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
