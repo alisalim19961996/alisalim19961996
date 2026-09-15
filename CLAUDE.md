@@ -377,6 +377,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/sign-up`                        | Dynamic      | Create an account; optional — checkout never requires one                |
 | `/[locale]/account`                        | Dynamic      | The customer's details and recent orders                                 |
 | `/[locale]/wishlist`                       | Dynamic      | The products this customer saved; signed-in only, never indexed          |
+| `/[locale]/compare`                        | Dynamic      | Two to four products side by side, entirely from `?ids=`; not indexed    |
 | `/[locale]/account/orders`                 | Dynamic      | Full order history, paginated                                            |
 | `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                          |
 | `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                 |
@@ -501,6 +502,12 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 shape for a card and a labelled one beside add-to-cart), `WishlistRefresher`
 (only on `/wishlist`, so unsaving there removes the card and not just the
 icon), `wishlist-store.ts` (one shared read per page — see §12).
+
+**Compare** — `features/compare/`: `CompareToggle` (the tick, stacked under the
+heart in the card's corner), `CompareTray` (in the storefront layout, renders
+null until something is ticked, **sticky** so it can never cover the footer),
+`CompareClearLink`, `compare-store.ts` (an external store over `localStorage`
+— see §12).
 
 **Catalogue** — `features/catalogue/components/`: `FilterPanel`,
 `ActiveFilters`, `SortSelect`, `MobileFilterButton`, `Pagination`.
@@ -631,7 +638,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **768 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **789 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -965,6 +972,52 @@ promise, so only the non-obvious rules are written down.
   the session, every time — four integration tests exist to say so, two of them
   about one account reaching another's list.
 
+**Comparing products** — `lib/domain/compare-url.ts` and `lib/domain/compare.ts`
+for the rules, `server/queries/compare.ts` for the read, `features/compare/`
+for the tick and the tray.
+
+- **The comparison is the URL; the selection is not.** `?ids=slug,slug` is the
+  whole state of the page, because a comparison is a thing worth sending to
+  somebody — "which of these two, then?" is why it exists. The ticks being
+  assembled across the catalogue, a homepage rail and the wishlist are a
+  different thing: a per-viewer convenience with nothing to share, so they live
+  in `localStorage`. An e2e test opens the finished link in a **second browser
+  context**, which is the only way to prove the page does not depend on them.
+- **Slugs, not ids.** They are stable by design (§6), they read in a shared
+  link, and they do not expose row identity the way a cuid does.
+- **Four.** A fifth column leaves 78 pixels per product at 390px. The tick says
+  so when the list is full rather than silently refusing — a control that does
+  nothing is indistinguishable from one that is broken.
+- **The rows come from the products' own specifications**, reached through
+  their product type's `ProductTypeAttribute` links, so nothing here knows what
+  a phone is and a type invented from the dashboard compares on its own
+  specifications with no code changing (§6).
+- **The union, not the intersection.** Comparing a phone with a cable is a thin
+  table, not an error; an intersection would render an empty page and read as
+  broken. Rows where the products agree are shown but not emphasised, and a
+  product with **no** value is a dash — a missing specification is missing
+  information, not a difference, and highlighting it would point the shopper at
+  whichever product simply has fewer fields filled in.
+- **The tray is `sticky`, not `fixed`, and that is the whole clearance story.**
+  The footer's gap under the mobile buy bar was a real bug that shipped and
+  went unmeasured for a phase (§15); a second fixed bar would be a second
+  chance at it, with a spacer whose height has to track content that wraps.
+  Sitting in normal flow between `main` and the footer, it cannot cover
+  anything and there is no number to keep in step. An e2e test measures it, and
+  was proved by switching to `fixed` — 482px of the footer covered.
+- **`localStorage` is read through `useSyncExternalStore`**, not in an effect.
+  It cannot be touched during render without a hydration mismatch, and reading
+  it in an effect to call `setState` is the pattern
+  `react-hooks/set-state-in-effect` exists to stop. The store also listens for
+  the `storage` event, so two open tabs cannot disagree about what is ticked.
+- **The table is the one element allowed to scroll sideways**, inside its own
+  box: four columns of specifications do not fit a phone, and shrinking the
+  text until they do is worse. The page itself still has zero horizontal
+  overflow, which the layout spec checks.
+- **Not indexed** (`robots: index: false, follow: true`). The page is one
+  combination of `?ids=` out of a factorial number of them, each a thin
+  rearrangement of pages Google already has.
+
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
 
@@ -1241,6 +1294,31 @@ Driven in a browser: signed out the heart offers sign-in and `/wishlist`
 redirects; signed in it saves, the product appears on the list, and unsaving
 removes the card rather than just emptying the icon.
 
+**Phase 5.8 — comparing products**: a tick on every product card, a tray that
+shows what is held, and `/compare?ids=…` — two to four products side by side,
+with the rows generated from each product's own specifications, so this code
+knows nothing about phones.
+
+The comparison lives in the URL and the ticks live in `localStorage`, and the
+split is the design: a finished comparison is a link worth sending, a selection
+being assembled is not. An e2e test opens the link in a **second browser
+context** to prove the page does not secretly depend on the ticks — it does
+fail when the URL stops driving the table.
+
+Two things were paid for here:
+
+- **A bar pinned to the bottom of the viewport is the shape of a bug that has
+  already shipped once.** The tray is `sticky` rather than `fixed`, so it
+  cannot cover the footer and needs no spacer to keep in step with wrapping
+  content. Measured, and the measurement was proved by switching it to
+  `fixed`: 482px of the footer covered.
+- **The first version of that measurement passed against the broken build.**
+  It scrolled with a single `scrollTo`, which lands short while images are
+  still loading, so the footer was below the viewport and the arithmetic came
+  out negative. §17 already listed mid-scroll readings as a trap; the settling
+  helper is now shared from `tests/e2e/fixtures.ts` rather than living in one
+  spec.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -1253,7 +1331,7 @@ removes the card rather than just emptying the icon.
 
 ### Not started
 
-Compare, reviews, recommendations, analytics. **Phase 6 is
+Reviews, recommendations, analytics. **Phase 6 is
 complete** — e2e, the security review and the performance pass are all done
 (§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
@@ -1277,6 +1355,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
 | A save lost to an instant navigation               | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
+| Compare ticks are per browser                      | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
 | Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                                                                                                           | Consider sticky panel                                       |
 | `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                                                            | Keep                                                        |
@@ -1307,7 +1386,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **445 tests**: 406 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **461 tests**: 422 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1320,7 +1399,9 @@ both languages including an escaped hostile display name, and the four
 refusals that keep a store from losing its last reachable admin, and what a
 discount code is worth and every reason it is refused — rounded down, capped
 twice, and evaluated against a clock the test supplies rather than the one on
-the wall) plus 39
+the wall, and the comparison — what a `?ids=` value from the address bar is
+allowed to mean, and the alignment of values to columns, which is a bug a
+reader would believe rather than notice) plus 39
 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **102 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
@@ -1365,7 +1446,7 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **21 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **24 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
@@ -1375,7 +1456,9 @@ with the product type, a dashboard a signed-out visitor cannot reach, **a
 discount code applied at checkout and then charged as quoted** — the one claim
 no unit or integration test can make, because the quote and the charge are
 computed at two different times and only a page shows both — **a heart that
-does not know its own state until after hydration**, the two
+does not know its own state until after hydration**, **a comparison opened in a
+second browser context**, so a page that secretly depended on this browser's
+ticks would fail, the two
 layout claims below, the headers — every page loaded with a listener on
 `securitypolicyviolation`, so a policy that silently blocks the product video
 or a stylesheet fails rather than shipping — and **a budget for the JavaScript
@@ -1523,6 +1606,19 @@ against them before believing a failure:
   then read too early and the test failed about one run in ten, blaming the
   shop. Scope a status assertion to the row (`tbody tr` filtered by the name,
   last cell), and poll anything that depends on the server having caught up.
+- **An Arabic label can be a SUBSTRING of another one.** Playwright matches
+  accessible names by substring, and قارن ("compare") sits inside المقارنة
+  ("the comparison"), so the tray's one button resolved to fifteen elements —
+  every card's compare tick — and the assertion that the tray is absent before
+  anything is ticked failed against the ticks themselves. Use `exact: true`
+  whenever a short Arabic word is also a stem.
+- **One `scrollTo` is not "at the bottom".** Images finish loading and the
+  document grows underneath, so a single call lands short and the footer is
+  still below the viewport — where a clearance measurement comes out negative
+  and PASSES against a bar that is covering it. That is how the compare tray's
+  first clearance test passed on a deliberately broken build.
+  `scrollToSettledBottom()` in `tests/e2e/fixtures.ts` is the one copy; it
+  keeps scrolling until two readings agree.
 - **A `next start` you did not just start is serving the previous build.** It
   has been mistaken here for a code bug more than once: the fix was already
   applied, the page still showed the old behaviour, and the hunt went into the
@@ -1735,7 +1831,7 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. Compare, reviews.
+1. Reviews.
 
 **Phase 5.5 — buying guides** (§14) closed the item that had been first on this
 list since Phase 2: the owner writes articles at `/admin/blog` and they appear
@@ -1757,10 +1853,14 @@ never existed and five search indexes that had been silently dropped two
 migrations ago while this file said they were there. Both are fixed and both
 now fail a test if they regress.
 
-**What is left is no longer commerce.** Compare and reviews are features a
-store can open without; every path that takes money — cart, checkout,
-discounts, orders, stock, tracking — is built, guarded and tested. The
-remaining blockers are the owner's inputs below, not code.
+**Phase 5.8 — comparing products** (§14) took the second. The comparison is
+the URL and the ticks are `localStorage`, which is the split worth remembering:
+the finished thing is a link, the selection being assembled is not.
+
+**What is left is no longer commerce.** Reviews are a feature a store can open
+without; every path that takes money — cart, checkout, discounts, orders,
+stock, tracking — is built, guarded and tested. The remaining blockers are the
+owner's inputs below, not code.
 
 **Reviews are the one with real design left in them**, and the schema already
 takes a position worth honouring: `Review.isVerifiedPurchase` is documented as

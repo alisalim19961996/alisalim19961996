@@ -144,8 +144,17 @@ export interface SpecGroup {
   rows: SpecRow[];
 }
 
-/** Render one stored attribute value as the string a shopper reads. */
-function formatAttributeValue(row: AttributeValueRow, locale: Locale): string | null {
+/**
+ * Render one stored attribute value as the string a shopper reads.
+ *
+ * Exported for the comparison table, which has to format the same values the
+ * product page does — a second formatter is how "8 GB" and "8GB" end up side
+ * by side in the same column (§13.16).
+ */
+export function formatAttributeValue(
+  row: AttributeValueRow,
+  locale: Locale,
+): string | null {
   const { definition } = row;
   const unit = definition.unit ? ` ${definition.unit}` : '';
 

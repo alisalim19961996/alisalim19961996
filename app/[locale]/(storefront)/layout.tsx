@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { CompareTray } from '@/features/compare/components/compare-tray';
 
 /**
  * setRequestLocale must be called in every layout and page that renders
@@ -24,6 +25,11 @@ export default async function StorefrontLayout({
       <main id="main" className="flex-1">
         {children}
       </main>
+      {/*
+        Between main and the footer, so the sticky bar comes to rest above the
+        footer rather than over it. It renders null unless something is ticked.
+      */}
+      <CompareTray />
       <SiteFooter />
     </div>
   );

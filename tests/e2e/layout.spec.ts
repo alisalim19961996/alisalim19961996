@@ -1,5 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
-import { gotoRendered, openPurchasableProduct, t } from './fixtures';
+import { expect, test } from '@playwright/test';
+import {
+  gotoRendered,
+  openPurchasableProduct,
+  scrollToSettledBottom,
+  t,
+} from './fixtures';
 
 /**
  * The two layout claims in §10 that can regress without anybody noticing.
@@ -13,30 +18,6 @@ import { gotoRendered, openPurchasableProduct, t } from './fixtures';
 
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
-
-/** Scroll to the bottom and wait for it to stop moving before reading rects. */
-async function scrollToSettledBottom(page: Page): Promise<void> {
-  let previous = -1;
-
-  // A mid-scroll reading once reported the copyright line as covered by the
-  // buy bar when the real clearance was 51px (§17). Images finish loading and
-  // the document grows, so "scrolled once" is not "at the bottom" — the poll
-  // keeps scrolling until two readings agree.
-  await expect
-    .poll(
-      async () => {
-        const y = await page.evaluate(() => {
-          window.scrollTo(0, document.body.scrollHeight);
-          return Math.round(window.scrollY);
-        });
-        const settled = y === previous && y > 0;
-        previous = y;
-        return settled;
-      },
-      { timeout: 10_000 },
-    )
-    .toBe(true);
-}
 
 test.describe('on a phone', () => {
   test.use({ viewport: PHONE });

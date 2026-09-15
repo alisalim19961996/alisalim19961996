@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { ProductPrice } from './product-price';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { CompareToggle } from '@/features/compare/components/compare-toggle';
 import { getAvailability } from '@/lib/domain/availability';
 import type { ProductCardData } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
@@ -159,13 +160,15 @@ export async function ProductCard({
       </div>
 
       {/*
-        Outside the text block and above the stretched link, so pressing it
-        saves the product instead of opening it.
+        Outside the text block and above the stretched link, so pressing either
+        acts on the product instead of opening it. Stacked in one column in the
+        image's corner: side by side they read as a pair of unrelated icons,
+        and at 171px wide on a phone they would crowd the "new" badge.
       */}
-      <WishlistButton
-        productId={product.id}
-        className="absolute end-2 top-2 z-10 size-9"
-      />
+      <div className="absolute end-2 top-2 z-10 flex flex-col gap-1.5">
+        <WishlistButton productId={product.id} className="size-9" />
+        <CompareToggle slug={slug} />
+      </div>
     </article>
   );
 }

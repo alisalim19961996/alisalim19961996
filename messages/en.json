@@ -816,5 +816,28 @@
     "unavailable": "{count} saved products are not on sale right now. They were taken off the shop, not out of your list — if they return, they will appear here.",
     "productNotFound": "That product does not exist, or is not on sale right now.",
     "actionFailed": "We could not save that change. Please try again."
+  },
+  "compare": {
+    "title": "Compare products",
+    "comparing": "{count} products side by side",
+    "add": "Add to compare",
+    "remove": "Remove from compare",
+    "full": "At most {max} products can be compared",
+    "selected": "{count} of {max} to compare",
+    "compare": "Compare",
+    "clear": "Clear comparison",
+    "browse": "Browse products",
+    "emptyTitle": "Nothing to compare yet",
+    "emptyBody": "Tick between two and {max} products on any product listing and you will get a table comparing their specifications and price.",
+    "mixedTypes": "You are comparing different kinds of product, so most rows will be empty.",
+    "missing": "{count} of the requested products are not on sale right now and were left out.",
+    "specification": "Specification",
+    "tableCaption": "Comparison table: each column is a product, each row a specification.",
+    "price": "Price",
+    "availability": "Availability",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "warranty": "Warranty",
+    "warrantyMonths": "{count} months"
   }
 }
