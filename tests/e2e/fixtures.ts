@@ -98,10 +98,21 @@ export function customerCredentials(): { email: string; password: string } {
   };
 }
 
-/** A delivery address a courier could actually act on. Prefix 77 is a real Iraqi range. */
+/**
+ * A delivery address a courier could actually act on. Prefix 77 is a real
+ * Iraqi range, and the last seven digits are drawn fresh for every run.
+ *
+ * Random because order tracking is rate limited per phone number
+ * (`server/rate-limit.ts`): five attempts a quarter hour is generous for a
+ * customer and ample for one pass of this suite, but a fixed number would
+ * accumulate across runs and the third run of the afternoon would fail on the
+ * limiter rather than on the code.
+ */
+const runPhone = `077${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+
 export const CHECKOUT = {
   fullName: 'زبون اختبار آلي',
-  phone: '07771234567',
+  phone: runPhone,
   city: 'الكرادة',
   addressLine: 'شارع الاختبار، قرب الجسر، بيت ٣',
   /** Never used on an order — the tracking form is asked for it on purpose. */

@@ -283,6 +283,7 @@
     "trackSubmit": "عرض الطلب",
     "trackAnother": "تتبّع طلب ثاني",
     "notFound": "ما لكينا طلب بهذا الرقم وهذا الهاتف.",
+    "tooManyAttempts": "جرّبت مرات كثيرة. انتظر شوية وجرّب مرة ثانية.",
     "invalidOrderNumber": "رقم الطلب غير صحيح.",
     "statusPENDING": "بانتظار التأكيد",
     "statusCONFIRMED": "تم التأكيد",

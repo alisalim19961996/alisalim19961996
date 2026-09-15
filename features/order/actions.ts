@@ -8,6 +8,7 @@ import { RECENT_ORDER_COOKIE, RECENT_ORDER_MAX_AGE } from '@/server/services/ord
 import { trackOrderSchema } from '@/schemas/checkout';
 import type { Locale } from '@/i18n/routing';
 import { appCookieOptions } from '@/server/cookies';
+import { takeTrackOrderAttempt } from '@/server/rate-limit';
 
 /**
  * Public order tracking.
@@ -45,6 +46,20 @@ export async function trackOrderAction(
       status: 'error',
       errorKey: invalidNumber ? 'invalidOrderNumber' : 'notFound',
     };
+  }
+
+  /*
+    Rate limited on the phone, before the lookup.
+
+    A Server Action is a door better-auth's limiter never sees (§7), and this
+    is the one public form that answers with a name and a home address. Order
+    numbers are sequential — they have to be readable aloud to a courier — so
+    without this, knowing somebody's phone number and walking four digits reads
+    back their order. Keyed by the phone because that is the value the attack
+    cannot vary; see server/rate-limit.ts.
+  */
+  if (!takeTrackOrderAttempt(parsed.data.phone).allowed) {
+    return { status: 'error', errorKey: 'tooManyAttempts' };
   }
 
   const locale = (await getLocale()) as Locale;

@@ -63,14 +63,26 @@ export function extractYoutubeId(input: string): string | null {
   return null;
 }
 
+/**
+ * The two third-party origins a product page can reach, named once.
+ *
+ * The Content-Security-Policy has to allow exactly these, and a policy that
+ * lists them separately is the §13.16 failure waiting to happen: change the
+ * embed to youtube.com here and the video silently stops loading, blocked by
+ * a header nobody thought to look at. `lib/security-headers.ts` reads them
+ * from here instead.
+ */
+export const YOUTUBE_EMBED_ORIGIN = 'https://www.youtube-nocookie.com';
+export const YOUTUBE_THUMBNAIL_ORIGIN = 'https://i.ytimg.com';
+
 /** Privacy-preserving embed URL, only loaded after the customer clicks play. */
 export function youtubeEmbedUrl(videoId: string): string {
-  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+  return `${YOUTUBE_EMBED_ORIGIN}/embed/${videoId}?autoplay=1&rel=0`;
 }
 
 /** Thumbnail served as the facade before the player loads. */
 export function youtubeThumbnailUrl(videoId: string): string {
-  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  return `${YOUTUBE_THUMBNAIL_ORIGIN}/vi/${videoId}/hqdefault.jpg`;
 }
 
 export function youtubeWatchUrl(videoId: string): string {

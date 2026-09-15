@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { claimCartForCurrentUser } from '@/server/services/cart';
 import { serverEnv } from '@/config/env';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 /**
  * Where an OAuth sign-in lands before the visitor sees a page.
@@ -19,14 +20,13 @@ import { serverEnv } from '@/config/env';
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const requested = url.searchParams.get('next') ?? '/';
 
-  // `next` arrives from a query string, so it arrives from anyone. Only a
-  // same-site path is honoured: `//evil.example` is a protocol-relative URL
-  // that a naive "starts with /" check would send the customer straight to,
-  // with the store's name in the address bar they just left.
-  const next =
-    requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
+  // `next` arrives from a query string, so it arrives from anyone. The string
+  // check that used to live here — starts with "/" but not "//" — was bypassed
+  // live: `/\evil.example` redirected to http://evil.example/, because the URL
+  // parser reads a backslash as a slash. `safeInternalPath` asks that same
+  // parser instead of trying to out-guess it (lib/safe-redirect.ts).
+  const next = safeInternalPath(url.searchParams.get('next'));
 
   await claimCartForCurrentUser();
   revalidatePath('/', 'layout');

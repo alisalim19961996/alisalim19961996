@@ -17,6 +17,7 @@ import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
 import { isPurchasable } from '@/lib/domain/availability';
+import { jsonLdScript } from '@/lib/seo';
 
 /**
  * Product detail.
@@ -374,8 +375,12 @@ function ProductJsonLd({
   return (
     <script
       type="application/ld+json"
-      // Serialised from our own database rows, never from user input.
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      /*
+        `jsonLdScript`, not `JSON.stringify`: the rows are typed by staff in
+        the dashboard now, and stringify leaves `</script>` intact. See
+        lib/seo.ts for what that depends on today and why it should not.
+      */
+      dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
     />
   );
 }

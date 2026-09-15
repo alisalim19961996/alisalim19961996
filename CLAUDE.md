@@ -303,7 +303,16 @@ requireLocalEmailVerified: true }`. Google's word that an address is verified
   real cause to the console in development, because to a user a 403 is
   indistinguishable from a wrong password.
 - Rate limits: 5 sign-ins/minute, 3 sign-ups/5 min, 3 password resets/5 min,
-  20 requests/minute globally.
+  20 requests/minute globally. **Those cover `/api/auth/*` only** — better-auth
+  applies them in its router, and a Server Action is a different door. Order
+  tracking is the one public action that answers with a customer's name and
+  address, so it has its own limiter (§12).
+- **A guard is not "any guard".** The rule is `requireStaff()` or
+  `requireAdmin()` in every admin export; the guardrail that enforces it used
+  to accept `requireUser()` and `requireRole()` as well, which would have
+  waved through a module every signed-in CUSTOMER could call. No module was
+  ever wrong — the rule was, and a rule that admits the failure it exists to
+  prevent is not enforcement.
 - Roles: `CUSTOMER` | `STAFF` | `ADMIN`. **Role is server-owned** — declared
   with `input: false`, never accepted from a client payload.
 - Guards: `getCurrentUser()` (never throws), `requireUser()`, `requireRole()`,
@@ -568,7 +577,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **689 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **690 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -642,6 +651,20 @@ reproduces exactly that: with the naive version it sells one unit twice.
 courier, and exposing row identity invites enumeration. Tracking accepts what
 people actually type — lowercase, spaced, prefix omitted, Arabic-Indic digits,
 en dash.
+
+**Order tracking is rate limited per phone number**, five attempts a quarter
+hour, in `server/rate-limit.ts` with the window arithmetic in
+`lib/domain/rate-limit.ts`. The numbers are sequential by design — they have to
+be readable aloud to a courier — so anyone who knew a customer's phone could
+walk a day's four digits and read back their name and address; ten thousand
+requests is an afternoon. The key is the **phone**, not the IP, because that is
+the value the attack cannot vary, while an IP rotates freely and behind a proxy
+is only as trustworthy as a header anyone can write. A customer needs one
+attempt, or two after a typo. The counter is in process, so it does not survive
+a restart and is not shared between instances: an honest limit while the store
+is one Next process, and a counter table the day it is not. Verified by
+tripping it on the built site — the sixth attempt answers "too many attempts"
+in Arabic.
 
 **Access to an order** is never the URL alone, because the numbers are
 sequential. It needs the httpOnly `mps.recent_order` cookie written at checkout
@@ -909,6 +932,34 @@ against a deliberate break before being believed: the cart's line total, the
 footer's reserved gap and the copy guardrail were each violated on purpose and
 the right test went red.
 
+**Phase 6 (part) — the security review**: a pass over every Server Action,
+route handler, admin query and service, the headers, and what reaches the
+browser. It found one live vulnerability and three things that were a change
+away from being one:
+
+- **An open redirect**, exploitable without signing in.
+  `/api/session/claim-cart?next=/\evil.example` answered
+  `Location: http://evil.example/` — the check was `startsWith('/') &&
+!startsWith('//')` and the URL parser reads a backslash as a slash, so the
+  one shape it was written to stop got through in a second spelling.
+  `lib/safe-redirect.ts` now asks that same parser instead of out-guessing it:
+  resolve against a throwaway origin, accept only if the origin survived.
+- **JSON-LD serialised with `JSON.stringify`**, which leaves `</script>`
+  intact. Measured on the built site it does **not** execute — the tag is
+  inserted client-side, and a script inserted that way never runs — so this was
+  hardening, not a hole. But the comment beside it read "never from user
+  input", and Phase 5.1 made that false: staff type product names now.
+- **No CSP, no HSTS.** Both now built in `lib/security-headers.ts`, with the
+  nonce deliberately refused (§18).
+- **Order tracking had no rate limit** — the one public action that answers
+  with a name and an address, against order numbers that are sequential by
+  design (§12).
+
+A guardrail was also found admitting the failure it existed to prevent: it
+accepted `requireUser()` in an admin module. No module was ever wrong; the rule
+was. Each fix was proved by putting the old code back and watching the right
+test go red.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -931,6 +982,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | Item                                               | Impact                                                                                                                                  | Plan                                                        |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | e2e covers the flows, not the filters              | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
+| Rate limiting is in process                        | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
 | No cache layer                                     | Catalogue runs 2 queries per visit                                                                                                      | `unstable_cache` + tags when the catalogue grows            |
 | Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
@@ -971,7 +1023,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **349 tests**: 315 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **384 tests**: 350 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1016,14 +1068,16 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **12 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **16 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
 never issued, a sign-out that takes `mps.recent_order` with it, unpublishing a
 product and watching it leave the shop floor, specification fields that change
-with the product type, a dashboard a signed-out visitor cannot reach, and the
-two layout claims below. Not in `pnpm check`: it needs a browser that has to be
+with the product type, a dashboard a signed-out visitor cannot reach, the two
+layout claims below, and the headers — every page loaded with a listener on
+`securitypolicyviolation`, so a policy that silently blocks the product video
+or a stylesheet fails rather than shipping. Not in `pnpm check`: it needs a browser that has to be
 installed once (`npx playwright install chromium`), and `check` must keep
 working on a machine that has not. **CI runs it after `pnpm check`**, against
 the `.next` that step produced.
@@ -1085,7 +1139,7 @@ not a false hit.
 | Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                     |
 | The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                   |
 | better-auth imported only by its two seam modules          | An auth provider welded into feature code                |
-| Every admin query/service export calls a guard             | Customer addresses exposed to anyone with the action id  |
+| Every admin export calls `requireStaff` / `requireAdmin`   | Customer addresses exposed to anyone with the action id  |
 | No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing           |
 | No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
 | No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error     |
@@ -1290,10 +1344,40 @@ and `DATABASE_POOL_MAX` override each half for anything that announces itself a
 fourth way. A test asserts the product fits under the ceiling — setting the two
 numbers sensibly but separately is exactly how this bug was written.
 
+**Security headers are built in `lib/security-headers.ts`**, not written out in
+the config, so the policy can be unit-tested — a CSP that blocks the product
+video and one that allows everything look identical in a config file.
+
+**The Content-Security-Policy deliberately carries no nonce.** Next's own guide
+builds a strict `script-src` from a per-request nonce and states that doing so
+**requires dynamic rendering**. This store is built the other way round: the
+homepage and all 32 product pages are prerendered, and §8 records what keeping
+them that way costs — the header cannot read a cookie without turning every
+route dynamic. So `'unsafe-inline'` stays on `script-src`, and the policy is
+honest about not stopping inline script in an app that renders no user HTML
+(React escapes everything; the single `dangerouslySetInnerHTML` is JSON-LD,
+serialised by `jsonLdScript()` so it cannot close its own tag). What it does
+stop is the rest: no `'unsafe-eval'` and no remote script origin, `base-uri
+'self'` so an injected `<base>` cannot repoint the checkout form, `form-action
+'self'` so a form cannot be aimed at another host, `frame-ancestors 'none'`,
+`object-src 'none'`, and allow-lists — not wildcards — for the storage bucket
+and the two YouTube origins `lib/video.ts` uses. Revisit the nonce if the
+storefront ever becomes dynamic for another reason; then it is free.
+
+`Strict-Transport-Security` follows the scheme, like every cookie (§7), and
+carries **no `preload`**: submitting a domain to the browsers' preload list is
+close to irreversible and this store has no domain yet.
+
+**The one violation the policy produces is Zod's JIT probe.** Zod 4 compiles
+validators with `new Function` when it can and finds out by trying; without
+`'unsafe-eval'` that throws, Zod catches it and falls back to the interpreted
+path. Every form still validates. `tests/e2e/security.spec.ts` names that one
+violation explicitly and fails on any other, so a script from a new origin or a
+blocked frame is still caught.
+
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
-**session pooler** connection string, not a direct connection; security headers
-are set in `next.config.ts`; `dangerouslyAllowSVG` is deliberately **off**, and
+**session pooler** connection string, not a direct connection; `dangerouslyAllowSVG` is deliberately **off**, and
 uploads enforce that **by content, not by file name** — renaming an SVG to
 `.jpg` is the whole attack, so the extension is never consulted.
 
@@ -1362,8 +1446,17 @@ linking (§7) for addresses that already have a password here.
 **Phase 6 — QA:** the Playwright suite is in (`tests/e2e/`, run by CI after
 the build), so the flows that used to be driven by hand before each phase are
 driven by a machine instead — including the footer's clearance under the mobile
-buy bar, which §15 had listed as unmeasured since it was built. Remaining:
-security review, performance pass and a cache layer.
+buy bar, which §15 had listed as unmeasured since it was built. **The security
+review is done** (§14): one live open redirect fixed, a CSP and HSTS added with
+the nonce refused for a stated reason (§18), order tracking rate limited (§12),
+and a guardrail tightened that had been admitting the failure it existed to
+prevent. Remaining: a performance pass and a cache layer.
+
+What the review did **not** cover, so nobody reads it as more than it is:
+dependency auditing beyond the `minimumReleaseAge` policy, anything about the
+host or the network the store will eventually run on, and the Supabase
+project's own configuration beyond the bucket policy §18 describes. It is a
+review of this repository's code.
 
 **An accessibility pass has been done once**, by reading the DOM of the built
 site rather than by eye, and it found three real defects that had survived

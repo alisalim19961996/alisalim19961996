@@ -505,14 +505,23 @@ describe('admin data is guarded', () => {
       ...source.matchAll(/export async function (\w+)[\s\S]*?(?=\nexport |\n?$)/g),
     ];
 
+    /*
+      requireStaff or requireAdmin specifically, not "a guard".
+
+      The first version of this accepted requireUser and requireRole too, and
+      would have passed a module every signed-in CUSTOMER could call — the
+      exact failure it exists to prevent, waved through because something
+      guard-shaped was present. No module was ever wrong; the rule was.
+    */
     const unguarded = functions
-      .filter(([body]) => !/require(Staff|Admin|User|Role)\s*\(/.test(body))
+      .filter(([body]) => !/require(Staff|Admin)\s*\(/.test(body))
       .map(([, name]) => `${file}:${name}`);
 
     expect(
       unguarded,
-      'Call requireStaff() or requireAdmin() at the top. The admin layout does ' +
-        'not protect a Server Action invoked directly.',
+      'Call requireStaff() or requireAdmin() at the top — requireUser() is not ' +
+        'enough here, it admits every customer. The admin layout does not ' +
+        'protect a Server Action invoked directly.',
     ).toEqual([]);
   });
 });

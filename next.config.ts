@@ -1,6 +1,7 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
 import { poolingPlanFor } from './lib/database-url';
+import { securityHeaders } from './lib/security-headers';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
@@ -75,15 +76,16 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/:path*',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-        ],
+        // Assembled in lib/security-headers.ts so the policy can be unit
+        // tested: a CSP that blocks the product video and one that allows
+        // everything look the same in a config file.
+        headers: securityHeaders({
+          storageHost: supabaseHost,
+          // The scheme the site is actually served from, exactly as every
+          // cookie decides `secure` (§7). Read at build time, which is when
+          // this config is evaluated — a deployment serves one origin.
+          secure: (process.env.BETTER_AUTH_URL ?? '').startsWith('https://'),
+        }),
       },
     ];
   },

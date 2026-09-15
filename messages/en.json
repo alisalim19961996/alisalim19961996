@@ -283,6 +283,7 @@
     "trackSubmit": "View order",
     "trackAnother": "Track another order",
     "notFound": "We could not find an order with that number and phone.",
+    "tooManyAttempts": "Too many attempts. Please wait a few minutes and try again.",
     "invalidOrderNumber": "That order number is not valid.",
     "statusPENDING": "Awaiting confirmation",
     "statusCONFIRMED": "Confirmed",
