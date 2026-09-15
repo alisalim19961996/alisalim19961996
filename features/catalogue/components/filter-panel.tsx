@@ -1,10 +1,11 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check, X } from 'lucide-react';
 import { useRouter, usePathname } from '@/i18n/navigation';
+import { Button } from '@/components/ui/button';
 import { buildCatalogueQuery, toggleCsvValue } from '@/lib/domain/catalogue-url';
 import type { CatalogueFacets, FacetOption } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
@@ -56,6 +57,31 @@ export function FilterPanel({
 
   return (
     <div className={cn('space-y-7', isPending && 'opacity-60')}>
+      {/*
+        Price first, before RAM and storage.
+
+        `priceRange` has been computed by `getCatalogueFacets` since the
+        catalogue was built and **nothing ever rendered it** — `min` and `max`
+        were in the URL contract, parsed and clamped, reachable only by typing
+        them into the address bar. Budget is the first question most phone
+        shoppers ask, so it goes at the top rather than under two specification
+        groups they may not care about.
+      */}
+      <PriceFilter
+        /*
+          Keyed on the URL values so the boxes reset when the range changes
+          from outside — the back button, or clearing the chip. React's own
+          answer to "reset state when a prop changes": remount, rather than an
+          effect that calls setState and renders twice
+          (`react-hooks/set-state-in-effect`).
+        */
+        key={`${searchParams.get('min') ?? ''}-${searchParams.get('max') ?? ''}`}
+        range={facets.priceRange}
+        min={searchParams.get('min')}
+        max={searchParams.get('max')}
+        onApply={(next) => navigate(next)}
+      />
+
       <FilterGroup title={t('brand')}>
         {facets.brands.map((option) => (
           <CheckRow
@@ -127,6 +153,90 @@ export function FilterPanel({
         />
       </FilterGroup>
     </div>
+  );
+}
+
+/**
+ * The price range, as two whole-dinar boxes.
+ *
+ * Applied on submit rather than on every keystroke: a range filter that
+ * re-queries while the customer is still typing "1" of "150000" shows them
+ * three empty result pages on the way to the one they wanted.
+ *
+ * The values are not validated here beyond being numbers — `schemas/catalogue`
+ * already clamps them, swaps a reversed range rather than emptying it, and
+ * falls back on nonsense, because they arrive from the address bar and
+ * therefore from anyone. Repeating that here would be a second set of rules to
+ * keep in step (§13.16).
+ */
+function PriceFilter({
+  range,
+  min,
+  max,
+  onApply,
+}: {
+  range: { min: number; max: number };
+  min: string | null;
+  max: string | null;
+  onApply: (changes: Record<string, string | null>) => void;
+}) {
+  const t = useTranslations('catalogue');
+  // Initial only: the caller keys this component on the URL values, so a
+  // change from outside remounts it rather than syncing it in an effect.
+  const [from, setFrom] = useState(min ?? '');
+  const [to, setTo] = useState(max ?? '');
+
+  const field =
+    'h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink numeric transition-colors hover:border-border-strong focus-visible:border-primary';
+
+  return (
+    <FilterGroup title={t('price')}>
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onApply({ min: from.trim() || null, max: to.trim() || null });
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <label className="flex-1">
+            <span className="mb-1 block text-xs text-muted">{t('priceFrom')}</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              /*
+                Only "not negative". Bounding these to the facet range looks
+                tidy and blocks the form: HTML5 validation refuses to submit a
+                number below `min`, so typing a rough 100000 when the cheapest
+                product is 120000 did nothing at all except show a bubble. The
+                range belongs in the placeholder, where it is a hint; the
+                clamping belongs in `schemas/catalogue`, where it already is.
+              */
+              min={0}
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              placeholder={String(range.min)}
+              className={field}
+            />
+          </label>
+          <label className="flex-1">
+            <span className="mb-1 block text-xs text-muted">{t('priceTo')}</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              placeholder={String(range.max)}
+              className={field}
+            />
+          </label>
+        </div>
+        <Button type="submit" variant="outline" size="sm" block>
+          {t('priceApply')}
+        </Button>
+      </form>
+    </FilterGroup>
   );
 }
 

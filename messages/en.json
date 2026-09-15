@@ -104,7 +104,8 @@
     "warrantyMonths": "{count, plural, one {# month} other {# months}}",
     "new": "New",
     "galleryImage": "Image {number}",
-    "galleryVideo": "Video {number}"
+    "galleryVideo": "Video {number}",
+    "startingFrom": "From"
   },
   "cart": {
     "title": "Shopping cart",
@@ -237,7 +238,12 @@
       "price_desc": "Price: high to low",
       "best_selling": "Best selling"
     },
-    "resultsHeading": "Results"
+    "resultsHeading": "Results",
+    "price": "Price",
+    "priceFrom": "From",
+    "priceTo": "To",
+    "priceApply": "Apply",
+    "showResults": "Show {count} results"
   },
   "checkout": {
     "title": "Checkout",
@@ -751,7 +757,8 @@
     "intro": "Everything currently discounted. The old price is shown struck through beside the new one.",
     "empty": "No offers right now. Have a look at the rest of the store.",
     "browseAll": "Browse all products",
-    "count": "{count, plural, =0 {No offers} one {1 offer} other {# offers}}"
+    "count": "{count, plural, =0 {No offers} one {1 offer} other {# offers}}",
+    "filterOffers": "Filter offers"
   },
   "guides": {
     "title": "Buying guide",

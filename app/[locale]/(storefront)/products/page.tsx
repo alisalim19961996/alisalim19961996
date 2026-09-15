@@ -93,7 +93,11 @@ export default async function ProductsPage({
 
         <div className="min-w-0 flex-1">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <MobileFilterButton facets={facets} activeCount={activeCount} />
+            <MobileFilterButton
+              facets={facets}
+              activeCount={activeCount}
+              total={result.total}
+            />
             <div className="ms-auto">
               <SortSelect />
             </div>
@@ -117,7 +121,14 @@ export default async function ProductsPage({
               */}
               <h2 className="sr-only">{t('resultsHeading')}</h2>
 
-              <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+              {/*
+                  Four at the widest, not five. This list carries a filter
+                  sidebar, so a fifth column comes out of the cards rather than
+                  the page: at the old container width that put a card at 230px
+                  with its name clamped to two tight lines. The rails on the
+                  homepage have no sidebar and still run five.
+                */}
+              <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {result.products.map((product, index) => (
                   <li key={product.id} className="flex">
                     {/* The first row is above the fold on every breakpoint. */}

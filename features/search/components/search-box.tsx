@@ -61,7 +61,7 @@ export function SearchBox({
         aria-label={t('search')}
         autoFocus={autoFocus}
         className={cn(
-          'h-11 w-full rounded-full border border-border bg-surface ps-10 pe-10 text-sm text-ink',
+          'h-11 w-full rounded-full border border-border-field bg-surface ps-10 pe-10 text-sm text-ink',
           'transition-colors placeholder:text-subtle hover:border-border-strong',
           'focus-visible:border-primary',
           // The browser's own clear button would sit on the wrong side in RTL.

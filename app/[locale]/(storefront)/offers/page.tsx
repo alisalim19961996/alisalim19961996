@@ -47,7 +47,6 @@ export default async function OffersPage({
   setRequestLocale(locale);
 
   const t = await getTranslations('offers');
-  const tCommon = await getTranslations('common');
 
   const pageParam = Number(Array.isArray(raw.page) ? raw.page[0] : raw.page);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
@@ -84,14 +83,16 @@ export default async function OffersPage({
               {t('count', { count: result.total })}
             </p>
             {/*
-              The catalogue can already narrow this by brand, type and price —
-              so the page points at it rather than growing its own filter panel.
+              It said "view all" and led to the same set of products, which
+              reads as a promise that something is being held back. What the
+              catalogue actually adds is the filter panel, so the link says
+              that instead — same destination, honest label.
             */}
             <Link
               href="/products?offer=1"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
             >
-              {tCommon('viewAll')}
+              {t('filterOffers')}
               <ArrowLeft className="size-4 flip-rtl" aria-hidden />
             </Link>
           </div>

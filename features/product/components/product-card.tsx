@@ -51,17 +51,35 @@ export async function ProductCard({
   const slug = product.slugEn;
 
   const image = product.images[0];
-  // The cheapest active variant sets the card's price, which is also what
-  // minPriceIqd is denormalised from.
-  const cheapest = product.variants[0];
 
-  // A product is buyable if any of its variants is. Showing "out of stock" on a
-  // card whose blue model is available would lose a sale that was there.
-  const purchasable = product.variants.some((variant) =>
+  /*
+    The cheapest variant somebody can actually BUY sets the card's price — not
+    simply the cheapest active one. A 128GB model that is out of stock beside
+    a 256GB that is not would otherwise advertise a price the shopper cannot
+    have, which is the same bait the `minPriceIqd` recompute refuses (§12).
+    Falls back to the cheapest active variant when none is purchasable, where
+    the card is already showing "out of stock" anyway.
+  */
+  const buyable = product.variants.filter((variant) =>
     variant.inventory
       ? ['available', 'preorder'].includes(getAvailability(variant.inventory).kind)
       : false,
   );
+  const cheapest = buyable[0] ?? product.variants[0];
+
+  /*
+    "From" only when the variants genuinely differ in price. A product whose
+    two colours cost the same is one price, and saying "from" about it reads as
+    a shop hedging.
+  */
+  const priced = (buyable.length > 0 ? buyable : product.variants).map(
+    (variant) => variant.priceIqd,
+  );
+  const startsFrom = priced.length > 1 && Math.min(...priced) !== Math.max(...priced);
+
+  // A product is buyable if any of its variants is. Showing "out of stock" on a
+  // card whose blue model is available would lose a sale that was there.
+  const purchasable = buyable.length > 0;
 
   return (
     <article
@@ -86,7 +104,14 @@ export async function ProductCard({
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             priority={priority}
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            /*
+              `contain`, not `cover`. A phone photographed upright in a 4:5
+              frame is close to that ratio already, but a boxed accessory or a
+              wide product is not, and `cover` was cutting the ends off the
+              thing being sold. The padding keeps the device off the card's
+              edge so it reads as a photograph rather than a crop.
+            */
+            className="object-contain p-3 transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="grid h-full place-items-center text-xs text-subtle">
@@ -149,13 +174,26 @@ export async function ProductCard({
 
         {tagline && <p className="line-clamp-1 text-xs text-muted">{tagline}</p>}
 
+        {/*
+          `mt-auto` pins the price to the bottom of the card through flex
+          rather than by giving the card a fixed height — so a two-line Arabic
+          name and a one-line English one still end their prices on the same
+          baseline across a row.
+        */}
         {cheapest && (
-          <ProductPrice
-            priceIqd={cheapest.priceIqd}
-            comparePriceIqd={cheapest.comparePriceIqd}
-            size="sm"
-            className="mt-auto pt-1.5"
-          />
+          <div className="mt-auto pt-1.5">
+            {startsFrom && (
+              <span className="block text-[10px] leading-none text-muted">
+                {t('startingFrom')}
+              </span>
+            )}
+            <ProductPrice
+              priceIqd={cheapest.priceIqd}
+              comparePriceIqd={cheapest.comparePriceIqd}
+              size="sm"
+              className={startsFrom ? 'mt-0.5' : undefined}
+            />
+          </div>
         )}
       </div>
 

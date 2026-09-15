@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { SlidersHorizontal, X } from 'lucide-react';
@@ -9,6 +9,7 @@ import { buildCatalogueQuery, SORT_VALUES } from '@/lib/domain/catalogue-url';
 import { FilterPanel } from './filter-panel';
 import type { CatalogueFacets } from '@/server/queries/catalogue';
 import { Button } from '@/components/ui/button';
+import { useFocusTrap } from '@/components/ui/use-focus-trap';
 import { cn } from '@/lib/utils';
 
 /** Sort control. A plain select: it is the accessible, familiar choice here. */
@@ -57,16 +58,22 @@ export function SortSelect() {
 export function MobileFilterButton({
   facets,
   activeCount,
+  total,
 }: {
   facets: CatalogueFacets;
   activeCount: number;
+  /** Rendered on the closing button, so the count is what sends them back. */
+  total: number;
 }) {
   const [open, setOpen] = useState(false);
   const t = useTranslations('catalogue');
+  const opener = useRef<HTMLButtonElement>(null);
+  const panel = useFocusTrap({ open, onClose: () => setOpen(false), opener });
 
   return (
     <>
       <Button
+        ref={opener}
         type="button"
         variant="outline"
         size="sm"
@@ -90,7 +97,10 @@ export function MobileFilterButton({
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-ink/40"
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[--radius-panel] bg-surface p-5 pb-8">
+          <div
+            ref={panel}
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[--radius-panel] bg-surface p-5 pb-8"
+          >
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-base font-semibold text-ink">{t('filters')}</h2>
               <button
@@ -103,7 +113,20 @@ export function MobileFilterButton({
               </button>
             </div>
 
-            <FilterPanel facets={facets} onNavigate={() => setOpen(false)} />
+            {/*
+              No `onNavigate`, on purpose. The drawer used to close on the
+              first tick, so choosing a brand AND a storage size meant opening
+              it twice — and the results underneath were hidden behind the
+              sheet anyway. It stays open while the customer narrows, and the
+              button below is how they come back to what they found.
+            */}
+            <FilterPanel facets={facets} />
+
+            <div className="sticky bottom-0 -mx-5 mt-6 -mb-8 border-t border-border bg-surface px-5 pt-4 pb-8">
+              <Button type="button" block onClick={() => setOpen(false)}>
+                {t('showResults', { count: total })}
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -104,7 +104,8 @@
     "warrantyMonths": "{count, plural, one {شهر واحد} two {شهران} few {# أشهر} other {# شهرًا}}",
     "new": "جديد",
     "galleryImage": "صورة {number}",
-    "galleryVideo": "فيديو {number}"
+    "galleryVideo": "فيديو {number}",
+    "startingFrom": "يبدأ من"
   },
   "cart": {
     "title": "سلة التسوق",
@@ -237,7 +238,12 @@
       "price_desc": "السعر: الأعلى أولًا",
       "best_selling": "الأكثر مبيعًا"
     },
-    "resultsHeading": "نتائج البحث"
+    "resultsHeading": "نتائج البحث",
+    "price": "السعر",
+    "priceFrom": "من",
+    "priceTo": "إلى",
+    "priceApply": "طبّق",
+    "showResults": "عرض {count} نتيجة"
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -751,7 +757,8 @@
     "intro": "كل المنتجات اللي عليها تخفيض حالياً. السعر القديم يظهر مشطوب جنب الجديد.",
     "empty": "ماكو عروض حالياً. تعال شوف باقي المنتجات.",
     "browseAll": "تصفّح كل المنتجات",
-    "count": "{count, plural, =0 {ماكو عروض} one {عرض واحد} two {عرضين} few {# عروض} other {# عرض}}"
+    "count": "{count, plural, =0 {ماكو عروض} one {عرض واحد} two {عرضين} few {# عروض} other {# عرض}}",
+    "filterOffers": "فلترة العروض"
   },
   "guides": {
     "title": "دليل الشراء",
