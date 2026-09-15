@@ -22,8 +22,14 @@ import type { Locale } from '@/i18n/routing';
 
 // ---------------------------------------------------------------- selections
 
-/** The exact shape a product card needs — nothing more. */
-const cardSelect = {
+/**
+ * The exact shape a product card needs — nothing more.
+ *
+ * Exported because the wishlist renders the same card and must therefore ask
+ * for the same columns. A second select that drifted by one field would render
+ * a card missing its price with nothing saying why (§13.16).
+ */
+export const cardSelect = {
   id: true,
   slugAr: true,
   slugEn: true,

@@ -5,6 +5,7 @@ import { Check, ChevronLeft, Minus, ShieldCheck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductGallery } from '@/features/product/components/product-gallery';
 import { VariantPicker } from '@/features/product/components/variant-picker';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { ProductCard } from '@/features/product/components/product-card';
 import { MobileBuyBar } from '@/features/product/components/mobile-buy-bar';
 import {
@@ -153,6 +154,15 @@ export default async function ProductPage({
 
             <div className="mt-7">
               <VariantPicker options={product.options} variants={pickerVariants} />
+            </div>
+
+            {/*
+              Below the buy controls, not beside them: red is reserved for the
+              primary action on a screen (§10), and a heart competing with
+              add-to-cart would be the second thing asking to be pressed.
+            */}
+            <div className="mt-3">
+              <WishlistButton productId={product.id} variant="labelled" />
             </div>
 
             <dl className="mt-8 grid gap-3 rounded-[--radius-card] border border-border bg-surface p-4 text-sm sm:grid-cols-2">

@@ -34,6 +34,7 @@ export const PRIMARY_NAV: readonly NavLink[] = [
 export const SECONDARY_NAV: readonly NavLink[] = [
   // Same reasoning as HEADER_ACTIONS: only routes that actually exist.
   { href: '/account', labelKey: 'account' },
+  { href: '/wishlist', labelKey: 'wishlist' },
   { href: '/track', labelKey: 'trackOrder' },
 ];
 
@@ -51,9 +52,14 @@ export const HEADER_ACTIONS = [
    * dynamic rendering (§8). The link is the same for everyone; the
    * destination works it out.
    *
-   * The wishlist icon is gone until the page exists. An icon that 404s is
-   * worse than no icon — it promises a feature and then breaks.
+   * The wishlist icon was withheld for exactly as long as /wishlist 404'd —
+   * an icon that 404s is worse than no icon, because it promises a feature and
+   * then breaks. It carries no count badge: the cart's number answers "is
+   * there something waiting to be bought", which is a decision; a saved-items
+   * number is decoration, and it would cost another client-side read on every
+   * page in the store.
    */
+  { href: '/wishlist', labelKey: 'wishlist', icon: 'Heart', desktopOnly: true },
   { href: '/account', labelKey: 'account', icon: 'User', desktopOnly: true },
   { href: '/cart', labelKey: 'cart', icon: 'ShoppingBag', desktopOnly: false },
 ] as const;

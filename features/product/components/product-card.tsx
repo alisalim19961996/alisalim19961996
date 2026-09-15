@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { ProductPrice } from './product-price';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getAvailability } from '@/lib/domain/availability';
 import type { ProductCardData } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
@@ -16,8 +17,18 @@ import { cn } from '@/lib/utils';
  * no interactive state at all.
  *
  * Deliberately restrained — image, brand, name, one spec line, price, status.
- * Every extra control here (quick view, compare, wishlist) is one more thing to
- * scan before deciding, on an element the shopper scans in under a second.
+ * Every extra control here is one more thing to scan before deciding, on an
+ * element the shopper scans in under a second. The heart is the one exception,
+ * and it earned it: a wishlist you can only fill from the detail page is a
+ * wishlist nobody fills, because saving is something you do WHILE browsing.
+ * It is drawn quietly, in the image's corner, where it competes with nothing.
+ *
+ * That control is why the card is no longer a `<Link>` wrapping everything. A
+ * `<button>` inside an `<a>` is invalid HTML and breaks keyboard navigation, so
+ * the link moved to the product name and stretches over the card with
+ * `after:absolute after:inset-0`. The whole card is still one click; the heart
+ * sits above it on `z-10`; and the accessible name of the link is still the
+ * product's name rather than an aria-label standing in for it.
  */
 export async function ProductCard({
   product,
@@ -52,8 +63,7 @@ export async function ProductCard({
   );
 
   return (
-    <Link
-      href={`/products/${slug}`}
+    <article
       className={cn(
         // `w-full` is not decoration: the card sits inside `<li className="flex">`,
         // where a flex item defaults to `flex: 0 1 auto` and therefore sizes to
@@ -122,7 +132,18 @@ export async function ProductCard({
         </span>
 
         <h3 className="line-clamp-2 text-sm leading-tight font-semibold text-ink">
-          {name}
+          {/*
+            The link is here and stretches over the whole card. `after:z-0`
+            keeps it under the heart, which carries z-10 — without an explicit
+            layer the two overlap in DOM order and the heart stops being
+            clickable on the half the link covers last.
+          */}
+          <Link
+            href={`/products/${slug}`}
+            className="after:absolute after:inset-0 after:z-0 after:content-['']"
+          >
+            {name}
+          </Link>
         </h3>
 
         {tagline && <p className="line-clamp-1 text-xs text-muted">{tagline}</p>}
@@ -136,6 +157,15 @@ export async function ProductCard({
           />
         )}
       </div>
-    </Link>
+
+      {/*
+        Outside the text block and above the stretched link, so pressing it
+        saves the product instead of opening it.
+      */}
+      <WishlistButton
+        productId={product.id}
+        className="absolute end-2 top-2 z-10 size-9"
+      />
+    </article>
   );
 }

@@ -137,31 +137,31 @@ enum Governorate {
 // =============================================================================
 
 model User {
-  id            String    @id @default(cuid())
+  id            String  @id @default(cuid())
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String  @unique
+  emailVerified Boolean @default(false)
   image         String?
 
   // MPS additions
-  role          Role      @default(CUSTOMER)
-  phone         String?
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
+  role        Role      @default(CUSTOMER)
+  phone       String?
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  addresses     Address[]
-  orders        Order[]
-  reviews       Review[]
-  wishlist      Wishlist?
-  couponUsages  CouponUsage[]
-  auditLogs     AuditLog[]
-  productViews  ProductView[]
-  carts         Cart[]
+  sessions     Session[]
+  accounts     Account[]
+  addresses    Address[]
+  orders       Order[]
+  reviews      Review[]
+  wishlist     Wishlist?
+  couponUsages CouponUsage[]
+  auditLogs    AuditLog[]
+  productViews ProductView[]
+  carts        Cart[]
 
   @@index([role])
   @@index([createdAt])
@@ -243,19 +243,19 @@ model Address {
 // =============================================================================
 
 model Brand {
-  id           String    @id @default(cuid())
-  slug         String    @unique
-  nameAr       String
-  nameEn       String
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  nameAr        String
+  nameEn        String
   descriptionAr String?
   descriptionEn String?
-  logoUrl      String?
+  logoUrl       String?
   /// Accent colour used only for small identity chips, never as a background.
-  accentColor  String?
-  isActive     Boolean   @default(true)
-  sortOrder    Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  accentColor   String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   products Product[]
   offers   Offer[]
@@ -265,8 +265,8 @@ model Brand {
 }
 
 model Category {
-  id            String     @id @default(cuid())
-  slug          String     @unique
+  id            String   @id @default(cuid())
+  slug          String   @unique
   nameAr        String
   nameEn        String
   descriptionAr String?
@@ -274,10 +274,10 @@ model Category {
   imageUrl      String?
   /// Self-referencing tree: "Phones > Gaming Phones".
   parentId      String?
-  isActive      Boolean    @default(true)
-  sortOrder     Int        @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryTree")
@@ -313,11 +313,11 @@ model ProductType {
 
 /// Visual grouping of attributes on the product page: "Display", "Battery".
 model AttributeGroup {
-  id        String   @id @default(cuid())
-  key       String   @unique
+  id        String @id @default(cuid())
+  key       String @unique
   nameAr    String
   nameEn    String
-  sortOrder Int      @default(0)
+  sortOrder Int    @default(0)
 
   definitions AttributeDefinition[]
 
@@ -346,9 +346,9 @@ model AttributeDefinition {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  group    AttributeGroup?        @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  options  AttributeOption[]
-  values   ProductAttributeValue[]
+  group     AttributeGroup?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  options   AttributeOption[]
+  values    ProductAttributeValue[]
   typeLinks ProductTypeAttribute[]
 
   @@index([isFilterable])
@@ -366,7 +366,7 @@ model AttributeOption {
   labelEn      String
   sortOrder    Int    @default(0)
 
-  definition AttributeDefinition    @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  definition AttributeDefinition     @relation(fields: [definitionId], references: [id], onDelete: Cascade)
   usedBy     ProductAttributeValue[]
 
   @@unique([definitionId, value])
@@ -416,30 +416,30 @@ model ProductAttributeValue {
 }
 
 model Product {
-  id         String  @id @default(cuid())
+  id     String @id @default(cuid())
   /// Per-locale slugs so both /ar and /en URLs are meaningful and indexable.
-  slugAr     String  @unique
-  slugEn     String  @unique
+  slugAr String @unique
+  slugEn String @unique
 
-  nameAr     String
-  nameEn     String
+  nameAr    String
+  nameEn    String
   /// Short line under the product name in cards and hero.
-  taglineAr  String?
-  taglineEn  String?
+  taglineAr String?
+  taglineEn String?
 
   // -- Long-form content (honest, never invented) ---------------------------
-  overviewAr      String?
-  overviewEn      String?
-  keyFeaturesAr   String[] @default([])
-  keyFeaturesEn   String[] @default([])
-  prosAr          String[] @default([])
-  prosEn          String[] @default([])
-  consAr          String[] @default([])
-  consEn          String[] @default([])
-  whoIsItForAr    String?
-  whoIsItForEn    String?
-  thingsToKnowAr  String?
-  thingsToKnowEn  String?
+  overviewAr     String?
+  overviewEn     String?
+  keyFeaturesAr  String[] @default([])
+  keyFeaturesEn  String[] @default([])
+  prosAr         String[] @default([])
+  prosEn         String[] @default([])
+  consAr         String[] @default([])
+  consEn         String[] @default([])
+  whoIsItForAr   String?
+  whoIsItForEn   String?
+  thingsToKnowAr String?
+  thingsToKnowEn String?
 
   productTypeId String
   brandId       String
@@ -454,9 +454,9 @@ model Product {
   /// Denormalised from the cheapest active variant so catalogue sorting and
   /// price filtering stay a single indexed query. Recomputed by the product
   /// service whenever a variant price changes.
-  minPriceIqd  Int?
+  minPriceIqd Int?
 
-  warrantyMonths Int    @default(12)
+  warrantyMonths Int     @default(12)
   warrantyNoteAr String?
   warrantyNoteEn String?
 
@@ -470,9 +470,9 @@ model Product {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  productType     ProductType            @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
-  brand           Brand                  @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  category        Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  productType     ProductType             @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+  brand           Brand                   @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category        Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   variants        ProductVariant[]
   images          ProductImage[]
   videos          ProductVideo[]
@@ -481,6 +481,7 @@ model Product {
   reviews         Review[]
   views           ProductView[]
   offers          Offer[]
+  wishlistItems   WishlistItem[]
 
   @@index([productTypeId, isPublished])
   @@index([brandId, categoryId, isPublished])
@@ -534,7 +535,7 @@ model ProductImage {
 /// Which options exist is per-product, so a phone offers storage and colour
 /// while a cable offers length — with no schema change between them.
 model ProductOption {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
   nameAr    String
   nameEn    String
@@ -559,8 +560,8 @@ model ProductOptionValue {
   hex       String?
   sortOrder Int     @default(0)
 
-  option    ProductOption       @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  variants  VariantOptionValue[]
+  option   ProductOption        @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variants VariantOptionValue[]
 
   @@unique([optionId, valueEn])
   @@map("product_option_value")
@@ -649,18 +650,18 @@ model Inventory {
 }
 
 model InventoryMovement {
-  id          String                @id @default(cuid())
-  inventoryId String
-  type        InventoryMovementType
+  id            String                @id @default(cuid())
+  inventoryId   String
+  type          InventoryMovementType
   /// Signed change applied to onHand (or to reserved for reservation types).
-  quantity    Int
+  quantity      Int
   onHandAfter   Int
   reservedAfter Int
-  orderId     String?
-  note        String?
+  orderId       String?
+  note          String?
   /// User who caused it; null for automated transitions.
-  actorId     String?
-  createdAt   DateTime              @default(now())
+  actorId       String?
+  createdAt     DateTime              @default(now())
 
   inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
@@ -732,20 +733,20 @@ model Order {
 
   couponCode String?
 
-  placedAt    DateTime  @default(now())
-  confirmedAt DateTime?
-  deliveredAt DateTime?
-  cancelledAt DateTime?
+  placedAt     DateTime  @default(now())
+  confirmedAt  DateTime?
+  deliveredAt  DateTime?
+  cancelledAt  DateTime?
   cancelReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items    OrderItem[]
-  events   OrderEvent[]
-  payment  Payment?
-  shipment Shipment?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items       OrderItem[]
+  events      OrderEvent[]
+  payment     Payment?
+  shipment    Shipment?
   couponUsage CouponUsage?
 
   @@index([userId, createdAt])
@@ -757,18 +758,18 @@ model Order {
 /// Prices and names are SNAPSHOT at purchase time. Editing a product tomorrow
 /// must never change what last week's invoice says.
 model OrderItem {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   orderId   String
   variantId String?
 
-  productNameAr String
-  productNameEn String
-  brandName     String
-  sku           String
+  productNameAr  String
+  productNameEn  String
+  brandName      String
+  sku            String
   /// Snapshot of the variant label at purchase time, e.g. "256GB / Black".
   variantLabelAr String
   variantLabelEn String
-  imageUrl      String?
+  imageUrl       String?
 
   unitPriceIqd Int
   quantity     Int
@@ -784,13 +785,13 @@ model OrderItem {
 
 /// Immutable timeline. One row per transition, never updated or deleted.
 model OrderEvent {
-  id        String       @id @default(cuid())
-  orderId   String
+  id         String       @id @default(cuid())
+  orderId    String
   fromStatus OrderStatus?
-  toStatus  OrderStatus
-  note      String?
-  actorId   String?
-  createdAt DateTime     @default(now())
+  toStatus   OrderStatus
+  note       String?
+  actorId    String?
+  createdAt  DateTime     @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -801,16 +802,16 @@ model OrderEvent {
 /// Provider-agnostic by design: COD today, an Iraqi gateway later, without
 /// touching order code. See server/services/payment/provider.ts
 model Payment {
-  id         String        @id @default(cuid())
-  orderId    String        @unique
-  method     PaymentMethod @default(CASH_ON_DELIVERY)
-  status     PaymentStatus @default(PENDING)
-  amountIqd  Int
-  providerRef String?
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  method          PaymentMethod @default(CASH_ON_DELIVERY)
+  status          PaymentStatus @default(PENDING)
+  amountIqd       Int
+  providerRef     String?
   providerPayload Json?
-  paidAt     DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -819,14 +820,14 @@ model Payment {
 }
 
 model Shipment {
-  id          String    @id @default(cuid())
-  orderId     String    @unique
-  carrierName String?
-  trackingRef String?
+  id           String    @id @default(cuid())
+  orderId      String    @unique
+  carrierName  String?
+  trackingRef  String?
   dispatchedAt DateTime?
-  deliveredAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  deliveredAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -838,19 +839,19 @@ model Shipment {
 // =============================================================================
 
 model Review {
-  id        String       @id @default(cuid())
-  productId String
-  userId    String
-  rating    Int
-  titleAr   String?
-  body      String
-  status    ReviewStatus @default(PENDING)
+  id                 String       @id @default(cuid())
+  productId          String
+  userId             String
+  rating             Int
+  titleAr            String?
+  body               String
+  status             ReviewStatus @default(PENDING)
   /// True only when this user actually has a DELIVERED order for the product.
-  isVerifiedPurchase Boolean @default(false)
-  moderatedById String?
-  moderatedAt   DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  isVerifiedPurchase Boolean      @default(false)
+  moderatedById      String?
+  moderatedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -879,8 +880,15 @@ model WishlistItem {
   createdAt  DateTime @default(now())
 
   wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  /// Cascade, not SetNull: a saved item IS the product. Unlike an OrderItem it
+  /// snapshots nothing, so a row pointing at a deleted product has nothing to
+  /// render and no history to protect. This column carried no foreign key at
+  /// all until the wishlist was built — the rows were already orphanable, and
+  /// nothing said so.
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([wishlistId, productId])
+  @@index([productId])
   @@map("wishlist_item")
 }
 
@@ -917,21 +925,21 @@ model Offer {
 }
 
 model Coupon {
-  id            String       @id @default(cuid())
-  code          String       @unique
-  discountType  DiscountType
-  discountValue Int
-  minOrderIqd   Int          @default(0)
+  id             String       @id @default(cuid())
+  code           String       @unique
+  discountType   DiscountType
+  discountValue  Int
+  minOrderIqd    Int          @default(0)
   maxDiscountIqd Int?
   /// null means unlimited.
   usageLimit     Int?
-  usageCount     Int         @default(0)
-  perUserLimit   Int         @default(1)
+  usageCount     Int          @default(0)
+  perUserLimit   Int          @default(1)
   startsAt       DateTime
   endsAt         DateTime
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   usages CouponUsage[]
 
@@ -940,12 +948,12 @@ model Coupon {
 }
 
 model CouponUsage {
-  id         String   @id @default(cuid())
-  couponId   String
-  userId     String?
-  orderId    String   @unique
+  id          String   @id @default(cuid())
+  couponId    String
+  userId      String?
+  orderId     String   @unique
   discountIqd Int
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -963,8 +971,8 @@ model SiteSetting {
   /// Single-row table guarded by a fixed id.
   id String @id @default("singleton")
 
-  storeNameAr String @default("متجر الهواتف الحديث")
-  storeNameEn String @default("Modern Phone Store")
+  storeNameAr String  @default("متجر الهواتف الحديث")
+  storeNameEn String  @default("Modern Phone Store")
   logoUrl     String?
 
   contactPhone   String?
@@ -976,7 +984,7 @@ model SiteSetting {
   tiktokUrl    String?
 
   /// Flat fallback used when a governorate has no explicit rate.
-  defaultDeliveryIqd Int @default(5000)
+  defaultDeliveryIqd  Int  @default(5000)
   freeDeliveryOverIqd Int?
 
   warrantyNoteAr String?
@@ -988,53 +996,53 @@ model SiteSetting {
 }
 
 model DeliveryRate {
-  id           String      @id @default(cuid())
-  governorate  Governorate @unique
-  feeIqd       Int
-  etaMinDays   Int         @default(1)
-  etaMaxDays   Int         @default(3)
-  isActive     Boolean     @default(true)
-  updatedAt    DateTime    @updatedAt
+  id          String      @id @default(cuid())
+  governorate Governorate @unique
+  feeIqd      Int
+  etaMinDays  Int         @default(1)
+  etaMaxDays  Int         @default(3)
+  isActive    Boolean     @default(true)
+  updatedAt   DateTime    @updatedAt
 
   @@map("delivery_rate")
 }
 
 model HomepageSection {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// Stable key the renderer switches on, e.g. "featured", "brands", "trust".
-  key       String   @unique
-  titleAr   String?
-  titleEn   String?
+  key        String   @unique
+  titleAr    String?
+  titleEn    String?
   subtitleAr String?
   subtitleEn String?
-  isVisible Boolean  @default(true)
-  sortOrder Int      @default(0)
-  config    Json?
-  updatedAt DateTime @updatedAt
+  isVisible  Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  config     Json?
+  updatedAt  DateTime @updatedAt
 
   @@index([isVisible, sortOrder])
   @@map("homepage_section")
 }
 
 model Banner {
-  id        String   @id @default(cuid())
-  titleAr   String?
-  titleEn   String?
-  subtitleAr String?
-  subtitleEn String?
-  imageUrl  String
+  id             String    @id @default(cuid())
+  titleAr        String?
+  titleEn        String?
+  subtitleAr     String?
+  subtitleEn     String?
+  imageUrl       String
   imageMobileUrl String?
-  linkUrl   String?
-  ctaLabelAr String?
-  ctaLabelEn String?
-  placement String   @default("home_hero")
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  linkUrl        String?
+  ctaLabelAr     String?
+  ctaLabelEn     String?
+  placement      String    @default("home_hero")
+  isActive       Boolean   @default(true)
+  sortOrder      Int       @default(0)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  isDemo         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([placement, isActive, sortOrder])
   @@map("banner")
@@ -1057,27 +1065,27 @@ model Faq {
 }
 
 model BlogPost {
-  id       String @id @default(cuid())
-  slugAr   String @unique
-  slugEn   String @unique
-  titleAr  String
-  titleEn  String
-  excerptAr String?
-  excerptEn String?
-  bodyAr   String
-  bodyEn   String
-  coverImageUrl String?
-  tags     String[] @default([])
-  category String?
-  isPublished Boolean @default(false)
-  publishedAt DateTime?
-  authorName  String?
-  metaTitleAr String?
-  metaTitleEn String?
+  id                String    @id @default(cuid())
+  slugAr            String    @unique
+  slugEn            String    @unique
+  titleAr           String
+  titleEn           String
+  excerptAr         String?
+  excerptEn         String?
+  bodyAr            String
+  bodyEn            String
+  coverImageUrl     String?
+  tags              String[]  @default([])
+  category          String?
+  isPublished       Boolean   @default(false)
+  publishedAt       DateTime?
+  authorName        String?
+  metaTitleAr       String?
+  metaTitleEn       String?
   metaDescriptionAr String?
   metaDescriptionEn String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([isPublished, publishedAt])
   @@map("blog_post")
@@ -1109,12 +1117,12 @@ model AuditLog {
 }
 
 model ProductView {
-  id        String   @id @default(cuid())
-  productId String
-  userId    String?
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String?
   /// Anonymous, rotating identifier. No PII is recorded here (§53).
   sessionKey String?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

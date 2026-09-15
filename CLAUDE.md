@@ -159,7 +159,7 @@ contributor — or by an assistant whose context was compacted. See §17.
 
 ## 6. Database
 
-44 tables, 12 enums, 28 CHECK constraints, 2 migrations. Schema: `prisma/schema.prisma`.
+44 tables, 12 enums, 28 CHECK constraints, 3 migrations. Schema: `prisma/schema.prisma`.
 
 ### Core relationships
 
@@ -214,7 +214,29 @@ fake discounts) · `lineTotalIqd = unitPriceIqd * quantity` ·
 
 Extensions `pg_trgm` and `unaccent` are created in the initial migration (not
 via the `postgresqlExtensions` preview feature). Trigram indexes exist on
-product and brand names and on SKU.
+product and brand names, on SKU and on the variant label.
+
+**They did not, for two migrations, while this paragraph said they did.**
+`USING GIN (col gin_trgm_ops)` cannot be written in `schema.prisma`, so Prisma
+cannot see those indexes — and what Prisma cannot see, it reads as drift and
+writes a `DROP INDEX` for into the _next_ migration, whatever that migration
+was about. Migration 2 dropped all five migration 1 created and restored one;
+migration 3 was generated with a `DROP` for that survivor. By then the database
+had **none**, and nothing was slow, because 16 demo products are fast without
+an index. Catalogue search is `contains` + insensitive — `ILIKE '%value%'` —
+which a B-tree cannot serve and a trigram index can, so this would have
+surfaced as a slow shop rather than a broken one.
+
+Migration 3 recreates all six with `IF NOT EXISTS`, and
+`tests/architecture.test.ts` now fails if any trigram index a migration creates
+is dropped and not put back. **After every `prisma migrate dev`, read the
+generated SQL for `DROP INDEX` before committing it.**
+
+- **`WishlistItem.productId` carried no foreign key at all** until the wishlist
+  was built — the rows were already orphanable and nothing said so. It is
+  `onDelete: Cascade`, not `SetNull`: a saved item _is_ the product, snapshots
+  nothing the way an `OrderItem` does, and a row pointing at a deleted product
+  has no history to protect and nothing to render.
 
 ---
 
@@ -354,6 +376,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/sign-in`                        | Dynamic      | Sign-in; `?next=admin` honoured only for staff                           |
 | `/[locale]/sign-up`                        | Dynamic      | Create an account; optional — checkout never requires one                |
 | `/[locale]/account`                        | Dynamic      | The customer's details and recent orders                                 |
+| `/[locale]/wishlist`                       | Dynamic      | The products this customer saved; signed-in only, never indexed          |
 | `/[locale]/account/orders`                 | Dynamic      | Full order history, paginated                                            |
 | `/[locale]/admin`                          | Dynamic      | Dashboard: work waiting, each tile a link to it                          |
 | `/[locale]/admin/orders`                   | Dynamic      | Order queue: status tabs, search, paging                                 |
@@ -387,8 +410,9 @@ catalogue-shaped `products/loading.tsx`.
 `/brands` and `/offers` were in `sitemap.xml` as well, so the site was handing
 Google two dead URLs. The account icon points at `/account` now that it exists;
 `/account` sends a signed-out visitor to `/sign-in?next=account` and they land
-back on it, so the common case — already signed in — costs no redirect. Only
-`/wishlist` is still unbuilt, and therefore still unlinked.
+back on it, so the common case — already signed in — costs no redirect.
+`/wishlist` was the last link the header withheld, and it is built now, so
+every icon in the header resolves.
 
 **The header and mobile drawer only link to routes that exist**, which is why
 the account icon pointed at `/sign-in` for as long as `/account` 404'd. The
@@ -450,7 +474,14 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 
 - `ProductPrice` — **the only place a price is rendered.** Wraps prices in
   `.numeric` (LTR isolation) so Arabic bidi cannot reorder digits.
-- `ProductCard` — server component; image, brand, name, tagline, price. Carries
+- `ProductCard` — server component; image, brand, name, tagline, price, and one
+  client control (the heart). It is an **`<article>`, no longer a `<Link>`
+  wrapping everything**: a `<button>` inside an `<a>` is invalid HTML and breaks
+  keyboard navigation, so the link moved onto the product name and stretches
+  over the card with `after:absolute after:inset-0 after:z-0`, while the heart
+  sits on `z-10` above it. `scripts/check-layout.mjs` selects `li > article`
+  and had to move with it — a measurement tool that finds no cards reports a
+  clean run. Carries
   **`w-full`**: it sits inside `<li className="flex">`, where a flex item
   defaults to `flex: 0 1 auto` and sizes to its own content, so without it every
   card was as wide as its product name was long — and since the image box is
@@ -465,6 +496,11 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
 - `ProductGallery` — client; images + videos in one strip, player created on
   click only.
 - `MobileBuyBar` — client; appears after 520px of scroll, `lg:hidden`.
+
+**Wishlist** — `features/wishlist/`: `WishlistButton` (the heart, in an icon
+shape for a card and a labelled one beside add-to-cart), `WishlistRefresher`
+(only on `/wishlist`, so unsaving there removes the card and not just the
+icon), `wishlist-store.ts` (one shared read per page — see §12).
 
 **Catalogue** — `features/catalogue/components/`: `FilterPanel`,
 `ActiveFilters`, `SortSelect`, `MobileFilterButton`, `Pagination`.
@@ -595,7 +631,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **756 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **768 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -891,6 +927,44 @@ in code that belongs to the owner.**
   catalogue has nothing to protect here. That is the only way this service
   differs in shape from `admin-taxonomy.ts`.
 
+**The wishlist** — `server/services/wishlist.ts`, `server/queries/wishlist.ts`,
+and `features/wishlist/` for the button. It holds no money, no stock and no
+promise, so only the non-obvious rules are written down.
+
+- **It belongs to an account, and that is the schema's decision.**
+  `Wishlist.userId` is required and unique: there is no anonymous list and no
+  token to guess, so nothing merges on sign-in the way a cart does. The heart
+  therefore renders as a **link to sign in** for a signed-out visitor rather
+  than a button that quietly does nothing.
+- **That link does not carry the product in `?next=`.** The sign-in page
+  compares `next` against the literal "admin" and never uses it as a redirect
+  target, which is exactly what stops a crafted value bouncing a visitor
+  off-site (§8). Saving one navigation is not worth turning it into a real
+  destination.
+- **Only a published product can be saved.** The id arrives from a button, so
+  it arrives from anyone. The new foreign key guarantees the product exists;
+  this guarantees it is one the customer was allowed to see.
+- **An unpublished product is hidden from the list and counted, not dropped.**
+  Its page is off the shop floor, so its card would be a dead link — and
+  vanishing in silence is worse, because the customer saved it and would decide
+  the list lost it. The row stays and republishing brings the card back.
+- **The heart reads its state after hydration, once per page.** The homepage
+  and all 32 product pages are prerendered, and a `cookies()` read during
+  render would turn every one of them into a per-request render (§8) — the same
+  constraint that put `CartCountBadge` on the client. A catalogue page has 24
+  hearts, so the promise is cached at module scope in `wishlist-store.ts`: the
+  first button to ask starts the request, every other one awaits it. Module
+  scope rather than a React context, for the reason `cart-events.ts` gives.
+- **The flip is optimistic and the write is not confirmed by it.** A heart that
+  waits for a round trip before filling in reads as a broken button. The cost
+  is real and accepted: navigating in the same instant cancels the request, and
+  nothing is saved. The e2e test was written believing the optimistic flip and
+  failed for exactly that reason (§17).
+- **Nothing in the browser is authorization.** The cached set decides which
+  icon is drawn. Which list is read and written is decided in the service, from
+  the session, every time — four integration tests exist to say so, two of them
+  about one account reaching another's list.
+
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
 
@@ -1143,6 +1217,30 @@ believed only after two deliberate breaks: writing the order at `discountIqd:
 found instead of four), and naming a specific reason for an unknown code (the
 generic refusal never appeared).
 
+**Phase 5.7 — the wishlist**: the heart on every product card and on the
+product page, `/wishlist`, and the header icon `config/nav.ts` had been
+withholding since Phase 2 because an icon that 404s promises a feature and then
+breaks. It cost a schema change and a card restructure, and turned up a
+third thing nobody was looking for:
+
+- **`WishlistItem.productId` had no foreign key**, so the rows were already
+  orphanable (§6).
+- **The card had to stop being a `<Link>` wrapping everything**, because a
+  button inside an anchor is invalid HTML (§9). Verified with the tool that
+  caught the original card bug: `pnpm check:layout` reports every card
+  identical and no sideways scroll at both widths, and the e2e layout spec
+  agrees.
+- **Five trigram indexes the schema section claimed had not existed for two
+  migrations** (§6). `prisma migrate dev` writes `DROP INDEX` for anything it
+  cannot see in `schema.prisma`, and it had been quietly doing so; it wrote one
+  into this migration too. They are restored, and a guardrail now fails if a
+  trigram index is ever dropped without being recreated — proved by putting a
+  `DROP` back and watching it name the index and the migration.
+
+Driven in a browser: signed out the heart offers sign-in and `/wishlist`
+redirects; signed in it saves, the product appears on the list, and unsaving
+removes the card rather than just emptying the icon.
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -1151,11 +1249,11 @@ generic refusal never appeared).
   pipeline is ready for it.
 - **Offers** — `Offer` is schema-only and stays that way on purpose (§12);
   coupons are built.
-- **Reviews, wishlist, banners, FAQ, homepage CMS** — schema only.
+- **Reviews, banners, FAQ, homepage CMS** — schema only.
 
 ### Not started
 
-Wishlist, compare, reviews, recommendations, analytics. **Phase 6 is
+Compare, reviews, recommendations, analytics. **Phase 6 is
 complete** — e2e, the security review and the performance pass are all done
 (§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
@@ -1178,7 +1276,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
 | Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
-| No wishlist page                                   | The header links no wishlist rather than 404ing                                                                                         | Phase 5.5                                                   |
+| A save lost to an instant navigation               | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
 | Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
 | Product page spec column is tall vs. short content | Whitespace on sparse products                                                                                                           | Consider sticky panel                                       |
 | `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                                                            | Keep                                                        |
@@ -1209,7 +1307,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **444 tests**: 406 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **445 tests**: 406 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1222,10 +1320,10 @@ both languages including an escaped hostile display name, and the four
 refusals that keep a store from losing its last reachable admin, and what a
 discount code is worth and every reason it is refused — rounded down, capped
 twice, and evaluated against a clock the test supplies rather than the one on
-the wall) plus 38
+the wall) plus 39
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **94 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **102 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1240,7 +1338,12 @@ where every claim this file makes about them is a row in Postgres rather than
 an argument — a quote that consumes nothing, a bad code that fails the whole
 order, two checkouts at the same moment taking two different order numbers,
 exactly one of them taking the last use of a code, and a number that does not
-collide after an order is deleted from the middle of a day). Six of the 94 need no database at
+collide after an order is deleted from the middle of a day; and the wishlist,
+which is mostly negatives — one account cannot read another's saved products
+and cannot delete out of their list, a draft cannot be saved, an unpublished
+product leaves the page but not the row, and deleting a product takes its
+saved items with it, which the column had no foreign key to do until this
+phase). Six of the 102 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
@@ -1262,7 +1365,7 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **19 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **21 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
@@ -1271,7 +1374,8 @@ product and watching it leave the shop floor, specification fields that change
 with the product type, a dashboard a signed-out visitor cannot reach, **a
 discount code applied at checkout and then charged as quoted** — the one claim
 no unit or integration test can make, because the quote and the charge are
-computed at two different times and only a page shows both — the two
+computed at two different times and only a page shows both — **a heart that
+does not know its own state until after hydration**, the two
 layout claims below, the headers — every page loaded with a listener on
 `securitypolicyviolation`, so a policy that silently blocks the product video
 or a stylesheet fails rather than shipping — and **a budget for the JavaScript
@@ -1299,7 +1403,10 @@ Three rules hold it together, each paid for during the build:
   computed separately from the summary. The test now reads both. The footer's
   buy-bar reservation was removed and the clearance test reported a 21.25px
   overlap. The copy guardrail was given an Arabic literal and named the file
-  and line.
+  and line. The wishlist spec believed the heart's OPTIMISTIC flip, navigated
+  on it, and the browser cancelled the save on the way out — the assertion
+  passed and the list was empty. It waits for the button to be enabled again
+  now, which is the transition ending rather than a timeout in disguise.
 
 **Anything touching money, stock, order state or permissions needs a test
 before it ships.** Tests target pure functions in `lib/`, which is why that
@@ -1343,6 +1450,7 @@ not a false hit.
 | No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
 | No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error     |
 | No Arabic string literals in an e2e spec                   | A test asserting a second copy of the owner's own copy   |
+| Every trigram index a migration creates still stands       | `prisma migrate dev` dropping an index it cannot see     |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
@@ -1627,7 +1735,7 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. Wishlist, compare, reviews.
+1. Compare, reviews.
 
 **Phase 5.5 — buying guides** (§14) closed the item that had been first on this
 list since Phase 2: the owner writes articles at `/admin/blog` and they appear
@@ -1643,10 +1751,24 @@ customer is shown one price and charged another. The phase's real cost was
 elsewhere: it uncovered two order-numbering bugs and a coupon claim that could
 lose an update, none of which the passing concurrency test had noticed.
 
-**What is left is no longer commerce.** Wishlist, compare and reviews are
-features a store can open without; every path that takes money — cart,
-checkout, discounts, orders, stock, tracking — is built, guarded and tested. The remaining blockers are the owner's inputs below, not
-code.
+**Phase 5.7 — the wishlist** (§14) took the first of those three and, as
+usual, the feature was the cheap part: it uncovered a foreign key that had
+never existed and five search indexes that had been silently dropped two
+migrations ago while this file said they were there. Both are fixed and both
+now fail a test if they regress.
+
+**What is left is no longer commerce.** Compare and reviews are features a
+store can open without; every path that takes money — cart, checkout,
+discounts, orders, stock, tracking — is built, guarded and tested. The
+remaining blockers are the owner's inputs below, not code.
+
+**Reviews are the one with real design left in them**, and the schema already
+takes a position worth honouring: `Review.isVerifiedPurchase` is documented as
+"true only when this user actually has a DELIVERED order for the product", and
+`ReviewStatus` defaults to PENDING, so moderation is not optional. §13.12
+forbids inventing any of it. `Product` carries no rating aggregate column, so
+how the catalogue would sort by rating is still an open question —
+`minPriceIqd` is the precedent for answering it.
 
 **The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
 caps build workers and the pool together, after `pnpm build` died against
@@ -1728,6 +1850,16 @@ address**. Which is also why `requireEmailVerification` must stay off for now:
 switching it on while only the owner can receive mail would lock every other
 customer out of their account at the first sign-in. The mail keys themselves
 are done and proven.
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+
+<!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
 

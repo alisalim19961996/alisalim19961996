@@ -802,5 +802,19 @@
     "noOrders": "You have not ordered anything yet.",
     "startShopping": "Start shopping",
     "signOut": "Sign out"
+  },
+  "wishlist": {
+    "title": "Wishlist",
+    "subtitle": "Products you saved to come back to.",
+    "count": "{count} saved",
+    "save": "Save for later",
+    "remove": "Remove from saved",
+    "signInToSave": "Sign in to save",
+    "emptyTitle": "Nothing saved yet",
+    "emptyBody": "Press the heart on any product and it will be kept here — to come back to, or to compare at your own pace.",
+    "browse": "Browse products",
+    "unavailable": "{count} saved products are not on sale right now. They were taken off the shop, not out of your list — if they return, they will appear here.",
+    "productNotFound": "That product does not exist, or is not on sale right now.",
+    "actionFailed": "We could not save that change. Please try again."
   }
 }

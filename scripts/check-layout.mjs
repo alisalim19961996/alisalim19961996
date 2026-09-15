@@ -75,15 +75,24 @@ let failures = 0;
  * fails loudly rather than being skipped.
  */
 /** One row of product cards, as the browser actually laid it out. */
+/*
+  The card is `li > article`, not `li > a`.
+
+  It was an anchor wrapping everything until the wishlist heart arrived: a
+  button inside an anchor is invalid HTML, so the link moved onto the product
+  name and stretches over the card instead. This selector had to move with it —
+  left alone it matched nothing, and a measurement tool that finds no cards
+  reports a clean run.
+*/
 async function readCardRows(page) {
   return page.$$eval('ul', (lists) =>
     lists
-      .filter((ul) => ul.querySelector('li > a > div'))
+      .filter((ul) => ul.querySelector('li > article > div'))
       .map((ul) => ({
         heading:
           ul.closest('section')?.querySelector('h1, h2')?.textContent?.trim() ??
           '(بدون عنوان)',
-        cards: [...ul.querySelectorAll('li > a')]
+        cards: [...ul.querySelectorAll('li > article')]
           .filter((card) =>
             typeof card.checkVisibility === 'function' ? card.checkVisibility() : true,
           )

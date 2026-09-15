@@ -721,3 +721,79 @@ describe('cookies decide `secure` from the URL, not NODE_ENV', () => {
     ).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('hand-written SQL survives the next migration', () => {
+  /**
+   * The trigram indexes catalogue search runs on are created in hand-written
+   * SQL, because `USING GIN (col gin_trgm_ops)` cannot be expressed in
+   * schema.prisma. That is the whole problem: an index Prisma cannot see is an
+   * index Prisma reads as drift, and `prisma migrate dev` writes a `DROP INDEX`
+   * for it into whatever migration you happened to be generating.
+   *
+   * It has already happened twice here. Migration 2 dropped all five indexes
+   * migration 1 created and put back only one; migration 3 was generated with a
+   * `DROP INDEX` for that survivor. By then the database had **none** of them
+   * while CLAUDE.md §6 still listed five — and nothing was slow, because 16
+   * demo products are fast without an index.
+   *
+   * So: every trigram index any migration ever creates must still stand at the
+   * end of the sequence. Self-maintaining — add one and it is covered — and it
+   * fails at the moment the DROP is committed rather than the day search gets
+   * slow on real data.
+   */
+  it('every trigram index a migration creates still exists at the end', () => {
+    const dir = 'prisma/migrations';
+    const migrations = readdirSync(join(ROOT, dir))
+      .filter((entry) => statSync(join(ROOT, dir, entry)).isDirectory())
+      // Names begin with a timestamp, so lexical order IS apply order.
+      .sort();
+
+    const everCreated = new Set<string>();
+    const standing = new Set<string>();
+    const dropped = new Map<string, string>();
+
+    for (const migration of migrations) {
+      const sql = readFileSync(join(ROOT, dir, migration, 'migration.sql'), 'utf8')
+        // Strip `-- ` comments: this file's own explanation of the failure it
+        // prevents quotes `DROP INDEX`, and so does that migration's.
+        .replace(/^\s*--.*$/gm, '');
+
+      for (const [, name] of sql.matchAll(
+        /CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?"([^"]+)"[^;]*gin_trgm_ops/gi,
+      )) {
+        if (name === undefined) continue;
+        everCreated.add(name);
+        standing.add(name);
+        dropped.delete(name);
+      }
+
+      for (const [, name] of sql.matchAll(
+        /DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?"([^"]+)"/gi,
+      )) {
+        if (name === undefined || !everCreated.has(name)) continue;
+        standing.delete(name);
+        dropped.set(name, migration);
+      }
+    }
+
+    expect(
+      everCreated.size,
+      'No trigram index found in any migration. Catalogue search is ' +
+        "`contains` + insensitive — that is ILIKE '%value%', which only a GIN " +
+        'trigram index can serve.',
+    ).toBeGreaterThan(0);
+
+    expect(
+      [...dropped].map(([name, migration]) => `${name} → dropped by ${migration}`),
+      'A trigram index was dropped and never recreated. `prisma migrate dev` ' +
+        'writes these DROPs on its own, because an index built in hand-written ' +
+        'SQL does not exist in schema.prisma and reads as drift. Delete the ' +
+        'DROP from the generated migration and add `CREATE INDEX IF NOT ' +
+        'EXISTS` back.',
+    ).toEqual([]);
+
+    expect([...standing].sort()).toEqual([...everCreated].sort());
+  });
+});
