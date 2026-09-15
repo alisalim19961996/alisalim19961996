@@ -4,6 +4,7 @@ import {
   formatOrderNumber,
   normalizeOrderNumber,
   orderNumberDayKey,
+  sequenceFromOrderNumber,
 } from '@/lib/domain/order-number';
 
 const at = (iso: string) => new Date(iso);
@@ -81,5 +82,42 @@ describe('normalizeOrderNumber', () => {
     expect(normalizeOrderNumber('hello')).toBeNull();
     expect(normalizeOrderNumber('MPS-1-1')).toBeNull();
     expect(normalizeOrderNumber("MPS-26091-0042'; DROP TABLE order; --")).toBeNull();
+  });
+});
+
+describe('sequenceFromOrderNumber', () => {
+  it('reads the sequence back out', () => {
+    expect(sequenceFromOrderNumber('MPS-26258-0042')).toBe(42);
+    expect(sequenceFromOrderNumber('MPS-26258-0001')).toBe(1);
+  });
+
+  it('reads one that has grown past four digits', () => {
+    // Sequences keep growing rather than wrapping — a wrapped number would
+    // collide with an order that already exists.
+    expect(sequenceFromOrderNumber('MPS-26258-10001')).toBe(10_001);
+  });
+
+  it('accepts what people type', () => {
+    expect(sequenceFromOrderNumber('  mps-26258-0042 ')).toBe(42);
+  });
+
+  it.each([
+    '',
+    'MPS-26258-',
+    'MPS-26258-0000',
+    'ABC-26258-0042',
+    'MPS-262-0042',
+    'nonsense',
+  ])('refuses %j', (input) => {
+    expect(sequenceFromOrderNumber(input)).toBeNull();
+  });
+
+  it('round-trips with formatOrderNumber', () => {
+    // The allocator takes the next number from the highest one issued, so
+    // these two have to agree exactly or it hands out a duplicate.
+    const date = new Date('2026-09-15T10:00:00Z');
+    for (const sequence of [1, 9, 42, 999, 1000, 12_345]) {
+      expect(sequenceFromOrderNumber(formatOrderNumber(date, sequence))).toBe(sequence);
+    }
   });
 });

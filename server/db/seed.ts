@@ -9,13 +9,27 @@
  * The seed refuses to run against production.
  */
 import 'dotenv/config';
-import { PrismaClient, Governorate, Role, StockStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  DiscountType,
+  Governorate,
+  Role,
+  StockStatus,
+} from '@prisma/client';
 import { ATTRIBUTE_GROUPS, ATTRIBUTES, PRODUCT_TYPES } from './seed-data/attributes';
 import { DEMO_PRODUCTS } from './seed-data/products';
+import {
+  DEMO_COUPON_CODE,
+  DEMO_COUPON_MAX_DISCOUNT_IQD,
+  DEMO_COUPON_MIN_ORDER_IQD,
+  DEMO_COUPON_PERCENT,
+} from './seed-data/coupon';
 import { extractYoutubeId } from '../../lib/video';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -239,6 +253,45 @@ async function seedFaqs() {
   }
 
   console.log(`  ${faqs.length} FAQs`);
+}
+
+/**
+ * One demo discount code.
+ *
+ * Here for the same reason the demo products are: the owner should be able to
+ * see the checkout's coupon box do something before they invent a campaign of
+ * their own, and the e2e suite needs a code that exists to drive it with.
+ *
+ * Deliberately harmless. `usageLimit` is null so a test run cannot exhaust it,
+ * the window is a year wide so it cannot quietly expire mid-project, and the
+ * amount is a percentage with a cap, which is the shape most likely to be
+ * copied. `upsert` sets the window every run, so a database seeded last year
+ * gets a working code rather than an expired one.
+ */
+async function seedCoupons() {
+  const startsAt = new Date(Date.now() - DAY_MS);
+  const endsAt = new Date(Date.now() + 365 * DAY_MS);
+
+  await db.coupon.upsert({
+    where: { code: DEMO_COUPON_CODE },
+    update: { startsAt, endsAt, isActive: true },
+    create: {
+      code: DEMO_COUPON_CODE,
+      discountType: DiscountType.PERCENTAGE,
+      discountValue: DEMO_COUPON_PERCENT,
+      minOrderIqd: DEMO_COUPON_MIN_ORDER_IQD,
+      maxDiscountIqd: DEMO_COUPON_MAX_DISCOUNT_IQD,
+      usageLimit: null,
+      perUserLimit: 5,
+      startsAt,
+      endsAt,
+    },
+  });
+
+  console.log(
+    `  1 demo coupon: ${DEMO_COUPON_CODE} ` +
+      `(${DEMO_COUPON_PERCENT}%, max ${DEMO_COUPON_MAX_DISCOUNT_IQD} IQD)`,
+  );
 }
 
 /**
@@ -652,6 +705,7 @@ async function main() {
   await seedDemoProducts();
   await seedUsers();
   await seedFaqs();
+  await seedCoupons();
   console.log('Done. All records above are demo data, not real store data.');
 }
 

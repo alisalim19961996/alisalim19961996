@@ -20,6 +20,12 @@ import {
   UserAdminError,
 } from '@/server/services/admin-users';
 import {
+  CouponError,
+  deleteCoupon,
+  saveCoupon,
+  setCouponActive,
+} from '@/server/services/admin-coupons';
+import {
   BlogError,
   deleteBlogPost,
   saveBlogPost,
@@ -43,6 +49,7 @@ import {
 } from '@/schemas/admin';
 import { productFormSchema } from '@/schemas/product';
 import { blogPostFormSchema } from '@/schemas/blog';
+import { couponFormSchema } from '@/schemas/coupon';
 import { userActiveSchema, userRoleSchema } from '@/schemas/admin';
 import {
   attributeFormSchema,
@@ -114,6 +121,9 @@ function toResult(error: unknown): AdminActionResult {
     return { ok: false, errorKey: error.code };
   }
   if (error instanceof BlogError) {
+    return { ok: false, errorKey: error.code, field: error.field };
+  }
+  if (error instanceof CouponError) {
     return { ok: false, errorKey: error.code, field: error.field };
   }
   if (error instanceof UnauthenticatedError || error instanceof ForbiddenError) {
@@ -522,5 +532,54 @@ export async function deleteBlogPostAction(id: string): Promise<AdminActionResul
 
   revalidatePath('/admin/blog', 'page');
   revalidateGuides();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Coupons
+// ---------------------------------------------------------------------------
+
+export async function saveCouponAction(
+  input: unknown,
+  id?: string,
+): Promise<SaveTaxonomyActionResult> {
+  const parsed = couponFormSchema.safeParse(input);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  let result;
+  try {
+    result = await saveCoupon(parsed.data, id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  // No storefront revalidation: a coupon changes nothing that is rendered.
+  // It is read at checkout, which is dynamic, and quoted through an action.
+  revalidatePath('/admin/coupons', 'page');
+  return { ok: true, id: result.id };
+}
+
+export async function setCouponActiveAction(input: {
+  id: string;
+  isActive: boolean;
+}): Promise<AdminActionResult> {
+  try {
+    await setCouponActive(input.id, input.isActive);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/coupons', 'page');
+  return { ok: true };
+}
+
+export async function deleteCouponAction(id: string): Promise<AdminActionResult> {
+  try {
+    await deleteCoupon(id);
+  } catch (error) {
+    return toResult(error);
+  }
+
+  revalidatePath('/admin/coupons', 'page');
   return { ok: true };
 }

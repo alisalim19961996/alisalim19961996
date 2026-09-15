@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   Store,
   Tags,
+  TicketPercent,
   Truck,
   Users,
 } from 'lucide-react';
@@ -39,6 +40,7 @@ export interface AdminLabels {
   delivery: string;
   viewStore: string;
   guides: string;
+  coupons: string;
   signOut: string;
   menu: string;
 }
@@ -60,6 +62,7 @@ const NAV = [
   { href: '/admin/product-types', labelKey: 'productTypes', icon: Shapes },
   { href: '/admin/attributes', labelKey: 'attributes', icon: SlidersHorizontal },
   { href: '/admin/blog', labelKey: 'guides', icon: BookOpen },
+  { href: '/admin/coupons', labelKey: 'coupons', icon: TicketPercent },
   { href: '/admin/delivery', labelKey: 'delivery', icon: Truck },
   { href: '/admin/users', labelKey: 'users', icon: Users },
   { href: '/admin/settings', labelKey: 'settings', icon: Settings },

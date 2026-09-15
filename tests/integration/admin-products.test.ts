@@ -400,6 +400,7 @@ describe('editing without destroying history', () => {
       city: 'Karrada',
       addressLine: 'Street 1',
       notes: null,
+      couponCode: null,
     });
 
     const result = await updateProduct(
@@ -536,6 +537,7 @@ describe('deleting', () => {
       city: 'Karrada',
       addressLine: 'Street 1',
       notes: null,
+      couponCode: null,
     });
 
     // Deleting would set OrderItem.variantId to null: the invoice keeps its

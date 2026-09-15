@@ -226,17 +226,14 @@ export function cartLink(page: Page): Locator {
 }
 
 /**
- * Fill checkout and submit, returning the order number from the URL.
+ * Fill every checkout field and wait for the delivery quote to arrive.
  *
  * The governorate is chosen by value rather than by its translated label
  * because the form submits the `Governorate` enum, which is what `DeliveryRate`
  * is keyed by. Baghdad has a fee in the seed, so a quote that never arrives
  * cannot pass as a legitimate zero.
  */
-export async function submitCheckout(
-  page: Page,
-  governorate = 'BAGHDAD',
-): Promise<string> {
+export async function fillCheckout(page: Page, governorate = 'BAGHDAD'): Promise<void> {
   await page.fill('input[name="fullName"]', CHECKOUT.fullName);
   await page.fill('input[name="phone"]', CHECKOUT.phone);
   await page.selectOption('select[name="governorate"]', governorate);
@@ -247,6 +244,20 @@ export async function submitCheckout(
   // the same function that will price the order. Waiting for it is what makes
   // "what was displayed is what was charged" testable at all.
   await expect(page.getByText(tPrefix('checkout.deliveryEta')).first()).toBeVisible();
+}
+
+/**
+ * Fill checkout and submit, returning the order number from the URL.
+ *
+ * Split from `fillCheckout` so a test can do something between the two — the
+ * coupon spec has to read a quoted total before it is charged, which is the
+ * whole claim it exists to make.
+ */
+export async function submitCheckout(
+  page: Page,
+  governorate = 'BAGHDAD',
+): Promise<string> {
+  await fillCheckout(page, governorate);
 
   await page.getByRole('button', { name: t('checkout.submit') }).click();
   await page.waitForURL(/\/ar\/orders\/MPS-/);

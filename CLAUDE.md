@@ -368,6 +368,9 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/admin/blog`                     | Dynamic      | Buying guides: published/draft tabs, publish toggle                      |
 | `/[locale]/admin/blog/new`                 | Dynamic      | Write a guide                                                            |
 | `/[locale]/admin/blog/[id]`                | Dynamic      | Edit a guide; delete is a real delete — nothing points at an article     |
+| `/[locale]/admin/coupons`                  | Dynamic      | Discount codes, each shown against its usage limit                       |
+| `/[locale]/admin/coupons/new`              | Dynamic      | Create a code                                                            |
+| `/[locale]/admin/coupons/[id]`             | Dynamic      | Edit a code; delete refused once an order has used it                    |
 | `/[locale]/admin/users`                    | Dynamic      | Roles and access (ADMIN only); no password is ever typed here            |
 | `/[locale]/admin/delivery`                 | Dynamic      | Per-governorate fee and ETA                                              |
 | `/[locale]/admin/settings`                 | Dynamic      | Store settings (ADMIN only)                                              |
@@ -592,7 +595,7 @@ assumed.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **712 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **756 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -666,6 +669,71 @@ reproduces exactly that: with the naive version it sells one unit twice.
 courier, and exposing row identity invites enumeration. Tracking accepts what
 people actually type — lowercase, spaced, prefix omitted, Arabic-Indic digits,
 en dash.
+
+**Allocating that number was wrong in two ways, and both cost a customer their
+checkout.** Found while building coupons, by refusing to believe a concurrency
+test that passed.
+
+- **It counted the day's orders.** Delete one from the middle of a day — which
+  is exactly what a test suite tidying up after itself does — and the count
+  drops while the numbers above it stay, so the next order is handed one that
+  already exists. It now reads the **highest number issued that day** and adds
+  one (`sequenceFromOrderNumber`). Deleting the highest order does free its
+  number again, which is fine: nothing holds it.
+- **The retry loop could not work.** Two simultaneous checkouts both built the
+  same number and the second `INSERT` violated the unique index — at which
+  point **Postgres aborts the whole transaction** (25P02, "current transaction
+  is aborted, commands ignored until end of transaction block"). The next
+  attempt then ran against a dead transaction and threw something unrelated, so
+  the customer met "something went wrong" on an order that should simply have
+  been numbered one higher. A transaction-scoped advisory lock
+  (`pg_advisory_xact_lock`, keyed on the day) removes the race instead of
+  reacting to it, and releases on commit or rollback. An integration test
+  places two orders at once and asserts two different numbers; it fails against
+  the old code with the constraint error itself.
+
+**Coupons** — `lib/domain/coupon.ts` for the rules,
+`server/services/order.ts` for applying them, `admin-coupons.ts` for writing
+them.
+
+- **The client sends the code, never an amount** (§13.7). `evaluateCoupon` is
+  the only thing that decides what a code is worth, it takes the clock as an
+  argument so a test can pin it, and the order transaction runs it again from
+  the row — so what was quoted and what is charged come from one function.
+- **A quote never consumes a use.** Refreshing the checkout page would
+  otherwise burn a single-use code.
+- **"No such code", "switched off" and "out of season" answer identically.**
+  Distinguishing them turns the box into a way to discover the shop's codes and
+  when they run — the same reasoning as the single sign-in error and the
+  tracking form. The refusals that do name a reason are the ones about the
+  customer's own order: too small, exhausted, already used.
+- **A bad code fails the whole order** rather than being dropped. Placing it at
+  full price is worse: the customer pressed the button expecting a discount and
+  would find out when the courier asked for more money.
+- **The per-user limit only binds a signed-in customer.** `CouponUsage.userId`
+  is the only identity a usage row carries, and a guest checkout has none. The
+  global `usageLimit` still applies and is the control that actually bounds the
+  cost. Written down rather than faked — keying it on a phone number would be a
+  new column and a claim that phone numbers are accounts.
+- **The use is claimed with a conditional UPDATE**, the shape stock reservation
+  uses. Measured honestly: the advisory lock above already serialises checkout
+  for the day, so a read-then-write passes the concurrency test too. It stays
+  because the invariant — a ten-use code is used ten times — must not depend on
+  where an unrelated lock happens to sit, exactly as `reserved <= onHand` is
+  enforced twice.
+- **Deleting a used code is refused.** `CouponUsage.couponId` cascades, so the
+  delete would erase the record of which orders were discounted while the
+  discounts stay on those orders — money missing from the books with nothing
+  left to explain it. Deactivating is the answer.
+
+**`Offer` is still schema-only, deliberately.** It would be a _second_ way for a
+product to have a discounted price, beside `comparePriceIqd` — which is what
+the storefront, `/offers` and the "no fake discounts" CHECK constraint already
+use. Two mechanisms mean deciding which wins on every product page, every card
+and every line of a cart, and getting that wrong shows a customer one price and
+charges another. Coupons do not have that problem: they price an order, not a
+product. Revisit when the owner actually needs a campaign that
+`comparePriceIqd` cannot express.
 
 **Order tracking is rate limited per phone number**, five attempts a quarter
 hour, in `server/rate-limit.ts` with the window arithmetic in
@@ -1045,18 +1113,49 @@ signing in, writing a guide in both languages, publishing it, and finding it on
 `/ar/guides`, at `/ar/guides/<slug>` and at `/en/guides/<slug>` with its
 headings and bullets intact.
 
+**Phase 5.6 — offers and coupons**: a discount code box at checkout, and the
+screens to write the codes at `/admin/coupons`. `orderTotals` has taken a
+`discountIqd` since Phase 3 and nothing ever computed one; it does now. The
+rules are pure and take the clock as an argument
+(`lib/domain/coupon.ts`), the order transaction runs them again from the row
+rather than trusting the quote, and the use is claimed with the same
+conditional UPDATE shape as stock. `Offer` stays schema-only deliberately, for
+a reason §12 states rather than leaves implied.
+
+This phase also paid for **three bugs on the money path, all found by refusing
+to believe a concurrency test that passed** (§12): order numbers allocated by
+counting a day's orders, so deleting one from the middle handed the next
+customer a number that already existed; a retry loop that could not run,
+because a unique violation aborts the whole Postgres transaction (25P02); and a
+read-then-write coupon claim. Each was proved by putting the old code back and
+watching a test fail with the constraint error itself. Verified end to end on
+the built site: a 15% code took a 68,000 subtotal down by 10,200, delivery
+added 5,000, and the order was placed at 62,800 with the discount on its own
+line — in the cart summary, on the confirmation page and in the dashboard. That
+pass is now a Playwright test rather than a memory: the seed writes one demo
+code (`server/db/seed-data/coupon.ts`, unlimited and a year wide, so a test run
+cannot exhaust or expire it), and `tests/e2e/coupon.spec.ts` raises a cart over
+the code's minimum, is refused generically for a code that does not exist,
+applies the real one, and then compares every figure on the confirmation
+page — which came out of Postgres — against what the checkout quoted. It was
+believed only after two deliberate breaks: writing the order at `discountIqd:
+0` while the quote still showed the discount (it reported the three figures it
+found instead of four), and naming a specific reason for an unknown code (the
+generic refusal never appeared).
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
   (`scripts/generate-demo-images.mjs` → `public/demo/products/*.jpg`), flagged
   `isDemo` and badged in the UI. The owner will supply real photography; the
   pipeline is ready for it.
-- **Offers / coupons** — schema and constraints exist, no UI or service.
+- **Offers** — `Offer` is schema-only and stays that way on purpose (§12);
+  coupons are built.
 - **Reviews, wishlist, banners, FAQ, homepage CMS** — schema only.
 
 ### Not started
 
-Wishlist, compare, reviews, recommendations, blog, analytics. **Phase 6 is
+Wishlist, compare, reviews, recommendations, analytics. **Phase 6 is
 complete** — e2e, the security review and the performance pass are all done
 (§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
@@ -1072,7 +1171,8 @@ pass has been done once — see §19 for exactly what it did and did not check.
 | No cache layer, deliberately                       | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
 | Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
 | No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
-| Coupons are schema-only                            | `discountIqd` is always 0                                                                                                               | Phase 5; `orderTotals` already takes a discount             |
+| A coupon's per-user limit does not bind a guest    | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
+| `Offer` is schema-only                             | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
 | Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
 | No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                                                              | Phase 5.5                                                   |
 | Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
@@ -1109,7 +1209,7 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **417 tests**: 381 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **444 tests**: 406 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1119,10 +1219,13 @@ against **both** LF and CRLF files, and the taxonomy rules — keys, a category
 tree that terminates on a cycle, and which field a unique violation names,
 hreflang alternates, the buying guide's price bands, and the reset email in
 both languages including an escaped hostile display name, and the four
-refusals that keep a store from losing its last reachable admin) plus 34
+refusals that keep a store from losing its last reachable admin, and what a
+discount code is worth and every reason it is refused — rounded down, capped
+twice, and evaluated against a clock the test supplies rather than the one on
+the wall) plus 38
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **85 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **94 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1132,7 +1235,12 @@ else — another account's order, a guest order sharing the phone number, and
 anything at all when nobody is signed in; and access, where the counts are
 global and therefore read from Postgres inside the same call that acts on
 them — the last active admin cannot be demoted or deactivated, and an
-inactive one does not count towards keeping the store reachable). Six of the 76 need no database at
+inactive one does not count towards keeping the store reachable; and coupons,
+where every claim this file makes about them is a row in Postgres rather than
+an argument — a quote that consumes nothing, a bad code that fails the whole
+order, two checkouts at the same moment taking two different order numbers,
+exactly one of them taking the last use of a code, and a number that does not
+collide after an order is deleted from the middle of a day). Six of the 94 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
@@ -1154,13 +1262,16 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **18 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **19 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
 never issued, a sign-out that takes `mps.recent_order` with it, unpublishing a
 product and watching it leave the shop floor, specification fields that change
-with the product type, a dashboard a signed-out visitor cannot reach, the two
+with the product type, a dashboard a signed-out visitor cannot reach, **a
+discount code applied at checkout and then charged as quoted** — the one claim
+no unit or integration test can make, because the quote and the charge are
+computed at two different times and only a page shows both — the two
 layout claims below, the headers — every page loaded with a listener on
 `securitypolicyviolation`, so a policy that silently blocks the product video
 or a stylesheet fails rather than shipping — and **a budget for the JavaScript
@@ -1516,14 +1627,26 @@ release). Customers sign in with a password or with Google.
 
 **Phase 5.4 — remaining:**
 
-1. Offers and coupons: `orderTotals` already takes a discount and the schema
-   and constraints exist; nothing computes one yet.
-2. Wishlist, compare, reviews.
+1. Wishlist, compare, reviews.
 
 **Phase 5.5 — buying guides** (§14) closed the item that had been first on this
 list since Phase 2: the owner writes articles at `/admin/blog` and they appear
 on `/guides` above the live-data entry points, which stay so the page can never
 render empty.
+
+**Phase 5.6 — offers and coupons** (§14) closed the second: discount codes are
+written at `/admin/coupons` and applied at checkout, priced by the server from
+the code alone. `Offer` is left schema-only, and §12 says why rather than
+leaving it looking unfinished — it would be a second way for a product to have
+a discounted price beside `comparePriceIqd`, and two mechanisms is how a
+customer is shown one price and charged another. The phase's real cost was
+elsewhere: it uncovered two order-numbering bugs and a coupon claim that could
+lose an update, none of which the passing concurrency test had noticed.
+
+**What is left is no longer commerce.** Wishlist, compare and reviews are
+features a store can open without; every path that takes money — cart,
+checkout, discounts, orders, stock, tracking — is built, guarded and tested. The remaining blockers are the owner's inputs below, not
+code.
 
 **The build's connection budget is settled** (§18): a pooled `DATABASE_URL` now
 caps build workers and the pool together, after `pnpm build` died against

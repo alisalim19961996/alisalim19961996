@@ -11,9 +11,9 @@ import type { AdminActionResult } from '../actions';
  * The frame every single-record admin form sits in: submit, save state,
  * errors, delete.
  *
- * Five forms — brand, category, product type, attribute, buying guide — all
- * save the same way and fail the same way, and writing that five times is how
- * one of them ends up swallowing an error or leaving the button spinning. The
+ * Six forms — brand, category, product type, attribute, buying guide, coupon —
+ * all save the same way and fail the same way, and writing that six times is
+ * how one of them ends up swallowing an error or leaving the button spinning. The
  * forms supply their fields and their values; this owns everything around
  * them.
  *
@@ -36,7 +36,8 @@ export interface AdminRecordFormProps {
     | '/admin/categories'
     | '/admin/product-types'
     | '/admin/attributes'
-    | '/admin/blog';
+    | '/admin/blog'
+    | '/admin/coupons';
   save: () => Promise<AdminActionResult>;
   remove?: () => Promise<AdminActionResult>;
   /** Shown instead of the delete button when the row cannot be removed. */

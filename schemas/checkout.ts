@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Governorate } from '@prisma/client';
 import { normalizeIraqiPhone } from '@/lib/phone';
 import { normalizeOrderNumber } from '@/lib/domain/order-number';
+import { normaliseCouponCode } from '@/lib/domain/coupon';
 
 /**
  * Checkout input.
@@ -49,6 +50,18 @@ export const checkoutSchema = z.object({
     .max(600, 'tooLong')
     .optional()
     .transform((value) => (value ? value : null)),
+  /*
+    The CODE, never an amount — the note above still holds. What the code is
+    worth is decided by `lib/domain/coupon.ts` inside the same transaction that
+    writes the order, from the coupon row, so a client that sends a discount
+    has nowhere to put it.
+  */
+  couponCode: z
+    .string()
+    .trim()
+    .max(40, 'tooLong')
+    .optional()
+    .transform((value) => (value ? normaliseCouponCode(value) : null)),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;

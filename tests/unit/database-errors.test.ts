@@ -47,10 +47,9 @@ describe('diagnoseDatabaseError', () => {
   });
 
   it('passes an ordinary query error through as the SAME object', () => {
-    // server/services/order.ts catches P2002 by `instanceof` and `code` to
-    // retry an order number. Wrapping it would break that silently — the
-    // retry would stop firing and concurrent checkouts would surface the
-    // collision to the customer.
+    // Services identify ordinary failures by `instanceof` and `code` — a
+    // wrapper around every error would break that silently, so this asserts
+    // the identity holds rather than merely the message.
     const unique = prismaError('P2002');
     expect(diagnoseDatabaseError(unique)).toBe(unique);
 

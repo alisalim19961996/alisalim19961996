@@ -7,6 +7,7 @@ import { findCart } from '@/server/services/cart';
 import {
   PlaceOrderError,
   placeOrder,
+  quoteCoupon,
   quoteDeliveryFor,
   RECENT_ORDER_COOKIE,
   RECENT_ORDER_MAX_AGE,
@@ -15,6 +16,7 @@ import { getCartView } from '@/server/queries/cart';
 import { checkoutSchema, GOVERNORATE_VALUES } from '@/schemas/checkout';
 import { locales, type Locale } from '@/i18n/routing';
 import { appCookieOptions } from '@/server/cookies';
+import { normaliseCouponCode, type CouponRefusal } from '@/lib/domain/coupon';
 
 /**
  * Checkout Server Actions.
@@ -32,6 +34,10 @@ export interface CheckoutState {
   /** Message key under `checkout`, for failures that are not field-specific. */
   errorKey?: string;
 }
+
+export type CouponQuoteResult =
+  | { ok: true; code: string; discountIqd: number }
+  | { ok: false; reason: CouponRefusal };
 
 export interface DeliveryQuoteResult {
   feeIqd: number;
@@ -69,6 +75,28 @@ export async function quoteDeliveryAction(
   return quoteDeliveryFor(governorate, subtotalIqd);
 }
 
+/**
+ * What a code is worth against the cart as it stands right now.
+ *
+ * Quoted from the same rows and the same rules the order will be priced from,
+ * exactly as the delivery fee is: the subtotal is re-derived from the cart
+ * rather than accepted as an argument, so this cannot be talked into
+ * discounting a basket the customer does not have.
+ *
+ * A refusal comes back as a key, never a sentence, and never says which of
+ * "no such code", "switched off" or "out of season" it was.
+ */
+export async function quoteCouponAction(codeInput: string): Promise<CouponQuoteResult> {
+  const code = normaliseCouponCode(String(codeInput ?? ''));
+  if (!code) return { ok: false, reason: 'couponInvalid' };
+
+  const cart = await findCart();
+  if (!cart) return { ok: false, reason: 'couponInvalid' };
+
+  const { subtotalIqd } = await getCartView(cart.id, 'ar');
+  return quoteCoupon(code, subtotalIqd);
+}
+
 export async function placeOrderAction(
   _previous: CheckoutState,
   formData: FormData,
@@ -83,6 +111,7 @@ export async function placeOrderAction(
     city: formData.get('city'),
     addressLine: formData.get('addressLine'),
     notes: formData.get('notes') ?? undefined,
+    couponCode: formData.get('couponCode') ?? undefined,
   });
 
   if (!parsed.success) {
@@ -105,7 +134,15 @@ export async function placeOrderAction(
     orderNumber = placed.orderNumber;
   } catch (error) {
     if (error instanceof PlaceOrderError) {
-      return { status: 'error', errorKey: error.failure.code };
+      // The reason, not the category: "this code has been used up" and "your
+      // order is below the minimum" ask the customer for different things, and
+      // one generic message would leave them retyping a code that will never
+      // work.
+      const errorKey =
+        error.failure.code === 'couponRejected'
+          ? error.failure.reason
+          : error.failure.code;
+      return { status: 'error', errorKey };
     }
     console.error('[checkout] placing order failed', error);
     return { status: 'error', errorKey: 'orderFailed' };

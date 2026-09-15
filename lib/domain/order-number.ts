@@ -78,3 +78,21 @@ export function normalizeOrderNumber(input: string): string | null {
 
   return ORDER_NUMBER_PATTERN.test(withPrefix) ? withPrefix : null;
 }
+
+/**
+ * The sequence out of an order number, or null if it is not one of ours.
+ *
+ * The allocator needs this because it takes the next number from the **highest
+ * one already issued that day**, not from a count of the day's rows. Counting
+ * looks equivalent and is not: delete one order from the middle of a day and
+ * the count drops, so the next order is handed a number another order already
+ * has. That is not hypothetical — it is how this was found, by a test suite
+ * tidying up after itself.
+ */
+export function sequenceFromOrderNumber(orderNumber: string): number | null {
+  const match = /^MPS-\d{5}-(\d+)$/.exec(orderNumber.trim().toUpperCase());
+  if (!match?.[1]) return null;
+
+  const sequence = Number(match[1]);
+  return Number.isInteger(sequence) && sequence > 0 ? sequence : null;
+}

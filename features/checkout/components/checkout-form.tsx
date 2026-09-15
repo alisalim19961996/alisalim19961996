@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ProductPrice } from '@/features/product/components/product-price';
+import { formatIqd } from '@/lib/money';
 import type { Locale } from '@/i18n/routing';
 import {
   placeOrderAction,
+  quoteCouponAction,
   quoteDeliveryAction,
   type CheckoutState,
   type DeliveryQuoteResult,
@@ -47,6 +49,12 @@ export function CheckoutForm({
 
   const [governorate, setGovernorate] = useState('');
   const [quote, setQuote] = useState<DeliveryQuoteResult | null>(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState<{ code: string; discountIqd: number } | null>(
+    null,
+  );
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [checkingCoupon, startCheckingCoupon] = useTransition();
   const [quoting, startQuoting] = useTransition();
 
   /**
@@ -67,7 +75,32 @@ export function CheckoutForm({
   };
 
   const fieldError = (name: string) => state.fieldErrors?.[name];
-  const total = subtotalIqd + (quote?.feeIqd ?? 0);
+  const discountIqd = coupon?.discountIqd ?? 0;
+  const total = subtotalIqd - discountIqd + (quote?.feeIqd ?? 0);
+
+  /**
+   * Ask the server what the code is worth. It never answers with a number the
+   * client chose, and applying it here changes nothing that matters: the order
+   * transaction evaluates the code again from the row it is stored in.
+   */
+  const applyCoupon = () => {
+    setCouponError(null);
+    startCheckingCoupon(async () => {
+      const result = await quoteCouponAction(couponInput);
+      if (!result.ok) {
+        setCoupon(null);
+        setCouponError(result.reason);
+        return;
+      }
+      setCoupon({ code: result.code, discountIqd: result.discountIqd });
+    });
+  };
+
+  const clearCoupon = () => {
+    setCoupon(null);
+    setCouponError(null);
+    setCouponInput('');
+  };
 
   return (
     <form
@@ -211,6 +244,17 @@ export function CheckoutForm({
               <ProductPrice priceIqd={subtotalIqd} comparePriceIqd={null} size="sm" />
             </dd>
           </div>
+          {coupon && (
+            <div className="flex items-center justify-between">
+              <dt className="text-muted">
+                {tCart('discount')}
+                <span className="ms-1 text-xs text-subtle numeric">{coupon.code}</span>
+              </dt>
+              <dd className="text-sm font-medium text-success numeric">
+                −{formatIqd(coupon.discountIqd, locale)}
+              </dd>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <dt className="text-muted">{tCart('delivery')}</dt>
             <dd className="text-sm">
@@ -245,6 +289,65 @@ export function CheckoutForm({
         <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm font-semibold text-ink">{tCart('total')}</span>
           <ProductPrice priceIqd={total} comparePriceIqd={null} size="md" />
+        </div>
+
+        {/*
+          The code travels with the form, so the server reads it from the same
+          submission as the address. Hidden rather than a visible input: the box
+          above is where a customer types, and two fields holding the same value
+          is how they disagree.
+        */}
+        <input type="hidden" name="couponCode" value={coupon?.code ?? ''} />
+
+        <div className="mt-4 border-t border-border pt-4">
+          <label htmlFor="coupon" className="text-xs font-medium text-ink">
+            {t('couponLabel')}
+          </label>
+          {coupon ? (
+            <div className="mt-1.5 flex items-center justify-between gap-2 rounded-[--radius-control] bg-success-soft px-3 py-2">
+              <span className="text-sm font-medium text-success numeric">
+                {coupon.code}
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={clearCoupon}>
+                {t('couponRemove')}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-1.5 flex gap-2">
+              <Input
+                id="coupon"
+                value={couponInput}
+                onChange={(event) => setCouponInput(event.target.value)}
+                placeholder={t('couponPlaceholder')}
+                dir="ltr"
+                aria-invalid={Boolean(couponError)}
+                // Enter inside the coupon box must apply the code, not submit
+                // the order — the customer has not finished the form yet.
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  applyCoupon();
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={applyCoupon}
+                disabled={checkingCoupon || couponInput.trim() === ''}
+              >
+                {checkingCoupon ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : (
+                  t('couponApply')
+                )}
+              </Button>
+            </div>
+          )}
+          {couponError && (
+            <p role="alert" className="mt-1.5 text-xs text-danger">
+              {t(couponError)}
+            </p>
+          )}
         </div>
 
         <Button type="submit" size="lg" block className="mt-5" disabled={isSubmitting}>

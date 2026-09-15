@@ -5,14 +5,19 @@ import {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
-  Prisma,
   type Governorate,
 } from '@prisma/client';
 import { db, type DbTransaction } from '@/server/db/client';
 import { getCurrentUser } from '@/server/auth/guards';
 import { cartTotals, orderTotals, quoteDelivery } from '@/lib/domain/cart';
+import { evaluateCoupon, type CouponRefusal } from '@/lib/domain/coupon';
 import { isPurchasable } from '@/lib/domain/availability';
-import { formatOrderNumber } from '@/lib/domain/order-number';
+import {
+  formatOrderNumber,
+  ORDER_NUMBER_PREFIX,
+  orderNumberDayKey,
+  sequenceFromOrderNumber,
+} from '@/lib/domain/order-number';
 import type { CheckoutInput } from '@/schemas/checkout';
 
 /**
@@ -38,7 +43,14 @@ export type PlaceOrderFailure =
   | { code: 'emptyCart' }
   | { code: 'priceChanged'; variantId: string }
   | { code: 'unavailable'; variantId: string; nameAr: string; nameEn: string }
-  | { code: 'insufficientStock'; variantId: string; nameAr: string; nameEn: string };
+  | { code: 'insufficientStock'; variantId: string; nameAr: string; nameEn: string }
+  /*
+    The whole order fails on a bad code rather than quietly dropping it.
+    Placing the order anyway at full price is the worse outcome by far: the
+    customer pressed the button expecting a discount, and the first they would
+    know is the courier asking for more money.
+  */
+  | { code: 'couponRejected'; reason: CouponRefusal };
 
 export class PlaceOrderError extends Error {
   constructor(readonly failure: PlaceOrderFailure) {
@@ -58,8 +70,23 @@ export const RECENT_ORDER_COOKIE = 'mps.recent_order';
 /** One day: long enough to reopen the tab, short enough not to linger. */
 export const RECENT_ORDER_MAX_AGE = 60 * 60 * 24;
 
-/** How many times to retry when two orders land on the same number. */
-const ORDER_NUMBER_ATTEMPTS = 5;
+/**
+ * The two keys `pg_advisory_xact_lock` is called with.
+ *
+ * Postgres advisory locks are a namespace of integers shared by the whole
+ * database, so the first is a constant that says "this is order numbering" and
+ * the second is the day being numbered. Locking per day rather than globally
+ * means checkouts on different days never wait for each other — which matters
+ * only at midnight, and costs nothing the rest of the time.
+ */
+const ORDER_NUMBER_LOCK = 4_820_001;
+
+/** Days since the epoch: a stable small integer for the second lock key. */
+function dayKey(date: Date): number {
+  return Math.floor(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / 86_400_000,
+  );
+}
 
 /**
  * Delivery cost for a subtotal and governorate, straight from the database.
@@ -84,6 +111,115 @@ export async function quoteDeliveryFor(governorate: Governorate, subtotalIqd: nu
     defaultDeliveryIqd: settings?.defaultDeliveryIqd ?? 5000,
     freeDeliveryOverIqd: settings?.freeDeliveryOverIqd ?? null,
   });
+}
+
+/**
+ * What a code is worth, for showing the customer before they commit.
+ *
+ * The same rules and the same row as `resolveCoupon`, without claiming a use —
+ * a quote must never consume one, or refreshing the page would burn a
+ * single-use code. Nothing here is authoritative: the order transaction runs
+ * the whole evaluation again from scratch, because between the quote and the
+ * button somebody else may have taken the last use.
+ */
+export async function quoteCoupon(
+  code: string,
+  subtotalIqd: number,
+): Promise<
+  { ok: true; code: string; discountIqd: number } | { ok: false; reason: CouponRefusal }
+> {
+  const user = await getCurrentUser();
+
+  const coupon = await db.coupon.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      discountType: true,
+      discountValue: true,
+      minOrderIqd: true,
+      maxDiscountIqd: true,
+      usageLimit: true,
+      usageCount: true,
+      perUserLimit: true,
+      startsAt: true,
+      endsAt: true,
+      isActive: true,
+    },
+  });
+
+  if (!coupon) return { ok: false, reason: 'couponInvalid' };
+
+  const usedByThisUser = user
+    ? await db.couponUsage.count({ where: { couponId: coupon.id, userId: user.id } })
+    : null;
+
+  const evaluation = evaluateCoupon(coupon, {
+    subtotalIqd,
+    now: new Date(),
+    usedByThisUser,
+  });
+
+  return evaluation.ok
+    ? { ok: true, code, discountIqd: evaluation.discountIqd }
+    : { ok: false, reason: evaluation.reason };
+}
+
+/**
+ * Look the coupon up and decide what it is worth, or refuse the order.
+ *
+ * Inside the transaction, from the row, using the same pure rules that quoted
+ * it — so the number the customer was shown and the number they are charged
+ * cannot come from different places (§13.7).
+ *
+ * The per-user count is only meaningful for a signed-in customer. A guest
+ * checkout has no account to count against, so `usedByThisUser` is null and
+ * the per-user limit does not apply; the global `usageLimit` still does, and
+ * it is the control that actually bounds what a code can cost.
+ */
+async function resolveCoupon(
+  tx: DbTransaction,
+  code: string,
+  subtotalIqd: number,
+  userId: string | null,
+): Promise<{ id: string; discountIqd: number }> {
+  const coupon = await tx.coupon.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      discountType: true,
+      discountValue: true,
+      minOrderIqd: true,
+      maxDiscountIqd: true,
+      usageLimit: true,
+      usageCount: true,
+      perUserLimit: true,
+      startsAt: true,
+      endsAt: true,
+      isActive: true,
+    },
+  });
+
+  // A code that does not exist and one that is switched off answer the same
+  // way, and `evaluateCoupon` keeps it that way for the dates too.
+  if (!coupon) {
+    throw new PlaceOrderError({ code: 'couponRejected', reason: 'couponInvalid' });
+  }
+
+  const usedByThisUser = userId
+    ? await tx.couponUsage.count({ where: { couponId: coupon.id, userId } })
+    : null;
+
+  const evaluation = evaluateCoupon(coupon, {
+    subtotalIqd,
+    now: new Date(),
+    usedByThisUser,
+  });
+
+  if (!evaluation.ok) {
+    throw new PlaceOrderError({ code: 'couponRejected', reason: evaluation.reason });
+  }
+
+  return { id: coupon.id, discountIqd: evaluation.discountIqd };
 }
 
 /**
@@ -203,7 +339,21 @@ export async function placeOrder(
     }));
     const { subtotalIqd } = cartTotals(lines);
     const delivery = await quoteDeliveryFor(input.governorate, subtotalIqd);
-    const totals = orderTotals({ subtotalIqd, deliveryIqd: delivery.feeIqd });
+
+    /*
+      The coupon is resolved from the row, inside this transaction, by the same
+      function that quoted it to the customer a moment ago. Nothing about the
+      discount crosses the wire — only the code did.
+    */
+    const coupon = input.couponCode
+      ? await resolveCoupon(tx, input.couponCode, subtotalIqd, user?.id ?? null)
+      : null;
+
+    const totals = orderTotals({
+      subtotalIqd,
+      discountIqd: coupon?.discountIqd ?? 0,
+      deliveryIqd: delivery.feeIqd,
+    });
 
     // -- Reserve counted stock ------------------------------------------------
     for (const item of items) {
@@ -222,51 +372,68 @@ export async function placeOrder(
 
     // -- Create the order, retrying only on a number collision ----------------
     const placedAt = new Date();
-    const dayStart = new Date(
-      Date.UTC(
-        placedAt.getUTCFullYear(),
-        placedAt.getUTCMonth(),
-        placedAt.getUTCDate(),
-      ),
-    );
 
-    let order: { id: string; orderNumber: string } | null = null;
-    let sequence = await tx.order.count({ where: { placedAt: { gte: dayStart } } });
+    /*
+      One transaction at a time allocates a number for a given day.
 
-    for (let attempt = 0; attempt < ORDER_NUMBER_ATTEMPTS; attempt++) {
-      sequence += 1;
-      try {
-        order = await tx.order.create({
-          data: {
-            orderNumber: formatOrderNumber(placedAt, sequence),
-            userId: user?.id ?? null,
-            status: OrderStatus.PENDING,
-            fullName: input.fullName,
-            phone: input.phone,
-            governorate: input.governorate,
-            city: input.city,
-            addressLine: input.addressLine,
-            notes: input.notes,
-            subtotalIqd: totals.subtotalIqd,
-            discountIqd: totals.discountIqd,
-            deliveryIqd: totals.deliveryIqd,
-            totalIqd: totals.totalIqd,
-            placedAt,
-          },
-          select: { id: true, orderNumber: true },
-        });
-        break;
-      } catch (error) {
-        // P2002 is a unique-constraint violation: two checkouts raced for the
-        // same daily sequence. Any other error is real and must not be retried.
-        const collided =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002';
-        if (!collided || attempt === ORDER_NUMBER_ATTEMPTS - 1) throw error;
-      }
-    }
+      The retry-on-collision loop that used to be here could not work, and the
+      probe that proved it is why this lock exists. Two simultaneous checkouts
+      both count the day's orders, both get the same sequence, and the second
+      `INSERT` violates `order_orderNumber_key` — at which point **Postgres
+      aborts the whole transaction** (25P02, "current transaction is aborted").
+      The next attempt in the loop then runs against a dead transaction and
+      fails with an unrelated error, so the customer met "something went wrong"
+      on a checkout that should simply have been numbered 0045.
 
-    if (!order) throw new Error('could not allocate an order number');
+      A transaction-scoped advisory lock removes the race instead of reacting
+      to it: the second checkout waits here, then counts AFTER the first has
+      committed and takes the next number. It is released automatically on
+      commit or rollback, so a failed order cannot hold it.
+    */
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ORDER_NUMBER_LOCK}, ${dayKey(placedAt)})`;
+
+    /*
+      The next number comes from the HIGHEST one issued today, not from a count
+      of today's rows. Counting looks equivalent and is not: delete one order
+      from the middle of a day and the count drops, so the next order is handed
+      a number that already exists. Found exactly that way, by a test suite
+      cleaning up after itself.
+
+      The `<NNNN>` segment is zero-padded to a fixed width, so ordering the
+      day's numbers as text orders them as numbers.
+    */
+    const latest = await tx.order.findFirst({
+      where: {
+        orderNumber: {
+          startsWith: `${ORDER_NUMBER_PREFIX}-${orderNumberDayKey(placedAt)}-`,
+        },
+      },
+      select: { orderNumber: true },
+      orderBy: { orderNumber: 'desc' },
+    });
+
+    const sequence =
+      (latest ? (sequenceFromOrderNumber(latest.orderNumber) ?? 0) : 0) + 1;
+
+    const order = await tx.order.create({
+      data: {
+        orderNumber: formatOrderNumber(placedAt, sequence),
+        userId: user?.id ?? null,
+        status: OrderStatus.PENDING,
+        fullName: input.fullName,
+        phone: input.phone,
+        governorate: input.governorate,
+        city: input.city,
+        addressLine: input.addressLine,
+        notes: input.notes,
+        subtotalIqd: totals.subtotalIqd,
+        discountIqd: totals.discountIqd,
+        deliveryIqd: totals.deliveryIqd,
+        totalIqd: totals.totalIqd,
+        placedAt,
+      },
+      select: { id: true, orderNumber: true },
+    });
 
     // -- Snapshot the lines ---------------------------------------------------
     await tx.orderItem.createMany({
@@ -318,6 +485,47 @@ export async function placeOrder(
           reservedAfter: inventory.reserved + item.quantity,
           orderId: order.id,
           actorId: user?.id ?? null,
+        },
+      });
+    }
+
+    /*
+      Claim the use, now that there is an order to attach it to.
+
+      A conditional UPDATE rather than read-then-write, for the reason stock
+      reservation uses one: two checkouts can both read `usageCount = 9`
+      against a limit of 10 and both pass the check above, because both read
+      before either wrote.
+
+      **Today the advisory lock above already prevents that**, because it
+      serialises order creation for the day and this runs inside the same
+      transaction — measured, not assumed: with a read-then-write here the
+      concurrency test still passes. It stays anyway, and the honesty is the
+      point. The invariant is "a ten-use code is used ten times", and that must
+      not depend on where an unrelated lock happens to sit. `reserved <=
+      onHand` is enforced twice for the same reason (§12).
+    */
+    if (coupon) {
+      const claimed = await tx.$executeRaw`
+        UPDATE "coupon"
+           SET "usageCount" = "usageCount" + 1, "updatedAt" = NOW()
+         WHERE "id" = ${coupon.id}
+           AND ("usageLimit" IS NULL OR "usageCount" < "usageLimit")
+      `;
+
+      if (claimed !== 1) {
+        throw new PlaceOrderError({
+          code: 'couponRejected',
+          reason: 'couponExhausted',
+        });
+      }
+
+      await tx.couponUsage.create({
+        data: {
+          couponId: coupon.id,
+          userId: user?.id ?? null,
+          orderId: order.id,
+          discountIqd: coupon.discountIqd,
         },
       });
     }

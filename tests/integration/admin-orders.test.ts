@@ -49,6 +49,7 @@ const ADDRESS = {
   city: 'Karrada',
   addressLine: 'Street 62, house 14',
   notes: null,
+  couponCode: null,
 };
 
 const createdProductIds: string[] = [];

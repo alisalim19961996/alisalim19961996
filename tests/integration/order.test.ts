@@ -27,6 +27,7 @@ const ADDRESS = {
   city: 'Karrada',
   addressLine: 'Street 62, house 14',
   notes: null,
+  couponCode: null,
 };
 
 /** A product nobody else's test or seed will touch. */
