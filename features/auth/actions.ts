@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { claimCartForCurrentUser } from '@/server/services/cart';
-import { RECENT_ORDER_COOKIE } from '@/server/services/order';
+import { ORDER_GRANT_COOKIE } from '@/server/services/order';
 
 /**
  * Auth Server Actions.
@@ -45,5 +45,5 @@ export async function claimCartAfterSignInAction(): Promise<void> {
  */
 export async function forgetRecentOrderAction(): Promise<void> {
   const store = await cookies();
-  store.delete(RECENT_ORDER_COOKIE);
+  store.delete(ORDER_GRANT_COOKIE);
 }

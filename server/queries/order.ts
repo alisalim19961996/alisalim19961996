@@ -3,6 +3,7 @@ import 'server-only';
 import type { Governorate, OrderStatus, Prisma } from '@prisma/client';
 import { db } from '@/server/db/client';
 import { normalizeIraqiPhone } from '@/lib/phone';
+import { hashOrderGrant, isOrderGrantShape } from '@/lib/domain/order-grant';
 import { requireUser } from '@/server/auth/guards';
 import type { Locale } from '@/i18n/routing';
 
@@ -121,56 +122,78 @@ function toView(order: OrderRow, locale: Locale): OrderView {
 }
 
 /**
- * Look up an order the way the public tracking form does: number **and** the
+ * Identify an order the way the public tracking form does: number **and** the
  * phone that placed it.
+ *
+ * Returns the row id, not a view, because that is all the caller needs: the
+ * tracking action turns this into a grant and redirects to the order page,
+ * which renders it through `findOwnedOrder` like any other visit. Building a
+ * view here as well would be a second copy of "who may see this order", and
+ * §12 already records what a second copy of an access rule costs.
  *
  * The phone is compared in its stored E.164 form, so the customer can type it
  * however they like and still match. A wrong phone returns null — the same
  * answer as a number that does not exist, so this cannot be used to discover
  * which order numbers are real.
  */
-export async function findOrderByNumberAndPhone(
+export async function identifyOrderByNumberAndPhone(
   orderNumber: string,
   phone: string,
-  locale: Locale,
-): Promise<OrderView | null> {
+): Promise<{ id: string; orderNumber: string } | null> {
   const normalizedPhone = normalizeIraqiPhone(phone);
   if (!normalizedPhone) return null;
 
-  const order = await db.order.findUnique({
-    where: { orderNumber },
-    select: orderSelect,
+  return db.order.findFirst({
+    where: { orderNumber, phone: normalizedPhone },
+    select: { id: true, orderNumber: true },
   });
-
-  if (!order || order.phone !== normalizedPhone) return null;
-  return toView(order, locale);
 }
 
 /**
- * Look up an order for someone who has already proved they own it — they just
- * placed it in this browser, or they are signed in as the buyer.
+ * Look up an order for someone who has already proved they own it — they hold
+ * the grant issued to the browser that placed it, or they are signed in as the
+ * buyer.
  *
- * `allowedOrderNumber` comes from an httpOnly cookie written at checkout, so a
- * shared or guessed URL shows nothing.
+ * `grant` is the raw value of the `mps.order_grant` cookie. It is **hashed and
+ * matched in SQL**, never compared in JavaScript against a row fetched first:
+ * the query either finds an order whose stored hash equals this one and whose
+ * expiry is still ahead, or it finds nothing. That keeps the unauthorised
+ * answer identical to the answer for an order number that does not exist, and
+ * leaves no string comparison to time.
+ *
+ * What this replaces mattered. The cookie used to hold the order NUMBER, and
+ * `allowedOrderNumber === orderNumber` was the whole check. `httpOnly` stops
+ * JavaScript reading a cookie; it does not stop a client setting one — and the
+ * numbers are sequential by design, so anybody could walk a day's four digits
+ * and read back each customer's name, phone and home address.
  */
 export async function findOwnedOrder(
   orderNumber: string,
-  viewer: { userId: string | null; allowedOrderNumber: string | null },
+  viewer: { userId: string | null; grant: string | null },
   locale: Locale,
 ): Promise<OrderView | null> {
-  const justPlaced = viewer.allowedOrderNumber === orderNumber;
+  // Two separate reads rather than one OR, so neither half can widen the
+  // other: the session read is scoped by userId, the guest read by the hash.
+  if (viewer.userId) {
+    const owned = await db.order.findFirst({
+      where: { orderNumber, userId: viewer.userId },
+      select: orderSelect,
+    });
+    if (owned) return toView(owned, locale);
+  }
 
-  const order = await db.order.findUnique({
-    where: { orderNumber },
-    select: { ...orderSelect, userId: true },
+  if (!isOrderGrantShape(viewer.grant)) return null;
+
+  const granted = await db.order.findFirst({
+    where: {
+      orderNumber,
+      guestAccessHash: hashOrderGrant(viewer.grant),
+      guestAccessExpiresAt: { gt: new Date() },
+    },
+    select: orderSelect,
   });
 
-  if (!order) return null;
-
-  const ownedBySession = Boolean(viewer.userId) && order.userId === viewer.userId;
-  if (!justPlaced && !ownedBySession) return null;
-
-  return toView(order, locale);
+  return granted ? toView(granted, locale) : null;
 }
 
 // ---------------------------------------------------------------------------

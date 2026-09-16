@@ -232,6 +232,12 @@ Migration 3 recreates all six with `IF NOT EXISTS`, and
 is dropped and not put back. **After every `prisma migrate dev`, read the
 generated SQL for `DROP INDEX` before committing it.**
 
+- **`Order.guestAccessHash` / `guestAccessExpiresAt`** hold the hash of the
+  grant that lets the browser which placed an order open it again, and when it
+  stops working. Nullable, so every order that predates them simply has no
+  guest grant and its buyer reaches it through tracking or their account. §12
+  says why the order number could not go on being the credential.
+
 - **`WishlistItem.productId` carried no foreign key at all** until the wishlist
   was built — the rows were already orphanable and nothing said so. It is
   `onDelete: Cascade`, not `SetNull`: a saved item _is_ the product, snapshots
@@ -308,16 +314,30 @@ requireLocalEmailVerified: true }`. Google's word that an address is verified
 - **Every cookie MPS sets goes through `appCookieOptions()`**
   (`server/cookies.ts`), which derives `secure` from `BETTER_AUTH_URL`'s scheme
   exactly as the session cookie does. The rule below was written for the
-  session cookie and fixed only there: `mps.cart_token` and `mps.recent_order`
+  session cookie and fixed only there: `mps.cart_token` and the order cookie
   still keyed off NODE_ENV, so under `pnpm start` on http://localhost the
   browser silently discarded them — the cart was re-minted empty on every
   click, and a guest could not open the confirmation page for the order they
   had just placed. A guardrail now fails on `secure: process.env.NODE_ENV`.
-- **Signing out deletes `mps.recent_order`.** That cookie means "this BROWSER
+- **Signing out deletes `mps.order_grant`.** That cookie means "this BROWSER
   ordered it", not "this account did", and it outlived the session: on a shared
   computer the next person could open the previous customer's order and read
   their name, phone and address. The owner loses nothing — the order is in
   their account.
+- **A guard reads `role` and `isActive` from the ROW, never from the session.**
+  `session.cookieCache` is on at five minutes, which is what keeps
+  `getCurrentUser()` off the database on every render — and it meant a
+  dismissed employee kept the dashboard for another five minutes and a demoted
+  one kept their powers. `requireRole()` now takes identity from the session
+  and authority from one read by primary key. `getCurrentUser()` and
+  `requireUser()` are untouched, so the storefront and the cart still cost
+  nothing.
+- **The password-reset rate limit named an endpoint that does not exist.** The
+  rule was keyed `/forget-password`; better-auth 1.7 serves
+  `/request-password-reset`, and custom rules match by exact path, so the
+  documented "3 per 5 minutes" was never applied — the library's own default of
+  3/60s was quietly doing the work. A rate limit that fails by matching nothing
+  is the worst way for one to fail.
 - **Sign-up goes over HTTP too**, through the same client, so "3 sign-ups per
   5 minutes" is enforced rather than merely documented. Verified by tripping
   it: the form answers 429 with the Arabic "too many attempts".
@@ -365,7 +385,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 | `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                           |
 | `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                        |
 | `/[locale]/checkout`                       | Dynamic      | Six fields, live delivery quote, COD                                     |
-| `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to                           |
+| `/[locale]/orders/[orderNumber]`           | Dynamic      | Confirmation + the order a customer returns to; greets by STATUS         |
 | `/[locale]/brands`                         | SSG          | Every brand, with product counts, linking into the catalogue             |
 | `/[locale]/offers`                         | Dynamic      | Everything discounted — the catalogue query with `onOfferOnly`           |
 | `/[locale]/guides`                         | SSG          | The owner's articles, then entry points built from real types and brands |
@@ -693,7 +713,12 @@ returns 4 products, تكنو returns 2.
 
 **Cart** — `server/services/cart.ts`. Anonymous carts are keyed by an httpOnly
 token (`mps.cart_token`, 32 CSPRNG bytes, 30 days); a signed-in user's cart is
-keyed `user:<id>`. Signing in merges the anonymous cart into it, summing
+keyed `user:<id>` **in the same column**, which is why every guest read now
+carries `userId: null` and the cookie reader refuses anything that is not 43
+base64url characters. Without both, a visitor who set
+`mps.cart_token=user:<someone's id>` was handed that account's cart — they could
+read it, add to it, and check out with it. Two halves rather than one because
+either alone is a single `where` clause away from being lost again. Signing in merges the anonymous cart into it, summing
 quantities and re-clamping. **Reads never write cookies** — Next only allows
 `cookies().set` in a Server Action or Route Handler — so `findCart()` returns
 null for a visitor with none, and only the write path mints a token.
@@ -805,11 +830,36 @@ tripping it on the built site — the sixth attempt answers "too many attempts"
 in Arabic.
 
 **Access to an order** is never the URL alone, because the numbers are
-sequential. It needs the httpOnly `mps.recent_order` cookie written at checkout
-(this browser ordered it), a session that owns it, or the phone number via the
-tracking form. A wrong phone and a non-existent order return the same message,
-so the form cannot be used to discover which numbers are real. Tracking is a
-POST, not a GET: a phone number in a URL lands in history, logs and Referer.
+sequential. It needs a **Guest Order Grant**, a session that owns it, or the
+phone number via the tracking form. A wrong phone and a non-existent order
+return the same message, so the form cannot be used to discover which numbers
+are real. Tracking is a POST, not a GET: a phone number in a URL lands in
+history, logs and Referer.
+
+**The grant replaced a cookie that carried the order number itself**, and that
+cookie was the live hole this file described as a control. `mps.recent_order`
+held `MPS-26091-0042`, and the check was that it equalled the number in the
+URL. `httpOnly` stops JavaScript READING a cookie; it does nothing about a
+client SETTING one — so anybody could type a number into their own browser and
+walk a day's four digits, reading back each customer's name, phone and home
+address. Ten thousand requests is an afternoon, which is exactly the argument
+that put a rate limit on tracking; tracking was hardened and this was not.
+
+- `mps.order_grant` now carries **32 CSPRNG bytes** (`lib/domain/order-grant.ts`),
+  issued at checkout and again after a successful tracking lookup — the two
+  moments somebody proves the order is theirs.
+- **Only the SHA-256 is stored**, on `Order.guestAccessHash`, for the reason a
+  password hash exists: a leaked backup of the `order` table must not be a set
+  of working keys. It is a unique index, so the lookup is a seek.
+- **The hash is matched in SQL**, never compared in JavaScript against a row
+  fetched first. The unauthorised answer is then identical to the answer for an
+  order number that was never issued, and there is no string comparison to time.
+- **Clearing the column is the revocation**, and `guestAccessExpiresAt` bounds
+  it to a day regardless. Issuing a new grant replaces the old one, so the most
+  recent browser to prove ownership is the one that holds it.
+- **A browser still holding `mps.recent_order` gets nothing**, which is the
+  correct answer for a credential that has been withdrawn: an order number is
+  not a grant shape, so it is refused before the database is asked.
 
 Payment is COD only today, behind `PaymentMethod`, so an Iraqi gateway can be
 added without touching order code.

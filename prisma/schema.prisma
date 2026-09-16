@@ -743,6 +743,15 @@ model Order {
 
   couponCode String?
 
+  /// Hash of the one-time grant handed to the browser that placed this order.
+  ///
+  /// Never the raw value: a leaked backup would otherwise be a list of working
+  /// keys to every guest order. Null means no guest may open it — a signed-in
+  /// customer is authorised by `userId`, and clearing this column revokes a
+  /// guest's access immediately.
+  guestAccessHash      String?   @unique
+  guestAccessExpiresAt DateTime?
+
   placedAt     DateTime  @default(now())
   confirmedAt  DateTime?
   deliveredAt  DateTime?

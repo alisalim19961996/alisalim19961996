@@ -46,6 +46,26 @@ export function isFailedOutcome(status: OrderStatus): boolean {
   return status === OrderStatus.CANCELLED || status === OrderStatus.RETURNED;
 }
 
+/**
+ * How an order's own page should present itself.
+ *
+ * The confirmation page used to open with a green tick and "your order is
+ * placed" for every order it could render — including a CANCELLED one, which
+ * then contradicted itself two rows later with a red badge. The page is not
+ * only seen the moment it is created: it is the page the customer comes back
+ * to, and what it says has to keep matching what happened.
+ *
+ * Pure and here rather than in the page, because it is a rule about order
+ * status and a unit test can hold it to all eight.
+ */
+export type OrderTone = 'progress' | 'delivered' | 'failed';
+
+export function orderTone(status: OrderStatus): OrderTone {
+  if (isFailedOutcome(status)) return 'failed';
+  if (status === OrderStatus.DELIVERED) return 'delivered';
+  return 'progress';
+}
+
 /** How far along ORDER_PROGRESS an order is; -1 for a failed outcome. */
 export function progressIndex(status: OrderStatus): number {
   return ORDER_PROGRESS.indexOf(status);

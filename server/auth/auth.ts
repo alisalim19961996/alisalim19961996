@@ -177,7 +177,15 @@ export const auth = betterAuth({
     customRules: {
       '/sign-in/email': { window: 60, max: 5 },
       '/sign-up/email': { window: 300, max: 3 },
-      '/forget-password': { window: 300, max: 3 },
+      /*
+        The endpoint is `/request-password-reset`. `/forget-password` was the
+        old name and better-auth 1.7 does not serve it, so this rule matched
+        nothing and the documented "3 resets / 5 minutes" was never applied —
+        the library's own default of 3/60s was doing the work. Named rules are
+        matched by exact path (or a wildcard), so a stale name fails silently,
+        which is the worst way for a rate limit to fail.
+      */
+      '/request-password-reset': { window: 300, max: 3 },
       // Starting an OAuth redirect is cheap for us and costly for Google, so
       // the limit exists to stop a script using the store as a redirect mill,
       // not to protect a password.

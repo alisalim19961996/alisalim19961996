@@ -2,6 +2,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { Role } from '@prisma/client';
+import { db } from '@/server/db/client';
 import { auth } from './auth';
 
 /**
@@ -68,11 +69,37 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Require one of the given roles. */
+/**
+ * Require one of the given roles, deciding from the database rather than from
+ * the session cookie.
+ *
+ * `session.cookieCache` is on with a five-minute window (server/auth/auth.ts),
+ * which is what keeps `getCurrentUser()` off the database on every page. It
+ * also means the `role` and `isActive` in a session result can be up to five
+ * minutes stale — so a dismissed employee kept working for five more minutes,
+ * and a demoted one kept their old powers for the same window. On the screens
+ * this guard protects, that window is customer addresses and the ability to
+ * change an order.
+ *
+ * So identity comes from the session and authority comes from the row. One
+ * indexed read by primary key, only on role-gated calls: `getCurrentUser()`
+ * and `requireUser()` are untouched, so the cart and the storefront still cost
+ * nothing.
+ */
 export async function requireRole(...roles: readonly Role[]): Promise<SessionUser> {
   const user = await requireUser();
-  if (!roles.includes(user.role)) throw new ForbiddenError(roles);
-  return user;
+
+  const fresh = await db.user.findUnique({
+    where: { id: user.id },
+    select: { role: true, isActive: true },
+  });
+
+  // Deleted between the session read and now, or deactivated: either way this
+  // is no longer somebody who may act.
+  if (!fresh || !fresh.isActive) throw new UnauthenticatedError();
+  if (!roles.includes(fresh.role)) throw new ForbiddenError(roles);
+
+  return { ...user, role: fresh.role, isActive: fresh.isActive };
 }
 
 /** Staff and admins can both reach the dashboard; only admins can destroy. */

@@ -15,9 +15,10 @@ import {
  *
  * `MPS-<YY><DDD>-<NNNN>` is sequential on purpose — it has to be readable
  * aloud to a courier — which means anybody who has one of their own can guess
- * the next. What actually grants access is the httpOnly `mps.recent_order`
- * cookie written at checkout, a session that owns the order, or the phone
- * number through the tracking form (§12).
+ * the next. What actually grants access is the httpOnly `mps.order_grant`
+ * cookie written at checkout — 256 random bits, stored only as a hash — or a
+ * session that owns the order, or the phone number through the tracking form
+ * (§12).
  *
  * The integration suite proves the queries return nothing. This proves the
  * SCREEN shows nothing, which is a different claim: a leak here would be a
@@ -116,7 +117,7 @@ test('signing out takes the order with it', async ({ page }) => {
 
   /*
     Two things have to be gone, and only one of them is the session.
-    `mps.recent_order` means "this BROWSER ordered it", not "this account did",
+    `mps.order_grant` means "this BROWSER ordered it", not "this account did",
     and it used to outlive the session: on a shared computer the next person
     could open the previous customer's order and read their name, phone and
     address (§7). The owner loses nothing, because the order is in their
@@ -125,4 +126,47 @@ test('signing out takes the order with it', async ({ page }) => {
   await page.goto(`/ar/orders/${orderNumber}`);
   const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   expect(body, 'the address survived a sign-out').not.toContain(CHECKOUT.addressLine);
+});
+
+test('a hand-written cookie does not open an order', async ({ page, browser }) => {
+  const orderNumber = await placeAnOrder(page);
+
+  /*
+    The cookie used to hold the order NUMBER, and the check was that it equalled
+    the number in the URL. `httpOnly` stops JavaScript reading a cookie; it does
+    nothing about a client SETTING one, which is what this test does — and with
+    sequential numbers that was a customer's name, phone and address for anyone
+    willing to type four digits.
+
+    A second context, so nothing of the buyer's own session is in play. Both
+    the current cookie name and the one it replaced are tried, because a
+    browser that still holds the old one must also get nothing.
+  */
+  const context = await browser.newContext();
+  await context.addCookies([
+    {
+      name: 'mps.order_grant',
+      value: orderNumber,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+    },
+    {
+      name: 'mps.recent_order',
+      value: orderNumber,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+    },
+  ]);
+
+  const stranger = await context.newPage();
+  await stranger.goto(`/ar/orders/${orderNumber}`);
+  const body = (await stranger.locator('body').innerText()).replace(/\s+/g, ' ');
+
+  expect(body, 'a forged cookie opened the order').not.toContain(CHECKOUT.addressLine);
+  expect(body, 'a forged cookie opened the order').not.toContain(CHECKOUT.fullName);
+  await expect(stranger.getByText(t('order.notFound'))).toBeVisible();
+
+  await context.close();
 });

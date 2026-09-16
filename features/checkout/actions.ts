@@ -9,8 +9,8 @@ import {
   placeOrder,
   quoteCoupon,
   quoteDeliveryFor,
-  RECENT_ORDER_COOKIE,
-  RECENT_ORDER_MAX_AGE,
+  ORDER_GRANT_COOKIE,
+  ORDER_GRANT_MAX_AGE,
 } from '@/server/services/order';
 import { getCartView } from '@/server/queries/cart';
 import { checkoutSchema, GOVERNORATE_VALUES } from '@/schemas/checkout';
@@ -129,9 +129,11 @@ export async function placeOrderAction(
   if (!cart) return { status: 'error', errorKey: 'emptyCart' };
 
   let orderNumber: string;
+  let grant: string;
   try {
     const placed = await placeOrder(cart.id, parsed.data);
     orderNumber = placed.orderNumber;
+    grant = placed.grant;
   } catch (error) {
     if (error instanceof PlaceOrderError) {
       // The reason, not the category: "this code has been used up" and "your
@@ -148,8 +150,11 @@ export async function placeOrderAction(
     return { status: 'error', errorKey: 'orderFailed' };
   }
 
+  // The grant, not the order number: the number is a reference anybody can
+  // guess, and this cookie is what says this browser is allowed to read the
+  // customer's name, phone and address back (lib/domain/order-grant.ts).
   const store = await cookies();
-  store.set(RECENT_ORDER_COOKIE, orderNumber, appCookieOptions(RECENT_ORDER_MAX_AGE));
+  store.set(ORDER_GRANT_COOKIE, grant, appCookieOptions(ORDER_GRANT_MAX_AGE));
 
   revalidatePath('/', 'layout');
 
@@ -158,5 +163,5 @@ export async function placeOrderAction(
   // returned rather than called because next-intl's redirect is destructured
   // from createNavigation, and TypeScript only applies its never-return
   // analysis to bindings that carry an explicit annotation.
-  return redirect({ href: `/orders/${orderNumber}`, locale });
+  return redirect({ href: `/orders/${orderNumber}?placed=1`, locale });
 }

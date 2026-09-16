@@ -3,8 +3,12 @@
 import { cookies } from 'next/headers';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
-import { findOrderByNumberAndPhone } from '@/server/queries/order';
-import { RECENT_ORDER_COOKIE, RECENT_ORDER_MAX_AGE } from '@/server/services/order';
+import { identifyOrderByNumberAndPhone } from '@/server/queries/order';
+import {
+  issueOrderGrant,
+  ORDER_GRANT_COOKIE,
+  ORDER_GRANT_MAX_AGE,
+} from '@/server/services/order';
 import { trackOrderSchema } from '@/schemas/checkout';
 import type { Locale } from '@/i18n/routing';
 import { appCookieOptions } from '@/server/cookies';
@@ -63,10 +67,9 @@ export async function trackOrderAction(
   }
 
   const locale = (await getLocale()) as Locale;
-  const order = await findOrderByNumberAndPhone(
+  const order = await identifyOrderByNumberAndPhone(
     parsed.data.orderNumber,
     parsed.data.phone,
-    locale,
   );
 
   // A wrong phone and a non-existent order return the same message on purpose.
@@ -74,12 +77,13 @@ export async function trackOrderAction(
   // order numbers are real.
   if (!order) return { status: 'error', errorKey: 'notFound' };
 
+  // Having proved the order is theirs, this browser gets the same grant
+  // checkout hands out, and the order page authorises it the same way. The
+  // number alone never authorises anything any more.
+  const grant = await issueOrderGrant(order.id);
+
   const store = await cookies();
-  store.set(
-    RECENT_ORDER_COOKIE,
-    order.orderNumber,
-    appCookieOptions(RECENT_ORDER_MAX_AGE),
-  );
+  store.set(ORDER_GRANT_COOKIE, grant, appCookieOptions(ORDER_GRANT_MAX_AGE));
 
   return redirect({ href: `/orders/${order.orderNumber}`, locale });
 }

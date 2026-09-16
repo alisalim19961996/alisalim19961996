@@ -18,6 +18,7 @@ import {
   orderNumberDayKey,
   sequenceFromOrderNumber,
 } from '@/lib/domain/order-number';
+import { createOrderGrant, hashOrderGrant } from '@/lib/domain/order-grant';
 import type { CheckoutInput } from '@/schemas/checkout';
 
 /**
@@ -62,13 +63,48 @@ export class PlaceOrderError extends Error {
 /**
  * Lets the confirmation page prove this browser is the one that ordered.
  *
- * Set at checkout, read on the order page. It lives here rather than beside
- * the action because a 'use server' module may only export async functions.
+ * It carries a **grant**, not the order number. `mps.recent_order` held the
+ * number itself, and `httpOnly` does not stop a client setting a cookie — only
+ * JavaScript reading one. Order numbers are sequential by design, so that
+ * cookie was a name, phone and home address for anyone willing to type four
+ * digits. See lib/domain/order-grant.ts.
+ *
+ * The name changed with the meaning: a browser still holding the old cookie
+ * presents a value that is not a grant, gets nothing, and falls back to the
+ * tracking form — which is the correct answer for a credential that has been
+ * withdrawn.
+ *
+ * Both live here rather than beside the action because a 'use server' module
+ * may only export async functions.
  */
-export const RECENT_ORDER_COOKIE = 'mps.recent_order';
+export const ORDER_GRANT_COOKIE = 'mps.order_grant';
 
 /** One day: long enough to reopen the tab, short enough not to linger. */
-export const RECENT_ORDER_MAX_AGE = 60 * 60 * 24;
+export const ORDER_GRANT_MAX_AGE = 60 * 60 * 24;
+
+/**
+ * Hand this browser the right to open one order, and return the raw value for
+ * the cookie.
+ *
+ * Called at checkout and again after a successful tracking lookup — the two
+ * moments where somebody has just proved the order is theirs. Each call
+ * replaces any previous grant on that order, so the newest browser to prove
+ * ownership is the one that holds it.
+ */
+export async function issueOrderGrant(
+  orderId: string,
+  client: DbTransaction | typeof db = db,
+): Promise<string> {
+  const raw = createOrderGrant();
+  await client.order.update({
+    where: { id: orderId },
+    data: {
+      guestAccessHash: hashOrderGrant(raw),
+      guestAccessExpiresAt: new Date(Date.now() + ORDER_GRANT_MAX_AGE * 1000),
+    },
+  });
+  return raw;
+}
 
 /**
  * The two keys `pg_advisory_xact_lock` is called with.
@@ -253,6 +289,12 @@ async function reserveStock(
 export interface PlacedOrder {
   orderNumber: string;
   totalIqd: number;
+  /**
+   * The raw grant for this browser's cookie. Returned rather than set here,
+   * because a service may not write cookies — only a Server Action or Route
+   * Handler can, and this one runs inside a transaction besides.
+   */
+  grant: string;
 }
 
 /**
@@ -534,6 +576,11 @@ export async function placeOrder(
     // they can keep shopping without a new cookie round-trip.
     await tx.cartItem.deleteMany({ where: { cartId } });
 
-    return { orderNumber: order.orderNumber, totalIqd: totals.totalIqd };
+    // Issued inside the transaction: an order that rolls back must not leave a
+    // grant behind, and a grant that fails to store must not leave an order
+    // its own buyer cannot open.
+    const grant = await issueOrderGrant(order.id, tx);
+
+    return { orderNumber: order.orderNumber, totalIqd: totals.totalIqd, grant };
   });
 }

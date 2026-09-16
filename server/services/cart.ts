@@ -52,9 +52,26 @@ function newCartToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
+/**
+ * The guest cart token this browser is presenting, if it could be one.
+ *
+ * A signed-in cart is keyed `user:<id>` in the same column, and the guest
+ * branch used to look a token up by value alone. So a visitor who set
+ * `mps.cart_token=user:<someone's id>` was handed that account's cart: they
+ * could read it and add to it, and at checkout it would have been consumed as
+ * theirs.
+ *
+ * Two things close that, and both are here on purpose rather than in one
+ * place: the shape check below refuses the `user:` namespace (a guest token is
+ * 43 base64url characters and can never contain a colon), and every guest query
+ * additionally requires `userId: null`, so even a token that somehow passed
+ * this could not resolve to an account's cart.
+ */
 async function readCartToken(): Promise<string | null> {
   const store = await cookies();
-  return store.get(CART_COOKIE)?.value ?? null;
+  const value = store.get(CART_COOKIE)?.value ?? null;
+  if (!value || !/^[A-Za-z0-9_-]{43}$/.test(value)) return null;
+  return value;
 }
 
 /**
@@ -69,16 +86,15 @@ async function readCartToken(): Promise<string | null> {
  * two cables in an anonymous cart and one more after signing in wants three.
  */
 async function mergeAnonymousCart(userId: string, token: string): Promise<void> {
-  const anonymous = await db.cart.findUnique({
-    where: { token },
+  const anonymous = await db.cart.findFirst({
+    where: { token, userId: null },
     select: {
       id: true,
-      userId: true,
       items: { select: { variantId: true, quantity: true } },
     },
   });
 
-  if (!anonymous || anonymous.userId || anonymous.items.length === 0) return;
+  if (!anonymous || anonymous.items.length === 0) return;
 
   const userCart = await db.cart.upsert({
     where: { token: `user:${userId}` },
@@ -145,7 +161,12 @@ export async function findCart(): Promise<{ id: string } | null> {
   }
 
   if (!token) return null;
-  return db.cart.findUnique({ where: { token }, select: { id: true } });
+  // `userId: null` is the half of C02 that does not depend on the token's
+  // shape: a guest token may only ever resolve to a cart nobody owns.
+  return db.cart.findFirst({
+    where: { token, userId: null },
+    select: { id: true },
+  });
 }
 
 /**
@@ -170,8 +191,8 @@ async function resolveCartForWrite(): Promise<{ id: string }> {
   }
 
   if (token) {
-    const existing = await db.cart.findUnique({
-      where: { token },
+    const existing = await db.cart.findFirst({
+      where: { token, userId: null },
       select: { id: true },
     });
     if (existing) return existing;

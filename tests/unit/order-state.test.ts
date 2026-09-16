@@ -9,6 +9,7 @@ import {
   isTerminal,
   ORDER_PROGRESS,
   isFailedOutcome,
+  orderTone,
   progressIndex,
 } from '@/lib/domain/order-state';
 
@@ -124,5 +125,37 @@ describe('ORDER_PROGRESS', () => {
     expect(progressIndex(OrderStatus.PENDING)).toBe(0);
     expect(progressIndex(OrderStatus.DELIVERED)).toBe(ORDER_PROGRESS.length - 1);
     expect(progressIndex(OrderStatus.CANCELLED)).toBe(-1);
+  });
+});
+
+/**
+ * The confirmation page used to open with a green tick and "your order is
+ * placed" whatever the order said, then contradict itself with a red CANCELLED
+ * badge further down. This is the rule that stopped it.
+ */
+describe('orderTone', () => {
+  it('calls a cancelled or returned order a failure', () => {
+    expect(orderTone(OrderStatus.CANCELLED)).toBe('failed');
+    expect(orderTone(OrderStatus.RETURNED)).toBe('failed');
+  });
+
+  it('celebrates only an order that actually arrived', () => {
+    expect(orderTone(OrderStatus.DELIVERED)).toBe('delivered');
+  });
+
+  it('treats everything still moving as in progress, PENDING included', () => {
+    // PENDING especially: nobody at the shop has confirmed it yet, so a page
+    // saying "confirmed" would be the shop's word for something it has not done.
+    expect(orderTone(OrderStatus.PENDING)).toBe('progress');
+    expect(orderTone(OrderStatus.CONFIRMED)).toBe('progress');
+    expect(orderTone(OrderStatus.PROCESSING)).toBe('progress');
+    expect(orderTone(OrderStatus.READY_FOR_SHIPMENT)).toBe('progress');
+    expect(orderTone(OrderStatus.OUT_FOR_DELIVERY)).toBe('progress');
+  });
+
+  it('has an answer for every status the enum can hold', () => {
+    for (const status of Object.values(OrderStatus)) {
+      expect(['progress', 'delivered', 'failed']).toContain(orderTone(status));
+    }
   });
 });
