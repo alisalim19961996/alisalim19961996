@@ -5,7 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { ProductPrice } from './product-price';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { CompareToggle } from '@/features/compare/components/compare-toggle';
-import { getAvailability } from '@/lib/domain/availability';
+import {
+  cheapestPurchasable,
+  pricesDiffer,
+  purchasableVariants,
+} from '@/lib/domain/availability';
 import type { ProductCardData } from '@/server/queries/catalogue';
 import type { Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -60,22 +64,17 @@ export async function ProductCard({
     Falls back to the cheapest active variant when none is purchasable, where
     the card is already showing "out of stock" anyway.
   */
-  const buyable = product.variants.filter((variant) =>
-    variant.inventory
-      ? ['available', 'preorder'].includes(getAvailability(variant.inventory).kind)
-      : false,
-  );
-  const cheapest = buyable[0] ?? product.variants[0];
+  const buyable = purchasableVariants(product.variants);
+  // By price, not by position: this used to rely on the catalogue query
+  // ordering variants by price, which the product page's query does not do.
+  const cheapest = cheapestPurchasable(product.variants) ?? product.variants[0];
 
   /*
     "From" only when the variants genuinely differ in price. A product whose
     two colours cost the same is one price, and saying "from" about it reads as
     a shop hedging.
   */
-  const priced = (buyable.length > 0 ? buyable : product.variants).map(
-    (variant) => variant.priceIqd,
-  );
-  const startsFrom = priced.length > 1 && Math.min(...priced) !== Math.max(...priced);
+  const startsFrom = pricesDiffer(buyable.length > 0 ? buyable : product.variants);
 
   // A product is buyable if any of its variants is. Showing "out of stock" on a
   // card whose blue model is available would lose a sale that was there.

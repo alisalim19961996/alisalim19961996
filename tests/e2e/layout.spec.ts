@@ -87,9 +87,14 @@ test.describe('on a phone', () => {
       The bar is found by what it IS to a customer — an element pinned to the
       bottom of the viewport — rather than by a class name, so a restyle does
       not quietly turn this test into one that measures nothing.
+
+      `*`, not `div`: the bar became a named `<section>` when it was given an
+      accessible name, and a div-only sweep then found nothing and reported
+      "no buy bar" — a test that fails safe, which is the right direction, but
+      only because somebody read the message.
     */
     const bar = await page.evaluate(() => {
-      const pinned = [...document.querySelectorAll('div')].find((element) => {
+      const pinned = [...document.querySelectorAll('*')].find((element) => {
         if (getComputedStyle(element).position !== 'fixed') return false;
         const box = element.getBoundingClientRect();
         return box.height > 0 && Math.abs(box.bottom - window.innerHeight) < 2;
@@ -126,7 +131,7 @@ test.describe('on a phone', () => {
     // reserving room for it.
     const pinned = await page.evaluate(
       () =>
-        [...document.querySelectorAll('div')].filter((element) => {
+        [...document.querySelectorAll('*')].filter((element) => {
           if (getComputedStyle(element).position !== 'fixed') return false;
           const box = element.getBoundingClientRect();
           return box.height > 0 && Math.abs(box.bottom - window.innerHeight) < 2;

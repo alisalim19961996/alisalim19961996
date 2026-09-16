@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 import { ProductPrice } from './product-price';
-import { getAvailability } from '@/lib/domain/availability';
+import { cheapestPurchasable, getAvailability } from '@/lib/domain/availability';
 import { AddToCartButton } from '@/features/cart/components/add-to-cart-button';
 import type { Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -54,27 +54,28 @@ export interface PickerVariant {
   } | null;
 }
 
-export function VariantPicker({
-  options,
-  variants,
-}: {
-  options: PickerOption[];
-  variants: PickerVariant[];
-}) {
-  const locale = useLocale() as Locale;
-  const t = useTranslations('product');
-  const isAr = locale === 'ar';
-
-  // Start on the first variant a shopper could actually buy, falling back to
-  // the first one so the page is never in a stateless limbo.
-  const initial = useMemo(() => {
-    const buyable = variants.find(
-      (variant) =>
-        variant.inventory &&
-        ['available', 'preorder'].includes(getAvailability(variant.inventory).kind),
-    );
-    return buyable ?? variants[0];
-  }, [variants]);
+/**
+ * The selection, owned above the picker.
+ *
+ * It used to live inside `VariantPicker`, which meant the mobile buy bar could
+ * not see it: the page handed the bar `variants[0]` — named `cheapest` though
+ * that query orders by `sortOrder` — so a shopper who picked 256GB/Blue got the
+ * bar adding 128GB/Black, and a product whose first variant was sold out had a
+ * permanently disabled bar under a page that was happily selling.
+ *
+ * Exported so `ProductPurchase` can hold it once and give the same answer to
+ * the picker, the price and the bar.
+ */
+export function useVariantSelection(
+  options: PickerOption[],
+  variants: PickerVariant[],
+) {
+  // Start on the CHEAPEST variant a shopper could actually buy, falling back to
+  // the first so the page is never in a stateless limbo.
+  const initial = useMemo(
+    () => cheapestPurchasable(variants) ?? variants[0],
+    [variants],
+  );
 
   const [selectedIds, setSelectedIds] = useState<string[]>(
     initial?.optionValueIds ?? [],
@@ -89,18 +90,6 @@ export function VariantPicker({
       ) ?? null
     );
   }, [variants, selectedIds]);
-
-  /** Would choosing this value still leave a real variant to buy? */
-  function isReachable(optionId: string, valueId: string): boolean {
-    const others = selectedIds.filter(
-      (id) => !options.find((o) => o.id === optionId)?.values.some((v) => v.id === id),
-    );
-    return variants.some(
-      (variant) =>
-        variant.optionValueIds.includes(valueId) &&
-        others.every((id) => variant.optionValueIds.includes(id)),
-    );
-  }
 
   function choose(optionId: string, valueId: string) {
     const option = options.find((entry) => entry.id === optionId);
@@ -136,6 +125,38 @@ export function VariantPicker({
 
   const purchasable =
     availability.kind === 'available' || availability.kind === 'preorder';
+
+  return { selected, selectedIds, choose, availability, purchasable };
+}
+
+export type VariantSelection = ReturnType<typeof useVariantSelection>;
+
+export function VariantPicker({
+  options,
+  variants,
+  selection,
+}: {
+  options: PickerOption[];
+  variants: PickerVariant[];
+  selection: VariantSelection;
+}) {
+  const locale = useLocale() as Locale;
+  const t = useTranslations('product');
+  const isAr = locale === 'ar';
+
+  const { selected, selectedIds, choose, availability, purchasable } = selection;
+
+  /** Would choosing this value still leave a real variant to buy? */
+  function isReachable(optionId: string, valueId: string): boolean {
+    const others = selectedIds.filter(
+      (id) => !options.find((o) => o.id === optionId)?.values.some((v) => v.id === id),
+    );
+    return variants.some(
+      (variant) =>
+        variant.optionValueIds.includes(valueId) &&
+        others.every((id) => variant.optionValueIds.includes(id)),
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -221,8 +242,10 @@ export function VariantPicker({
       {/*
         Add-to-cart and buy-now differ only in where they leave you: the first
         keeps you on the page to add an accessory, the second goes straight to
-        checkout. Both add the same line, so a customer who taps "buy now" on a
-        non-empty cart still sees everything they had.
+        checkout. It used to go to /cart, which is a page with another button on
+        it — "buy now" that stops to ask again is just "add to cart" with a
+        longer name. Both add the same line, so a customer who taps "buy now" on
+        a non-empty cart still checks out with everything they had.
       */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <AddToCartButton
@@ -236,7 +259,7 @@ export function VariantPicker({
           disabled={!purchasable}
           label={t('buyNow')}
           variant="outline"
-          redirectTo="/cart"
+          redirectTo="/checkout"
           className="sm:flex-1"
         />
       </div>

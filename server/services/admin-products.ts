@@ -204,7 +204,21 @@ async function writeAttributes(
 // ---------------------------------------------------------------------------
 
 /**
- * Rewrite the option columns and return a lookup from `valueEn` to its row id.
+ * Rewrite the option columns and return, PER OPTION, a lookup from `valueEn` to
+ * its row id.
+ *
+ * Per option, because a single flat map keyed on `valueEn` was wrong and the
+ * schema is what says so: two options may legitimately hold the same value —
+ * "Standard" as a warranty AND as an edition, "Black" as a colour AND as a
+ * strap. Flattened, the second overwrote the first, and every variant that
+ * referenced the first was linked to the second option's row. The product then
+ * rendered a picker whose combinations did not exist, and the variant a
+ * customer chose was not the one they saw.
+ *
+ * The form guarantees `variant.optionValues[i]` belongs to `options[i]`
+ * (schemas/product.ts refuses anything else), so the index IS the option's
+ * identity here. Forbidding duplicate names instead would be solving a bug by
+ * banning something the schema allows on purpose.
  *
  * Deleting and recreating is safe here and nowhere else in this file: options
  * carry no history, and the `VariantOptionValue` links they cascade away are
@@ -215,12 +229,15 @@ async function writeOptions(
   tx: DbTransaction,
   productId: string,
   options: ProductFormInput['options'],
-): Promise<Map<string, string>> {
+): Promise<Map<string, string>[]> {
   await tx.productOption.deleteMany({ where: { productId } });
 
-  const valueIdByName = new Map<string, string>();
+  const valueIdsByOption: Map<string, string>[] = [];
 
   for (const [index, option] of options.entries()) {
+    const valueIdByName = new Map<string, string>();
+    valueIdsByOption.push(valueIdByName);
+
     const created = await tx.productOption.create({
       data: {
         productId,
@@ -247,7 +264,7 @@ async function writeOptions(
     }
   }
 
-  return valueIdByName;
+  return valueIdsByOption;
 }
 
 // ---------------------------------------------------------------------------
@@ -271,7 +288,8 @@ async function reconcileVariants(
   tx: DbTransaction,
   productId: string,
   input: ProductFormInput,
-  optionValueIds: Map<string, string>,
+  /** One map per option, in the same order the form declared them. */
+  optionValueIds: Map<string, string>[],
 ): Promise<{ deactivated: number }> {
   const existing = await tx.productVariant.findMany({
     where: { productId },
@@ -335,8 +353,10 @@ async function reconcileVariants(
     });
 
     await tx.variantOptionValue.deleteMany({ where: { variantId: id } });
-    for (const value of variant.optionValues) {
-      const optionValueId = optionValueIds.get(value);
+    // Looked up in the map for the option at THIS position, so "Standard" under
+    // warranty and "Standard" under edition resolve to two different rows.
+    for (const [optionIndex, value] of variant.optionValues.entries()) {
+      const optionValueId = optionValueIds[optionIndex]?.get(value);
       if (!optionValueId) continue;
       await tx.variantOptionValue.create({ data: { variantId: id, optionValueId } });
     }

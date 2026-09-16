@@ -70,6 +70,7 @@
   "product": {
     "addToCart": "أضف إلى السلة",
     "buyNow": "اشترِ الآن",
+    "buyBarLabel": "شريط الشراء السريع",
     "outOfStock": "غير متوفر حاليًا",
     "inStock": "متوفر",
     "lowStock": "الكمية محدودة",

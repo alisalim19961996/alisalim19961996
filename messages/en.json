@@ -70,6 +70,7 @@
   "product": {
     "addToCart": "Add to cart",
     "buyNow": "Buy now",
+    "buyBarLabel": "Quick buy bar",
     "outOfStock": "Out of stock",
     "inStock": "In stock",
     "lowStock": "Only a few left",

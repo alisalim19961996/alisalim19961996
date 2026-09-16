@@ -558,3 +558,95 @@ describe('deleting', () => {
     expect(order?.items[0]?.productNameEn).toBe('Test Rig');
   });
 });
+
+/**
+ * Two options, one value name.
+ *
+ * `writeOptions` returned a single flat map keyed on `valueEn` across every
+ * option, so "Standard" as an edition and "Standard" as a warranty collided:
+ * the second row overwrote the first, and every variant that referenced the
+ * first was linked to the second option's row instead. The product then
+ * rendered a picker whose combinations did not exist, and the variant a
+ * customer chose was not the one they saw.
+ *
+ * The schema allows the duplication on purpose — a strap and a case can both be
+ * Black — so the fix is identity, not a ban.
+ */
+describe('option values with the same name in different options', () => {
+  it('links each variant to the value belonging to its own option', async () => {
+    const slug = `dup-values-${SUFFIX}`;
+    const prefix = slug.toUpperCase();
+
+    const { id } = await create(slug, {
+      options: [
+        {
+          nameAr: 'الإصدار',
+          nameEn: 'Edition',
+          isColor: false,
+          values: [
+            { valueAr: 'قياسي', valueEn: 'Standard' },
+            { valueAr: 'برو', valueEn: 'Pro' },
+          ],
+        },
+        {
+          nameAr: 'الضمان',
+          nameEn: 'Warranty',
+          isColor: false,
+          values: [
+            { valueAr: 'قياسي', valueEn: 'Standard' },
+            { valueAr: 'ممتد', valueEn: 'Extended' },
+          ],
+        },
+      ],
+      variants: [
+        {
+          sku: `${prefix}-SS`,
+          priceIqd: 100_000,
+          optionValues: ['Standard', 'Standard'],
+          status: StockStatus.IN_STOCK,
+          isActive: true,
+        },
+        {
+          sku: `${prefix}-PE`,
+          priceIqd: 150_000,
+          optionValues: ['Pro', 'Extended'],
+          status: StockStatus.IN_STOCK,
+          isActive: true,
+        },
+      ],
+    });
+
+    const saved = await db.product.findUniqueOrThrow({
+      where: { id },
+      select: {
+        options: {
+          orderBy: { sortOrder: 'asc' },
+          select: { nameEn: true, values: { select: { id: true, valueEn: true } } },
+        },
+        variants: {
+          orderBy: { sku: 'asc' },
+          select: { sku: true, optionValues: { select: { optionValueId: true } } },
+        },
+      },
+    });
+
+    const edition = saved.options.find((option) => option.nameEn === 'Edition');
+    const warranty = saved.options.find((option) => option.nameEn === 'Warranty');
+    const editionStandard = edition?.values.find((v) => v.valueEn === 'Standard');
+    const warrantyStandard = warranty?.values.find((v) => v.valueEn === 'Standard');
+
+    // Both rows exist and are distinct — the schema's whole point.
+    expect(editionStandard).toBeDefined();
+    expect(warrantyStandard).toBeDefined();
+    expect(editionStandard?.id).not.toBe(warrantyStandard?.id);
+
+    const both = saved.variants.find((variant) => variant.sku.endsWith('SS'));
+    const linked = both?.optionValues.map((link) => link.optionValueId) ?? [];
+
+    // Two links, one per option. The flat map produced ONE — both entries
+    // resolved to the warranty row and the set collapsed.
+    expect(linked).toHaveLength(2);
+    expect(linked).toContain(editionStandard?.id);
+    expect(linked).toContain(warrantyStandard?.id);
+  });
+});

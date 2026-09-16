@@ -4,11 +4,10 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Check, ChevronLeft, Minus, ShieldCheck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductGallery } from '@/features/product/components/product-gallery';
-import { VariantPicker } from '@/features/product/components/variant-picker';
+import { ProductPurchase } from '@/features/product/components/product-purchase';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { ReviewSection } from '@/features/review/components/review-section';
 import { ProductCard } from '@/features/product/components/product-card';
-import { MobileBuyBar } from '@/features/product/components/mobile-buy-bar';
 import {
   buildSpecGroups,
   getAllProductSlugs,
@@ -19,7 +18,6 @@ import { getProductReviews, getReviewSummary } from '@/server/queries/review';
 import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
-import { isPurchasable } from '@/lib/domain/availability';
 import { jsonLdScript } from '@/lib/seo';
 
 /**
@@ -125,8 +123,6 @@ export default async function ProductPage({
     inventory: variant.inventory,
   }));
 
-  const cheapest = product.variants[0];
-
   return (
     <>
       <ProductJsonLd
@@ -160,7 +156,11 @@ export default async function ProductPage({
             {tagline && <p className="mt-2 text-base text-muted">{tagline}</p>}
 
             <div className="mt-7">
-              <VariantPicker options={product.options} variants={pickerVariants} />
+              <ProductPurchase
+                options={product.options}
+                variants={pickerVariants}
+                name={name}
+              />
             </div>
 
             {/*
@@ -265,18 +265,6 @@ export default async function ProductPage({
           </section>
         )}
       </div>
-
-      {cheapest && (
-        <MobileBuyBar
-          variantId={cheapest.id}
-          priceIqd={cheapest.priceIqd}
-          comparePriceIqd={cheapest.comparePriceIqd}
-          name={name}
-          // Availability is decided by the same helper the picker and the cart
-          // service use, so the bar can never offer what the page refuses.
-          purchasable={cheapest.inventory ? isPurchasable(cheapest.inventory) : false}
-        />
-      )}
     </>
   );
 }

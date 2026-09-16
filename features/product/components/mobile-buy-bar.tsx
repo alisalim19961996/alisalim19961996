@@ -27,9 +27,11 @@ export function MobileBuyBar({
   purchasable,
 }: {
   /**
-   * The cheapest variant, matching the price shown beside it. The bar is a
-   * shortcut for the simple case; a shopper who wants a different storage or
-   * colour scrolls back to the picker, which is what the bar links them past.
+   * The variant the shopper has SELECTED, handed down by `ProductPurchase`.
+   *
+   * It used to be `product.variants[0]`, which the page called "cheapest"
+   * though that query orders by `sortOrder` — so the bar added a different
+   * thing from the one on screen, at a different price.
    */
   variantId: string;
   priceIqd: number;
@@ -52,15 +54,32 @@ export function MobileBuyBar({
 
   return (
     <>
-      <div
+      {/*
+        A named region, not a bare div: it is a landmark that appears without
+        the page changing, so a screen reader user who tabs into it has nothing
+        to say where they are. The name is also the only stable handle the e2e
+        spec has — the button's label flips to "added", so filtering on it finds
+        nothing the moment the bar has done its job.
+      */}
+      <section
+        aria-label={t('buyBarLabel')}
         className={cn(
           'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur lg:hidden',
           'transition-transform duration-200',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
-        // Hidden from assistive tech while off-screen: the real controls above
-        // are the ones a screen reader user is already on.
+        /*
+          Hidden from assistive tech while off-screen: the real controls above
+          are the ones a screen reader user is already on.
+
+          `inert` as well as `aria-hidden`, because the bar is translated out of
+          the viewport rather than unmounted — so its button stayed in the tab
+          order, and a keyboard user tabbing through the page landed on a
+          control they could not see. `aria-hidden` on a focusable element is a
+          contradiction browsers resolve by ignoring it.
+        */
         aria-hidden={!visible}
+        inert={!visible}
       >
         <div className="container-page flex items-center gap-3 py-3">
           <div className="min-w-0 flex-1">
@@ -81,7 +100,7 @@ export function MobileBuyBar({
             className="shrink-0"
           />
         </div>
-      </div>
+      </section>
     </>
   );
 }

@@ -528,8 +528,21 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
   deliberately tight (`gap-1 p-3`, `leading-tight`, both lines clamped): at the
   five-column width a two-line Arabic name would otherwise push the card past
   half the viewport height.
-- `VariantPicker` — client; keeps price, SKU and availability in sync;
-  unreachable combinations are dimmed, never hidden.
+- `ProductPurchase` — the page's **one** client island, and the only thing that
+  knows which variant is selected. The picker and the mobile buy bar are two
+  controls for one decision and used to hold it separately: the picker kept its
+  own state, and the page handed the bar `product.variants[0]`, which it called
+  `cheapest` although that query orders by `sortOrder`. So a shopper who chose
+  256GB in Blue scrolled down and added 128GB in Black at a different price, and
+  a product whose first variant was sold out showed a permanently disabled bar
+  under a page that was selling fine. The page stays a Server Component and
+  stays prerendered — this takes plain props, and the bar is `fixed` so its
+  position in the markup does not matter. `tests/e2e/buy-bar.spec.ts` drives it
+  at 390px and fails against the old wiring with the two prices it found.
+- `VariantPicker` — client, and now controlled by `useVariantSelection`; keeps
+  price, SKU and availability in sync; unreachable combinations are dimmed,
+  never hidden. "Buy now" goes to `/checkout`, not `/cart`: a "buy now" that
+  stops to ask again is "add to cart" with a longer name.
 - `ProductGallery` — client; images + videos in one strip, player created on
   click only.
 - `MobileBuyBar` — client; appears after 520px of scroll, `lg:hidden`.
@@ -725,6 +738,14 @@ discount cannot render.
 **Availability** — `lib/domain/availability.ts` is the single answer to "can
 this be bought". Never read `onHand` directly. A product card shows "out of
 stock" only when **no** variant is purchasable.
+
+**Which variant a surface speaks for is in that module too**, because three
+places answered it differently and each looked right alone:
+`cheapestPurchasable()` picks **by price, not by position** — the card was
+relying on the catalogue query ordering variants by price, which the product
+page's query does not do — and `pricesDiffer()` decides whether a card says
+"from". `null` when nothing is buyable, so the caller chooses whether to print
+an unbuyable price under its own "out of stock" (a card must) or nothing.
 
 **A status transition is a compare-and-set.** `advanceOrder` read the status,
 checked the transition and wrote with `where: { id }` — so two staff in two tabs
@@ -952,6 +973,14 @@ spec table with nothing to say it failed.
   page reads through `ProductTypeAttribute`) and would survive every later
   edit unseen. A cleared optional attribute loses its row; an absent
   specification is hidden, while one stored empty renders a blank line.
+- **An option value is identified by its option, not by its name.**
+  `writeOptions` returned one flat map keyed on `valueEn` across every option,
+  so "Standard" as an edition and "Standard" as a warranty collided: the second
+  row overwrote the first, and every variant referencing the first was linked to
+  the second option's row. The product then rendered a picker whose combinations
+  did not exist, and the variant a customer chose was not the one they saw. The
+  schema allows the duplication on purpose — a strap and a case can both be
+  Black — so the fix is identity, not a ban on the name.
 - **Options are replaced wholesale; variants never are.** Options carry no
   history. Variants are referenced by `CartItem` (cascade) and `OrderItem`
   (set null), so they are matched by id then SKU and updated in place. A
@@ -1757,32 +1786,32 @@ fix** — a guardrail that only says "violation found" costs more time than it
 saves. Comments are stripped before matching, so a rule quoted in a comment is
 not a false hit.
 
-| Guardrail                                                  | Catches                                                  |
-| ---------------------------------------------------------- | -------------------------------------------------------- |
-| Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers           |
-| No empty translation strings                               | A label that renders as nothing                          |
-| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                       |
-| No hex colours in UI files                                 | A second, slightly different red                         |
-| No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                 |
+| Guardrail                                                  | Catches                                                   |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers            |
+| No empty translation strings                               | A label that renders as nothing                           |
+| No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                        |
+| No hex colours in UI files                                 | A second, slightly different red                          |
+| No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                  |
 | No `-[--token]` anywhere in UI                             | 159 corners, two shadows and every checkbox, silently off |
-| `revalidatePath` literals carry their locale               | A cache purge that matches nothing and reports success   |
-| No Prisma client imported from UI                          | Layer bypass that still "works" in review                |
-| `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                     |
-| `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                    |
-| Client components import from `server/` as types only      | Server code dragged into the browser bundle              |
-| No literal IQD prices in UI                                | A price only a developer can change                      |
-| No Arabic string literals in UI                            | Copy the owner cannot edit, with no English twin         |
-| Every `config/` export has a consumer                      | A config file that lies about being the source           |
-| No route file over 420 lines                               | Business logic hiding in `app/`                          |
-| Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                     |
-| The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                   |
-| better-auth imported only by its two seam modules          | An auth provider welded into feature code                |
-| Every admin export calls `requireStaff` / `requireAdmin`   | Customer addresses exposed to anyone with the action id  |
-| No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing           |
-| No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing |
-| No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error     |
-| No Arabic string literals in an e2e spec                   | A test asserting a second copy of the owner's own copy   |
-| Every trigram index a migration creates still stands       | `prisma migrate dev` dropping an index it cannot see     |
+| `revalidatePath` literals carry their locale               | A cache purge that matches nothing and reports success    |
+| No Prisma client imported from UI                          | Layer bypass that still "works" in review                 |
+| `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                      |
+| `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                     |
+| Client components import from `server/` as types only      | Server code dragged into the browser bundle               |
+| No literal IQD prices in UI                                | A price only a developer can change                       |
+| No Arabic string literals in UI                            | Copy the owner cannot edit, with no English twin          |
+| Every `config/` export has a consumer                      | A config file that lies about being the source            |
+| No route file over 420 lines                               | Business logic hiding in `app/`                           |
+| Every `server/` file starts with `import 'server-only'`    | Database code shipped to the browser                      |
+| The `server-only` stub stays inside tests/integration      | Silently disabling that guard app-wide                    |
+| better-auth imported only by its two seam modules          | An auth provider welded into feature code                 |
+| Every admin export calls `requireStaff` / `requireAdmin`   | Customer addresses exposed to anyone with the action id   |
+| No `hidden` beside a display utility in a template literal | A responsive class that silently hides nothing            |
+| No storefront page renders its own `<main>`                | A landmark nested in the layout's, invalid and confusing  |
+| No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error      |
+| No Arabic string literals in an e2e spec                   | A test asserting a second copy of the owner's own copy    |
+| Every trigram index a migration creates still stands       | `prisma migrate dev` dropping an index it cannot see      |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the
