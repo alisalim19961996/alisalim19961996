@@ -79,7 +79,7 @@ export default async function AboutPage({
         {points.map((point) => (
           <li
             key={point.key}
-            className="rounded-[--radius-card] border border-border bg-surface p-6"
+            className="rounded-card border border-border bg-surface p-6"
           >
             <span className="grid size-10 place-items-center rounded-full bg-primary-soft text-primary [&_svg]:size-5">
               {point.icon}
@@ -109,13 +109,13 @@ export default async function AboutPage({
       <div className="mt-10 flex flex-wrap gap-3">
         <Link
           href="/products"
-          className="inline-flex h-11 items-center rounded-[--radius-control] bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          className="inline-flex h-11 items-center rounded-control bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
           {t('browseCta')}
         </Link>
         <Link
           href="/contact"
-          className="inline-flex h-11 items-center rounded-[--radius-control] border border-border px-5 text-sm font-semibold text-ink transition-colors hover:border-border-strong"
+          className="inline-flex h-11 items-center rounded-control border border-border px-5 text-sm font-semibold text-ink transition-colors hover:border-border-strong"
         >
           {t('contactCta')}
         </Link>

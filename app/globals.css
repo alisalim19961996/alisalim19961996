@@ -1,4 +1,23 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
+
+/*
+  Where class names actually come from.
+
+  Tailwind 4 scans the whole project by default, which means it also scans
+  `docs/` and `tests/` — so a class name QUOTED IN PROSE gets compiled. The
+  documentation explaining that the Tailwind 3 arbitrary-value spelling is
+  broken was, by saying so, emitting the broken rule into the stylesheet.
+  Harmless, and confusing enough to be worth a line, because reading the built
+  CSS is how that whole class of bug was found in the first place.
+
+  `source(none)` turns the automatic detection off rather than adding to it —
+  `@source` alone appends, so the project root stays in the list. These three
+  directories are where components live and the only places a class name means
+  anything.
+*/
+@source '../app';
+@source '../components';
+@source '../features';
 
 /* ==========================================================================
    MPS Design System

@@ -10,7 +10,7 @@ export function Input({
     <input
       type={type}
       className={cn(
-        'h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3',
+        'h-11 w-full rounded-control border border-border-field bg-surface px-3',
         'text-sm text-ink placeholder:text-subtle',
         'transition-colors hover:border-border-strong',
         'focus-visible:border-primary',

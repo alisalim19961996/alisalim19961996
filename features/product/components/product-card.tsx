@@ -91,8 +91,8 @@ export async function ProductCard({
         // card meant a taller image. Four cards in one row measured 209, 219,
         // 161 and 155 pixels across, with four different image heights, while
         // the grid columns underneath were a uniform 292px each.
-        'group relative flex h-full w-full flex-col overflow-hidden rounded-[--radius-card] border border-border bg-surface',
-        'transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-[--shadow-card]',
+        'group relative flex h-full w-full flex-col overflow-hidden rounded-card border border-border bg-surface',
+        'transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-card',
         className,
       )}
     >

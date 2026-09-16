@@ -86,7 +86,7 @@ export default async function HomePage({
               <li key={type.key}>
                 <Link
                   href={`/products?type=${type.key}`}
-                  className="flex h-full flex-col items-center gap-3 rounded-[--radius-panel] border border-border bg-canvas p-5 text-center transition-colors hover:border-border-strong hover:bg-surface"
+                  className="flex h-full flex-col items-center gap-3 rounded-panel border border-border bg-canvas p-5 text-center transition-colors hover:border-border-strong hover:bg-surface"
                 >
                   <span className="grid size-11 place-items-center rounded-full bg-surface text-ink [&_svg]:size-5">
                     {typeIcons[type.key] ?? <Smartphone />}
@@ -145,7 +145,7 @@ export default async function HomePage({
               <li key={brand.slug}>
                 <Link
                   href={`/products?brand=${brand.slug}`}
-                  className="flex h-full flex-col items-center justify-center gap-2 rounded-[--radius-card] border border-border bg-surface px-3 py-5 transition-colors hover:border-border-strong"
+                  className="flex h-full flex-col items-center justify-center gap-2 rounded-card border border-border bg-surface px-3 py-5 transition-colors hover:border-border-strong"
                 >
                   <span
                     className="size-2 rounded-full"
@@ -180,7 +180,7 @@ export default async function HomePage({
 
       {/* ------------------------------------------------------- final CTA */}
       <section className="container-page pt-6 pb-16">
-        <div className="rounded-[--radius-panel] bg-ink px-6 py-12 text-center">
+        <div className="rounded-panel bg-ink px-6 py-12 text-center">
           <h2 className="text-2xl font-bold text-white sm:text-3xl">
             {t('finalCtaTitle')}
           </h2>

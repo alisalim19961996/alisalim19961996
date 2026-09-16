@@ -107,7 +107,7 @@ export function AdminRecordForm({
       {errorKey && (
         <p
           role="alert"
-          className="rounded-[--radius-control] bg-danger-soft px-4 py-3 text-sm text-danger"
+          className="rounded-control bg-danger-soft px-4 py-3 text-sm text-danger"
         >
           {t(errorKey)}
           {errorField && <span className="ms-1 opacity-80">({errorField})</span>}
@@ -117,7 +117,7 @@ export function AdminRecordForm({
       {children}
 
       {id && remove && (
-        <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+        <section className="rounded-card border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold text-ink">{t('dangerZone')}</h2>
           {deleteBlockedReason ? (
             /*

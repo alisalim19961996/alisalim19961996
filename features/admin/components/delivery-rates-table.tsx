@@ -52,7 +52,7 @@ export function DeliveryRatesTable({
   const byGovernorate = new Map(rates.map((rate) => [rate.governorate, rate]));
 
   return (
-    <div className="overflow-x-auto rounded-[--radius-card] border border-border bg-surface">
+    <div className="overflow-x-auto rounded-card border border-border bg-surface">
       <table className="w-full min-w-[44rem] text-sm">
         <thead className="border-b border-border">
           <tr className="text-xs text-muted">
@@ -172,7 +172,7 @@ function RateRow({
           checked={isActive}
           onChange={(event) => setIsActive(event.target.checked)}
           aria-label={`${t('deliveryCustomRate')} — ${label}`}
-          className="size-4 accent-[--color-primary]"
+          className="size-4 accent-primary"
         />
       </td>
       <td className="px-4 py-2.5 text-end">

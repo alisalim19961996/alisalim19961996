@@ -64,7 +64,7 @@ export default async function ComparePage({
     return (
       <div className="container-page py-8 sm:py-12">
         <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t('title')}</h1>
-        <div className="mt-10 rounded-[--radius-panel] border border-border bg-surface px-6 py-14 text-center">
+        <div className="mt-10 rounded-panel border border-border bg-surface px-6 py-14 text-center">
           <Scale className="mx-auto size-8 text-subtle" aria-hidden />
           <h2 className="mt-4 text-base font-semibold text-ink">{t('emptyTitle')}</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted">
@@ -133,7 +133,7 @@ export default async function ComparePage({
                   className="min-w-40 border-s border-border p-3 text-start align-bottom font-normal"
                 >
                   <Link href={`/products/${column.slug}`} className="group block">
-                    <span className="relative block aspect-product overflow-hidden rounded-[--radius-card] bg-canvas">
+                    <span className="relative block aspect-product overflow-hidden rounded-card bg-canvas">
                       {column.image ? (
                         <Image
                           src={column.image.url}

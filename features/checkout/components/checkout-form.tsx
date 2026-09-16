@@ -199,7 +199,7 @@ export function CheckoutForm({
               onChange={(event) => chooseGovernorate(event.target.value)}
               aria-invalid={Boolean(fieldError('governorate'))}
               className={cn(
-                'h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3',
+                'h-11 w-full rounded-control border border-border-field bg-surface px-3',
                 'text-sm text-ink transition-colors hover:border-border-strong',
                 'focus-visible:border-primary aria-invalid:border-danger',
               )}
@@ -243,7 +243,7 @@ export function CheckoutForm({
               autoComplete="street-address"
               aria-invalid={Boolean(fieldError('addressLine'))}
               className={cn(
-                'w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2.5',
+                'w-full rounded-control border border-border-field bg-surface px-3 py-2.5',
                 'text-sm text-ink transition-colors placeholder:text-subtle',
                 'hover:border-border-strong focus-visible:border-primary',
                 'aria-invalid:border-danger',
@@ -266,13 +266,13 @@ export function CheckoutForm({
               name="notes"
               rows={2}
               placeholder={t('notesPlaceholder')}
-              className="w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2.5 text-sm text-ink transition-colors placeholder:text-subtle hover:border-border-strong focus-visible:border-primary"
+              className="w-full rounded-control border border-border-field bg-surface px-3 py-2.5 text-sm text-ink transition-colors placeholder:text-subtle hover:border-border-strong focus-visible:border-primary"
             />
           </div>
         </Section>
 
         <Section title={t('paymentMethod')}>
-          <div className="flex items-start gap-3 rounded-[--radius-card] border border-border bg-canvas p-4">
+          <div className="flex items-start gap-3 rounded-card border border-border bg-canvas p-4">
             <Wallet className="mt-0.5 size-5 shrink-0 text-ink" aria-hidden />
             <div>
               <p className="text-sm font-semibold text-ink">{t('cashOnDelivery')}</p>
@@ -282,7 +282,7 @@ export function CheckoutForm({
         </Section>
       </div>
 
-      <aside className="rounded-[--radius-panel] border border-border bg-surface p-5 lg:sticky lg:top-24">
+      <aside className="rounded-panel border border-border bg-surface p-5 lg:sticky lg:top-24">
         <h2 className="text-sm font-semibold text-ink">{tCart('summary')}</h2>
 
         <dl className="mt-4 space-y-3 text-sm">
@@ -356,7 +356,7 @@ export function CheckoutForm({
             {t('couponLabel')}
           </label>
           {coupon ? (
-            <div className="mt-1.5 flex items-center justify-between gap-2 rounded-[--radius-control] bg-success-soft px-3 py-2">
+            <div className="mt-1.5 flex items-center justify-between gap-2 rounded-control bg-success-soft px-3 py-2">
               <span className="text-sm font-medium text-success numeric">
                 {coupon.code}
               </span>

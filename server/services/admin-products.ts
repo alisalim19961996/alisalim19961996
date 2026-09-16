@@ -52,6 +52,14 @@ export interface SaveProductResult {
   id: string;
   slug: string;
   /**
+   * The slug this product was reachable at before this save, when it changed.
+   *
+   * The caller needs it to invalidate the OLD url: a rename otherwise leaves
+   * the previous page cached and serving the product under its previous name,
+   * which is the case nobody notices because the new URL looks right.
+   */
+  previousSlug: string | null;
+  /**
    * Variants the owner removed from the form that had already been sold. They
    * are deactivated rather than deleted, so the UI can say so plainly.
    */
@@ -430,13 +438,15 @@ async function saveProduct(
       if (!type) throw new ProductAdminError('no such product type', 'unknownType');
 
       let productId = existingId;
+      let previousSlug: string | null = null;
 
       if (productId) {
         const found = await tx.product.findUnique({
           where: { id: productId },
-          select: { isPublished: true },
+          select: { isPublished: true, slugEn: true },
         });
         if (!found) throw new ProductAdminError('no such product', 'notFound');
+        previousSlug = found.slugEn;
 
         await tx.product.update({
           where: { id: productId },
@@ -482,7 +492,12 @@ async function saveProduct(
         data: { minPriceIqd: cheapestActivePrice(variants) },
       });
 
-      return { id: productId, slug: input.slug, deactivatedVariantCount: deactivated };
+      return {
+        id: productId,
+        slug: input.slug,
+        previousSlug,
+        deactivatedVariantCount: deactivated,
+      };
     })
     .catch((error: unknown) => {
       throw translateWriteError(error);

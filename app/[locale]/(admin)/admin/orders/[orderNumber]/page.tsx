@@ -72,7 +72,7 @@ export default async function AdminOrderPage({
       </div>
 
       {/* -- What to do next --------------------------------------------- */}
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <h2 className="text-sm font-semibold text-ink">{t('changeStatus')}</h2>
         <div className="mt-4">
           <OrderActions
@@ -90,7 +90,7 @@ export default async function AdminOrderPage({
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
         <div className="space-y-6">
           {/* -- Items ------------------------------------------------- */}
-          <section className="rounded-[--radius-card] border border-border bg-surface">
+          <section className="rounded-card border border-border bg-surface">
             <h2 className="border-b border-border px-5 py-3 text-sm font-semibold text-ink">
               {tOrder('items')}
             </h2>
@@ -118,7 +118,7 @@ export default async function AdminOrderPage({
           </section>
 
           {/* -- Timeline ---------------------------------------------- */}
-          <section className="rounded-[--radius-card] border border-border bg-surface">
+          <section className="rounded-card border border-border bg-surface">
             <h2 className="border-b border-border px-5 py-3 text-sm font-semibold text-ink">
               {tOrder('timeline')}
             </h2>
@@ -148,7 +148,7 @@ export default async function AdminOrderPage({
 
         {/* -- Customer and money ------------------------------------- */}
         <aside className="space-y-6">
-          <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+          <section className="rounded-card border border-border bg-surface p-5">
             <h2 className="text-sm font-semibold text-ink">{t('customer')}</h2>
             <div className="mt-3 space-y-1 text-sm">
               <p className="font-medium text-ink">{order.fullName}</p>
@@ -174,14 +174,14 @@ export default async function AdminOrderPage({
               </p>
               <p className="text-muted">{order.addressLine}</p>
               {order.notes && (
-                <p className="mt-2 rounded-[--radius-control] bg-canvas px-3 py-2 text-xs text-ink-soft">
+                <p className="mt-2 rounded-control bg-canvas px-3 py-2 text-xs text-ink-soft">
                   {order.notes}
                 </p>
               )}
             </div>
           </section>
 
-          <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+          <section className="rounded-card border border-border bg-surface p-5">
             <h2 className="text-sm font-semibold text-ink">{t('total')}</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <Row label={tOrder('items')}>

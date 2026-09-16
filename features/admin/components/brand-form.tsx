@@ -163,7 +163,7 @@ export function BrandForm({
                   : EMPTY_ACCENT_INPUT
               }
               onChange={(event) => set('accentColor', event.target.value)}
-              className="h-11 w-14 shrink-0 rounded-[--radius-control] border border-border-field bg-surface p-1"
+              className="h-11 w-14 shrink-0 rounded-control border border-border-field bg-surface p-1"
             />
             <input
               id="accentColor"
@@ -172,7 +172,7 @@ export function BrandForm({
               onChange={(event) => set('accentColor', event.target.value)}
               placeholder={ACCENT_COLOR_EXAMPLE}
               dir="ltr"
-              className="h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink numeric transition-colors hover:border-border-strong focus-visible:border-primary"
+              className="h-11 w-full rounded-control border border-border-field bg-surface px-3 text-sm text-ink numeric transition-colors hover:border-border-strong focus-visible:border-primary"
             />
           </div>
         </div>

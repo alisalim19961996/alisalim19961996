@@ -70,7 +70,7 @@ export default async function CartPage({
             while a long cart is scrolled. On phones it simply sits below the
             lines — a sticky panel there would eat the screen.
           */}
-          <aside className="rounded-[--radius-panel] border border-border bg-surface p-5 lg:sticky lg:top-24">
+          <aside className="rounded-panel border border-border bg-surface p-5 lg:sticky lg:top-24">
             <h2 className="text-sm font-semibold text-ink">{t('summary')}</h2>
 
             <dl className="mt-4 space-y-3 text-sm">
@@ -140,7 +140,7 @@ function EmptyCart({
   action: string;
 }) {
   return (
-    <div className="mt-12 flex flex-col items-center rounded-[--radius-panel] border border-border bg-surface px-6 py-16 text-center">
+    <div className="mt-12 flex flex-col items-center rounded-panel border border-border bg-surface px-6 py-16 text-center">
       <ShoppingBag className="size-10 text-subtle" aria-hidden />
       <p className="mt-4 text-base font-semibold text-ink">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted">{hint}</p>

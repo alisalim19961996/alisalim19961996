@@ -86,7 +86,7 @@ export default async function EditProductPage({
         uploadEnabled={isUploadConfigured}
       />
 
-      <section className="rounded-[--radius-card] border border-danger-soft bg-surface p-5">
+      <section className="rounded-card border border-danger-soft bg-surface p-5">
         <h2 className="text-sm font-semibold text-ink">{t('dangerZone')}</h2>
         <p className="mt-1 text-xs text-muted">{t('dangerZoneHint')}</p>
         <div className="mt-3">

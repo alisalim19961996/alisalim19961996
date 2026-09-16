@@ -137,6 +137,21 @@ i18n/                       locale routing and navigation
 messages/                   ar.json / en.json — all UI text
 ```
 
+**Cache invalidation goes through `server/revalidate.ts`**, which builds a
+literal path per locale. There were three conventions before it and two
+invalidated nothing: `/admin/orders` (the route is `/ar/admin/orders`) and
+`/[locale]/products/<slug>` (half a route pattern, half a value — a pattern
+matches the route FILE, a literal matches one page, a mixture matches neither).
+`revalidatePath` does not throw on a path that matches nothing; the action
+reports success and the stale page stays on the shop floor. A guardrail now
+fails on any `revalidatePath` in a UI file whose literal lacks the locale.
+
+The same pass removed `revalidatePath('/', 'layout')` from every cart action.
+Its comment said the header's count is on every page — which stopped being true
+when the count moved into `CartCountBadge` (§8), precisely so a cart change
+costs the storefront nothing. Settings keep the whole-tree purge, because
+settings really do print everywhere and it is the rarest write in the dashboard.
+
 **Rules that are never bent:**
 
 - Components never import Prisma. Path is `UI → server/queries|services → server/db/client`.
@@ -643,6 +658,26 @@ letter-spacing — that is the detail that makes Arabic type look cheap.
 **Custom utilities**: `container-page` (responsive gutters), `numeric` (tabular
 figures + LTR isolation for prices/SKUs/phones), `flip-rtl` (mirrors
 directional icons).
+
+**Tokens are written `rounded-card`, `shadow-raised`, `accent-primary` — never
+`rounded-[--radius-card]`.** That second spelling is Tailwind 3's shorthand for
+`var(…)`. Tailwind 4 takes the arbitrary value literally, so it compiles to
+`border-radius: --radius-card`, which is invalid and which **the browser drops
+without an error**.
+
+There were **159 of them**. Every card, button, input and panel in the shop had
+square corners, both shadows did nothing, and every checkbox rendered in the
+browser's default blue instead of the brand red — while the source read exactly
+as intended and nothing failed. It was found by reading the compiled CSS
+(`grep -o "border-radius:[^;}]*" .next/static/chunks/*.css`), which is now the
+way to check any claim about what a class actually did. A guardrail fails on
+`-[--` in any UI file, and it names the file and line.
+
+`app/globals.css` imports Tailwind with **`source(none)`** and lists `app`,
+`components` and `features` explicitly. Tailwind 4 otherwise scans the whole
+project, including `docs/` and `tests/` — so the documentation explaining that
+the broken spelling is broken was, by quoting it, compiling it into the
+stylesheet.
 
 **Responsive**: mobile-first. The catalogue grid is 2 columns on phones, 3 at
 `md`, **5 at `xl`**; a homepage rail is 2, 4, then 5. Five, not four, because
@@ -1729,6 +1764,8 @@ not a false hit.
 | No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                       |
 | No hex colours in UI files                                 | A second, slightly different red                         |
 | No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                 |
+| No `-[--token]` anywhere in UI                             | 159 corners, two shadows and every checkbox, silently off |
+| `revalidatePath` literals carry their locale               | A cache purge that matches nothing and reports success   |
 | No Prisma client imported from UI                          | Layer bypass that still "works" in review                |
 | `lib/` imports neither `next` nor `server/`                | Pure logic that stops being testable                     |
 | `components/ui` imports neither `features/` nor `server/`  | A Button that only works for products                    |

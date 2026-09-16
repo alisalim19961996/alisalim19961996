@@ -187,7 +187,7 @@ function PriceFilter({
   const [to, setTo] = useState(max ?? '');
 
   const field =
-    'h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink numeric transition-colors hover:border-border-strong focus-visible:border-primary';
+    'h-11 w-full rounded-control border border-border-field bg-surface px-3 text-sm text-ink numeric transition-colors hover:border-border-strong focus-visible:border-primary';
 
   return (
     <FilterGroup title={t('price')}>

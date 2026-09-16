@@ -77,7 +77,7 @@ export default async function GuidesPage({
                 <li key={article.slug} className="flex">
                   <Link
                     href={`/guides/${article.slug}`}
-                    className="flex w-full flex-col rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                    className="flex w-full flex-col rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
                   >
                     <span className="font-semibold text-ink">{article.title}</span>
                     {article.excerpt && (
@@ -170,7 +170,7 @@ function Entry({ href, label, meta }: { href: string; label: string; meta?: stri
     <li className="flex">
       <Link
         href={href}
-        className="flex w-full items-center gap-3 rounded-[--radius-card] border border-border bg-surface px-4 py-3 transition-colors hover:border-border-strong"
+        className="flex w-full items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 transition-colors hover:border-border-strong"
       >
         <span className="text-sm font-medium text-ink">{label}</span>
         {meta && <span className="text-xs text-muted numeric">{meta}</span>}

@@ -59,7 +59,7 @@ function CartLineRow({ line }: { line: CartLine }) {
     <li className={cn('flex gap-4 py-5', pending && 'opacity-60')}>
       <Link
         href={`/products/${line.productSlug}`}
-        className="relative aspect-product w-20 shrink-0 overflow-hidden rounded-[--radius-card] bg-canvas sm:w-24"
+        className="relative aspect-product w-20 shrink-0 overflow-hidden rounded-card bg-canvas sm:w-24"
       >
         {line.imageUrl && (
           <Image
@@ -90,7 +90,7 @@ function CartLineRow({ line }: { line: CartLine }) {
             onClick={remove}
             disabled={pending}
             aria-label={t('remove')}
-            className="grid size-9 shrink-0 place-items-center rounded-[--radius-control] text-muted transition-colors hover:bg-canvas hover:text-danger"
+            className="grid size-9 shrink-0 place-items-center rounded-control text-muted transition-colors hover:bg-canvas hover:text-danger"
           >
             {pending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -108,7 +108,7 @@ function CartLineRow({ line }: { line: CartLine }) {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div
-            className="inline-flex items-center rounded-[--radius-control] border border-border"
+            className="inline-flex items-center rounded-control border border-border"
             role="group"
             aria-label={t('quantity')}
           >

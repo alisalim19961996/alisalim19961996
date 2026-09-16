@@ -174,7 +174,7 @@ export function ProductTypeForm({
         />
       </FormSection>
 
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <h2 className="text-sm font-semibold text-ink">{t('specifications')}</h2>
         <p className="mt-1 text-xs text-muted">{t('typeAttributesHint')}</p>
 
@@ -187,7 +187,7 @@ export function ProductTypeForm({
               return (
                 <li
                   key={link.definitionId}
-                  className="flex flex-wrap items-center gap-3 rounded-[--radius-control] border border-border bg-canvas p-3"
+                  className="flex flex-wrap items-center gap-3 rounded-control border border-border bg-canvas p-3"
                 >
                   <span className="w-6 text-xs text-subtle numeric">{index + 1}</span>
                   <span className="text-sm font-medium text-ink">
@@ -211,7 +211,7 @@ export function ProductTypeForm({
                           ),
                         )
                       }
-                      className="size-4 rounded-[0.25rem] border-border accent-[--color-primary]"
+                      className="size-4 rounded-[0.25rem] border-border accent-primary"
                     />
                     {t('requiredSpec')}
                   </label>
@@ -223,7 +223,7 @@ export function ProductTypeForm({
                       disabled={index === 0}
                       aria-label={t('moveUp')}
                       title={t('moveUp')}
-                      className="grid size-8 place-items-center rounded-[--radius-control] text-muted transition-colors hover:bg-surface hover:text-ink disabled:opacity-30"
+                      className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-surface hover:text-ink disabled:opacity-30"
                     >
                       <ArrowUp className="size-4" aria-hidden />
                     </button>
@@ -233,7 +233,7 @@ export function ProductTypeForm({
                       disabled={index === links.length - 1}
                       aria-label={t('moveDown')}
                       title={t('moveDown')}
-                      className="grid size-8 place-items-center rounded-[--radius-control] text-muted transition-colors hover:bg-surface hover:text-ink disabled:opacity-30"
+                      className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-surface hover:text-ink disabled:opacity-30"
                     >
                       <ArrowDown className="size-4" aria-hidden />
                     </button>
@@ -242,7 +242,7 @@ export function ProductTypeForm({
                       onClick={() => toggle(link.definitionId)}
                       aria-label={t('unlinkAttribute')}
                       title={t('unlinkAttribute')}
-                      className="grid size-8 place-items-center rounded-[--radius-control] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                      className="grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       &times;
                     </button>
@@ -263,7 +263,7 @@ export function ProductTypeForm({
                     type="button"
                     onClick={() => toggle(attribute.id)}
                     className={cn(
-                      'rounded-[--radius-control] border border-border px-3 py-1.5 text-xs text-ink transition-colors',
+                      'rounded-control border border-border px-3 py-1.5 text-xs text-ink transition-colors',
                       'hover:border-primary hover:bg-primary-soft',
                     )}
                   >

@@ -4,10 +4,7 @@ import { cn } from '@/lib/utils';
 export function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn(
-        'rounded-[--radius-card] border border-border bg-surface',
-        className,
-      )}
+      className={cn('rounded-card border border-border bg-surface', className)}
       {...props}
     />
   );

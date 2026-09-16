@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidateProduct } from '@/server/revalidate';
 import { submitReview, ReviewError } from '@/server/services/review';
 import { getReviewEligibility, type ReviewEligibility } from '@/server/queries/review';
 import { reviewFormSchema } from '@/schemas/review';
@@ -75,6 +75,6 @@ export async function submitReviewAction(input: {
     itself is PENDING and therefore still invisible to everyone else, which is
     why nothing about the rating summary has changed yet.
   */
-  revalidatePath(`/products/${input.productSlug}`);
+  revalidateProduct(input.productSlug);
   return { ok: true };
 }

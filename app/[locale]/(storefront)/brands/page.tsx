@@ -51,7 +51,7 @@ export default async function BrandsPage({
       </p>
 
       {brands.length === 0 ? (
-        <p className="mt-10 rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="mt-10 rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('empty')}
         </p>
       ) : (
@@ -60,7 +60,7 @@ export default async function BrandsPage({
             <li key={brand.slug} className="flex">
               <Link
                 href={`/products?brand=${brand.slug}`}
-                className="flex w-full flex-col items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-6 transition-colors hover:border-border-strong"
+                className="flex w-full flex-col items-center gap-3 rounded-card border border-border bg-surface p-6 transition-colors hover:border-border-strong"
               >
                 {/*
                   The brand's colour as a small identity dot, which is the only

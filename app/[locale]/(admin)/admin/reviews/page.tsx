@@ -90,8 +90,8 @@ export default async function AdminReviewsPage({
               href={tab.href}
               className={
                 tab.active
-                  ? 'inline-flex items-center gap-1.5 rounded-[--radius-control] bg-ink px-3 py-1.5 text-xs font-medium text-white'
-                  : 'inline-flex items-center gap-1.5 rounded-[--radius-control] border border-border px-3 py-1.5 text-xs font-medium text-muted hover:border-border-strong'
+                  ? 'inline-flex items-center gap-1.5 rounded-control bg-ink px-3 py-1.5 text-xs font-medium text-white'
+                  : 'inline-flex items-center gap-1.5 rounded-control border border-border px-3 py-1.5 text-xs font-medium text-muted hover:border-border-strong'
               }
             >
               {tab.label}
@@ -102,7 +102,7 @@ export default async function AdminReviewsPage({
       </ul>
 
       {list.rows.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-6 text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-6 text-sm text-muted">
           {t('noReviews')}
         </p>
       ) : (
@@ -110,7 +110,7 @@ export default async function AdminReviewsPage({
           {list.rows.map((row) => (
             <li
               key={row.id}
-              className="space-y-3 rounded-[--radius-card] border border-border bg-surface p-5"
+              className="space-y-3 rounded-card border border-border bg-surface p-5"
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <StarRating average={row.rating} size="sm" />

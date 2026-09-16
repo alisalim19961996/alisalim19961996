@@ -83,7 +83,7 @@ export default async function AdminDashboardPage({
             <li key={tile.key}>
               <Link
                 href={tile.href}
-                className="block rounded-[--radius-card] border border-border bg-surface p-5 transition-colors hover:border-border-strong"
+                className="block rounded-card border border-border bg-surface p-5 transition-colors hover:border-border-strong"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted">{t(tile.key)}</span>
@@ -106,7 +106,7 @@ export default async function AdminDashboardPage({
       </ul>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[--radius-card] border border-border bg-surface p-5">
+        <div className="rounded-card border border-border bg-surface p-5">
           <p className="text-sm text-muted">{t('publishedProducts')}</p>
           <p className="mt-2 text-2xl font-bold text-ink numeric">
             {overview.products}
@@ -118,7 +118,7 @@ export default async function AdminDashboardPage({
           so a zero here means "nothing counted is running out", not "nothing
           is running out".
         */}
-        <div className="rounded-[--radius-card] border border-border bg-surface p-5">
+        <div className="rounded-card border border-border bg-surface p-5">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted">{t('lowStock')}</p>
             {overview.lowStock > 0 && (

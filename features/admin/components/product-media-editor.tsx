@@ -76,7 +76,7 @@ export function ProductMediaEditor({
   return (
     <div className="space-y-6">
       {/* -- Images ------------------------------------------------------- */}
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-ink">{t('images')}</h2>
@@ -177,7 +177,7 @@ export function ProductMediaEditor({
       </section>
 
       {/* -- Videos ------------------------------------------------------- */}
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-ink">{t('videos')}</h2>

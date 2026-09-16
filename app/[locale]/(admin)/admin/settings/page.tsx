@@ -31,7 +31,7 @@ export default async function AdminSettingsPage({
   // so this is only about not showing a form that will be refused.
   if (!isAdmin(user)) {
     return (
-      <div className="rounded-[--radius-card] border border-border bg-surface p-8 text-center">
+      <div className="rounded-card border border-border bg-surface p-8 text-center">
         <p className="text-sm text-muted">{t('adminOnly')}</p>
       </div>
     );

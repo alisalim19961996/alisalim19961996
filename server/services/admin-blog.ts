@@ -65,6 +65,9 @@ function resolvePublishedAt(
 
 export interface SaveBlogPostResult {
   id: string;
+  slug: string;
+  /** The slug before this save, when it changed — see SaveProductResult. */
+  previousSlug: string | null;
 }
 
 export async function saveBlogPost(
@@ -76,7 +79,7 @@ export async function saveBlogPost(
   const existing = id
     ? await db.blogPost.findUnique({
         where: { id },
-        select: { id: true, publishedAt: true },
+        select: { id: true, publishedAt: true, slugEn: true },
       })
     : null;
 
@@ -105,11 +108,15 @@ export async function saveBlogPost(
   try {
     if (!existing) {
       const created = await db.blogPost.create({ data, select: { id: true } });
-      return { id: created.id };
+      return { id: created.id, slug: input.slug, previousSlug: null };
     }
 
     await db.blogPost.update({ where: { id: existing.id }, data });
-    return { id: existing.id };
+    return {
+      id: existing.id,
+      slug: input.slug,
+      previousSlug: existing.slugEn === input.slug ? null : existing.slugEn,
+    };
   } catch (error) {
     throw translateWriteError(error);
   }

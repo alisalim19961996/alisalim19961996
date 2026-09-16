@@ -262,7 +262,10 @@ export async function submitCheckout(
   await page.getByRole('button', { name: t('checkout.submit') }).click();
   await page.waitForURL(/\/ar\/orders\/MPS-/);
 
-  const number = page.url().split('/').pop() ?? '';
+  // The last segment, without the query: checkout redirects with `?placed=1`,
+  // which is what tells the page to say "your order is placed" rather than
+  // reading the status back — and which `.pop()` alone brings along with it.
+  const number = new URL(page.url()).pathname.split('/').pop() ?? '';
   expect(number).toMatch(/^MPS-\d{5}-\d{4}$/);
   return number;
 }

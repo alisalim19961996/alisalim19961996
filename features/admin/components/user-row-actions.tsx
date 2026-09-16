@@ -60,7 +60,7 @@ export function UserRoleSelect({
             router.refresh();
           });
         }}
-        className="h-9 rounded-[--radius-control] border border-border-field bg-surface px-2 text-sm text-ink transition-colors hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-9 rounded-control border border-border-field bg-surface px-2 text-sm text-ink transition-colors hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-60"
       >
         {roles.map((value) => (
           <option key={value} value={value}>
@@ -113,7 +113,7 @@ export function UserActiveToggle({
           });
         }}
         className={cn(
-          'inline-flex h-9 items-center gap-1.5 rounded-[--radius-control] border px-3 text-sm transition-colors',
+          'inline-flex h-9 items-center gap-1.5 rounded-control border px-3 text-sm transition-colors',
           'disabled:cursor-not-allowed disabled:opacity-60',
           isActive
             ? 'border-border text-muted hover:border-danger hover:text-danger'

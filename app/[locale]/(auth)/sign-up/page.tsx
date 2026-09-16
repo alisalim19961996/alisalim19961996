@@ -52,7 +52,7 @@ export default async function SignUpPage({
         </h1>
         <p className="mt-1 text-center text-sm text-muted">{t('signUpHint')}</p>
 
-        <div className="mt-8 rounded-[--radius-panel] border border-border bg-surface p-6">
+        <div className="mt-8 rounded-panel border border-border bg-surface p-6">
           <SignUpForm />
 
           {isGoogleSignInConfigured && (

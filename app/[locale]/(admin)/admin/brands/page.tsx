@@ -51,7 +51,7 @@ export default async function AdminBrandsPage({
       </div>
 
       {brands.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('noBrands')}
         </p>
       ) : (
@@ -60,7 +60,7 @@ export default async function AdminBrandsPage({
             <li key={brand.id}>
               <Link
                 href={`/admin/brands/${brand.id}`}
-                className="flex flex-wrap items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
               >
                 {/*
                   The accent colour, as the small identity dot it is meant to

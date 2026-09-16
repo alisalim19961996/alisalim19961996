@@ -33,7 +33,7 @@ export function SortSelect() {
           startTransition(() => router.push(`${pathname}${query}`, { scroll: false }));
         }}
         className={cn(
-          'h-9 rounded-[--radius-control] border border-border-field bg-surface px-2 text-sm text-ink',
+          'h-9 rounded-control border border-border-field bg-surface px-2 text-sm text-ink',
           'transition-colors hover:border-border-strong focus-visible:border-primary',
         )}
       >
@@ -99,7 +99,7 @@ export function MobileFilterButton({
           />
           <div
             ref={panel}
-            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-[--radius-panel] bg-surface p-5 pb-8"
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-panel bg-surface p-5 pb-8"
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-base font-semibold text-ink">{t('filters')}</h2>

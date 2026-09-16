@@ -125,7 +125,7 @@ export function AdminShell({
                 <li key={item.href} className="shrink-0">
                   <Link
                     href={item.href}
-                    className="inline-flex w-full items-center gap-2 rounded-[--radius-control] px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-surface hover:text-ink"
+                    className="inline-flex w-full items-center gap-2 rounded-control px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-surface hover:text-ink"
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
                     {labels[item.labelKey]}

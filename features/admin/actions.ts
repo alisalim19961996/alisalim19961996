@@ -1,6 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import {
+  revalidateAdmin,
+  revalidateCatalogue,
+  revalidateGuides,
+  revalidateProduct,
+} from '@/server/revalidate';
 import type { z } from 'zod';
 import { advanceOrder, OrderAdminError } from '@/server/services/admin-orders';
 import {
@@ -155,9 +161,11 @@ export async function advanceOrderAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/orders', 'page');
-  revalidatePath(`/admin/orders/${parsed.data.orderNumber}`, 'page');
-  revalidatePath('/admin', 'page');
+  revalidateAdmin(
+    '/admin',
+    '/admin/orders',
+    `/admin/orders/${parsed.data.orderNumber}`,
+  );
   return { ok: true };
 }
 
@@ -179,10 +187,11 @@ export async function updateDeliveryRateAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/delivery', 'page');
-  // Checkout quotes the fee live, so a stale cached page would show the old
-  // price to the next customer.
-  revalidatePath('/', 'layout');
+  revalidateAdmin('/admin/delivery');
+  // Checkout quotes the fee live and is a dynamic route, so there is nothing
+  // cached to invalidate there. The pages that CAN hold a stale fee are the
+  // static ones that print it.
+  revalidateCatalogue();
   return { ok: true };
 }
 
@@ -201,6 +210,9 @@ export async function updateSiteSettingsAction(
     return toResult(error);
   }
 
+  // Settings print on pages all over the shop — the contact details, the
+  // free-delivery threshold, the store name in the footer — so this one really
+  // does mean everything. It is also the rarest write in the dashboard.
   revalidatePath('/', 'layout');
   return { ok: true };
 }
@@ -246,13 +258,13 @@ export async function saveProductAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/products', 'page');
+  revalidateAdmin('/admin/products');
   // The storefront caches hard: the catalogue, the homepage rails and the
   // product page itself are all pre-rendered, so an edit that is not
-  // revalidated is an edit the customer never sees.
-  revalidatePath('/[locale]/products', 'page');
-  revalidatePath(`/[locale]/products/${result.slug}`, 'page');
-  revalidatePath('/[locale]', 'page');
+  // revalidated is an edit the customer never sees. The previous slug goes
+  // too, or a rename leaves the old URL serving the old name.
+  revalidateCatalogue();
+  revalidateProduct(result.slug, result.previousSlug);
 
   return {
     ok: true,
@@ -271,9 +283,8 @@ export async function setProductPublishedAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/products', 'page');
-  revalidatePath('/[locale]/products', 'page');
-  revalidatePath('/[locale]', 'page');
+  revalidateAdmin('/admin/products');
+  revalidateCatalogue();
   return { ok: true };
 }
 
@@ -284,9 +295,8 @@ export async function deleteProductAction(id: string): Promise<AdminActionResult
     return toResult(error);
   }
 
-  revalidatePath('/admin/products', 'page');
-  revalidatePath('/[locale]/products', 'page');
-  revalidatePath('/[locale]', 'page');
+  revalidateAdmin('/admin/products');
+  revalidateCatalogue();
   return { ok: true };
 }
 
@@ -303,8 +313,10 @@ export async function deleteProductAction(id: string): Promise<AdminActionResult
  * those paths are dropped.
  */
 function revalidateStorefront(): void {
-  revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/products', 'page');
+  revalidateCatalogue();
+  // A brand or category rename shows on every product page, and there is no
+  // one slug to name here — so the pattern is the honest form, and it is the
+  // ONE place a pattern is used.
   revalidatePath('/[locale]/products/[slug]', 'page');
 }
 
@@ -326,7 +338,7 @@ export async function saveBrandAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/brands', 'page');
+  revalidateAdmin('/admin/brands');
   revalidateStorefront();
   return { ok: true, id: result.id };
 }
@@ -338,7 +350,7 @@ export async function deleteBrandAction(id: string): Promise<AdminActionResult> 
     return toResult(error);
   }
 
-  revalidatePath('/admin/brands', 'page');
+  revalidateAdmin('/admin/brands');
   revalidateStorefront();
   return { ok: true };
 }
@@ -357,7 +369,7 @@ export async function saveCategoryAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/categories', 'page');
+  revalidateAdmin('/admin/categories');
   revalidateStorefront();
   return { ok: true, id: result.id };
 }
@@ -369,7 +381,7 @@ export async function deleteCategoryAction(id: string): Promise<AdminActionResul
     return toResult(error);
   }
 
-  revalidatePath('/admin/categories', 'page');
+  revalidateAdmin('/admin/categories');
   revalidateStorefront();
   return { ok: true };
 }
@@ -388,11 +400,12 @@ export async function saveProductTypeAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/product-types', 'page');
+  revalidateAdmin('/admin/product-types', '/admin/products/new');
   // The product form draws its specification fields from these links, so a
-  // changed type has to reach the pages that render the form too.
-  revalidatePath('/admin/products/new', 'page');
-  revalidatePath('/admin/products/[id]', 'page');
+  // changed type has to reach the pages that render the form too. The edit
+  // screen is one page per product, so it is a pattern rather than a path —
+  // and a pattern needs the locale segment it actually has.
+  revalidatePath('/[locale]/admin/products/[id]', 'page');
   revalidateStorefront();
   return { ok: true, id: result.id };
 }
@@ -404,7 +417,7 @@ export async function deleteProductTypeAction(id: string): Promise<AdminActionRe
     return toResult(error);
   }
 
-  revalidatePath('/admin/product-types', 'page');
+  revalidateAdmin('/admin/product-types');
   revalidateStorefront();
   return { ok: true };
 }
@@ -423,10 +436,11 @@ export async function saveAttributeAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/attributes', 'page');
-  revalidatePath('/admin/product-types', 'page');
-  revalidatePath('/admin/products/new', 'page');
-  revalidatePath('/admin/products/[id]', 'page');
+  revalidateAdmin('/admin/attributes');
+  revalidateAdmin('/admin/product-types', '/admin/products/new');
+  // The edit screen is one per product, so this is a pattern rather than a
+  // path: every product form has to pick up the type's new specifications.
+  revalidatePath('/[locale]/admin/products/[id]', 'page');
   revalidateStorefront();
   return { ok: true, id: result.id };
 }
@@ -438,8 +452,7 @@ export async function deleteAttributeAction(id: string): Promise<AdminActionResu
     return toResult(error);
   }
 
-  revalidatePath('/admin/attributes', 'page');
-  revalidatePath('/admin/product-types', 'page');
+  revalidateAdmin('/admin/attributes', '/admin/product-types');
   return { ok: true };
 }
 
@@ -460,7 +473,7 @@ export async function setUserRoleAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/users', 'page');
+  revalidateAdmin('/admin/users');
   return { ok: true };
 }
 
@@ -477,7 +490,7 @@ export async function setUserActiveAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/users', 'page');
+  revalidateAdmin('/admin/users');
   return { ok: true };
 }
 
@@ -490,10 +503,11 @@ export async function setUserActiveAction(input: {
  * itself. Neither is in `revalidateStorefront()` — that one exists for the
  * catalogue, and adding paths to it that only the blog cares about would make
  * every brand save re-render pages it cannot have affected.
+ *
+ * The sitemap lists published guides, so it goes with them.
  */
-function revalidateGuides(): void {
-  revalidatePath('/[locale]/guides', 'page');
-  revalidatePath('/[locale]/guides/[slug]', 'page');
+function revalidateBlog(slug?: string | null, previousSlug?: string | null): void {
+  revalidateGuides(slug, previousSlug);
   revalidatePath('/sitemap.xml');
 }
 
@@ -511,8 +525,8 @@ export async function saveBlogPostAction(
     return toResult(error);
   }
 
-  revalidatePath('/admin/blog', 'page');
-  revalidateGuides();
+  revalidateAdmin('/admin/blog');
+  revalidateBlog(result.slug, result.previousSlug);
   return { ok: true, id: result.id };
 }
 
@@ -526,8 +540,8 @@ export async function setBlogPostPublishedAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/blog', 'page');
-  revalidateGuides();
+  revalidateAdmin('/admin/blog');
+  revalidateBlog();
   return { ok: true };
 }
 
@@ -538,8 +552,8 @@ export async function deleteBlogPostAction(id: string): Promise<AdminActionResul
     return toResult(error);
   }
 
-  revalidatePath('/admin/blog', 'page');
-  revalidateGuides();
+  revalidateAdmin('/admin/blog');
+  revalidateBlog();
   return { ok: true };
 }
 
@@ -563,7 +577,7 @@ export async function saveCouponAction(
 
   // No storefront revalidation: a coupon changes nothing that is rendered.
   // It is read at checkout, which is dynamic, and quoted through an action.
-  revalidatePath('/admin/coupons', 'page');
+  revalidateAdmin('/admin/coupons');
   return { ok: true, id: result.id };
 }
 
@@ -577,7 +591,7 @@ export async function setCouponActiveAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/coupons', 'page');
+  revalidateAdmin('/admin/coupons');
   return { ok: true };
 }
 
@@ -588,7 +602,7 @@ export async function deleteCouponAction(id: string): Promise<AdminActionResult>
     return toResult(error);
   }
 
-  revalidatePath('/admin/coupons', 'page');
+  revalidateAdmin('/admin/coupons');
   return { ok: true };
 }
 
@@ -611,8 +625,8 @@ export async function moderateReviewAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/reviews', 'page');
-  revalidatePath(`/products/${input.productSlug}`);
+  revalidateAdmin('/admin/reviews');
+  revalidateProduct(input.productSlug);
   return { ok: true };
 }
 
@@ -626,7 +640,7 @@ export async function deleteReviewAction(input: {
     return toResult(error);
   }
 
-  revalidatePath('/admin/reviews', 'page');
-  revalidatePath(`/products/${input.productSlug}`);
+  revalidateAdmin('/admin/reviews');
+  revalidateProduct(input.productSlug);
   return { ok: true };
 }

@@ -197,7 +197,7 @@ export function VariantPicker({
                   onClick={() => choose(option.id, value.id)}
                   aria-pressed={active}
                   className={cn(
-                    'rounded-[--radius-control] border px-3.5 py-2 text-sm font-medium numeric transition-colors',
+                    'rounded-control border px-3.5 py-2 text-sm font-medium numeric transition-colors',
                     active
                       ? 'border-ink bg-ink text-white'
                       : 'border-border bg-surface text-ink hover:border-border-strong',

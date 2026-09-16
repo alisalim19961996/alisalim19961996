@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidateCart } from '@/server/revalidate';
 import {
   addToCart,
   CartError,
@@ -47,9 +47,17 @@ async function run(operation: () => Promise<void>): Promise<CartActionResult> {
     return GENERIC_ERROR;
   }
 
-  // The header's item count is rendered on every page, so every cart change
-  // has to invalidate the whole tree rather than just the cart route.
-  revalidatePath('/', 'layout');
+  /*
+    The two pages that render cart contents, and nothing else.
+
+    This used to be `revalidatePath('/', 'layout')` — the whole tree and the
+    client cache, purged because a line quantity went from 1 to 2. The comment
+    justifying it said the header's item count is on every page, and that has
+    not been true since the count moved to `CartCountBadge`: the header is
+    static on purpose (§8), and the badge fetches after hydration precisely so
+    a cart change costs the storefront nothing.
+  */
+  revalidateCart();
   return { ok: true };
 }
 

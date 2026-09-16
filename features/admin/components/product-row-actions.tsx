@@ -154,7 +154,7 @@ export function ProductRowDelete({
       title={errorKey ? t(errorKey) : t('deleteProduct')}
       aria-label={t('deleteProduct')}
       className={cn(
-        'grid size-9 place-items-center rounded-[--radius-control] transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50',
+        'grid size-9 place-items-center rounded-control transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50',
         // A failed delete stays visible on the row rather than vanishing with
         // the click: the title carries the reason, the colour carries that
         // there is one. `aria-invalid` is not valid on a button.

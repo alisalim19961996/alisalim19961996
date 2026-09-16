@@ -79,7 +79,7 @@ export function OrderActions({
       </div>
 
       {confirming && (
-        <div className="rounded-[--radius-card] border border-danger-soft bg-danger-soft p-4">
+        <div className="rounded-card border border-danger-soft bg-danger-soft p-4">
           <label htmlFor="cancel-note" className="text-sm font-medium text-ink">
             {t('reasonRequired')}
           </label>
@@ -88,7 +88,7 @@ export function OrderActions({
             rows={2}
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            className="mt-2 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2 text-sm text-ink"
+            className="mt-2 w-full rounded-control border border-border-field bg-surface px-3 py-2 text-sm text-ink"
           />
           <div className="mt-3 flex gap-2">
             <Button

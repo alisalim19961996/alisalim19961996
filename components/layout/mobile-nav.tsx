@@ -31,7 +31,7 @@ export function MobileNav() {
         onClick={() => setOpen(true)}
         aria-label={t('menu')}
         aria-expanded={open}
-        className="inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas lg:hidden"
+        className="inline-flex size-10 items-center justify-center rounded-control text-ink transition-colors hover:bg-canvas lg:hidden"
       >
         <Menu className="size-5" />
       </button>
@@ -68,7 +68,7 @@ export function MobileNav() {
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
-                      className="block rounded-[--radius-control] px-3 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
+                      className="block rounded-control px-3 py-2.5 text-sm font-medium text-ink hover:bg-canvas"
                     >
                       {t(link.labelKey)}
                     </Link>
@@ -82,7 +82,7 @@ export function MobileNav() {
                     <Link
                       href={link.href}
                       onClick={() => setOpen(false)}
-                      className="block rounded-[--radius-control] px-3 py-2.5 text-sm text-muted hover:bg-canvas hover:text-ink"
+                      className="block rounded-control px-3 py-2.5 text-sm text-muted hover:bg-canvas hover:text-ink"
                     >
                       {t(link.labelKey)}
                     </Link>

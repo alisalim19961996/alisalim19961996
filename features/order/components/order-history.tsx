@@ -34,7 +34,7 @@ export async function OrderHistory({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[--radius-card] border border-border bg-surface p-8 text-center">
+      <div className="rounded-card border border-border bg-surface p-8 text-center">
         <Package className="mx-auto size-8 text-subtle" aria-hidden />
         <p className="mt-3 text-sm text-muted">{t('noOrders')}</p>
         <Link
@@ -54,9 +54,9 @@ export async function OrderHistory({
         <li key={row.orderNumber}>
           <Link
             href={`/orders/${row.orderNumber}`}
-            className="flex items-center gap-4 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+            className="flex items-center gap-4 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
           >
-            <span className="relative size-14 shrink-0 overflow-hidden rounded-[--radius-control] bg-canvas">
+            <span className="relative size-14 shrink-0 overflow-hidden rounded-control bg-canvas">
               {row.imageUrl ? (
                 <Image
                   src={row.imageUrl}

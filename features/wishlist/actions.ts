@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidateWishlist } from '@/server/revalidate';
 import { getCurrentUser } from '@/server/auth/guards';
 import { getWishlistProductIds } from '@/server/queries/wishlist';
 import {
@@ -62,7 +62,7 @@ export async function toggleWishlistAction(input: {
     const { saved } = await toggleWishlistItem(parsed.data.productId);
     // The wishlist page renders server-side from the same rows, so a save made
     // from a product page has to invalidate it or the list shows yesterday.
-    revalidatePath('/wishlist');
+    revalidateWishlist();
     return { ok: true, saved };
   } catch (error) {
     return failure(error);
@@ -77,7 +77,7 @@ export async function removeFromWishlistAction(input: {
 
   try {
     await removeWishlistItem(parsed.data.productId);
-    revalidatePath('/wishlist');
+    revalidateWishlist();
     return { ok: true, saved: false };
   } catch (error) {
     return failure(error);

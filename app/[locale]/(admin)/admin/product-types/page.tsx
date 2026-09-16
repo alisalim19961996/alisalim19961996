@@ -51,7 +51,7 @@ export default async function AdminProductTypesPage({
       </div>
 
       {types.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('noProductTypes')}
         </p>
       ) : (
@@ -60,7 +60,7 @@ export default async function AdminProductTypesPage({
             <li key={type.id}>
               <Link
                 href={`/admin/product-types/${type.id}`}
-                className="flex flex-wrap items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
               >
                 <span className="font-medium text-ink">
                   {locale === 'ar' ? type.nameAr : type.nameEn}

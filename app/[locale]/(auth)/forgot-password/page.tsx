@@ -49,7 +49,7 @@ export default async function ForgotPasswordPage({
           {isMailConfigured ? t('forgotPasswordHint') : t('resetUnavailableHint')}
         </p>
 
-        <div className="mt-8 rounded-[--radius-panel] border border-border bg-surface p-6">
+        <div className="mt-8 rounded-panel border border-border bg-surface p-6">
           {isMailConfigured ? (
             <ForgotPasswordForm />
           ) : (

@@ -194,7 +194,7 @@ export function AttributeForm({
       </FormSection>
 
       {isEnum && (
-        <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+        <section className="rounded-card border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold text-ink">{t('attributeOptions')}</h2>
           <p className="mt-1 text-xs text-muted">{t('attributeOptionsHint')}</p>
 

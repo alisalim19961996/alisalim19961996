@@ -56,7 +56,7 @@ export default async function WishlistPage({
       </p>
 
       {products.length === 0 ? (
-        <div className="mt-10 rounded-[--radius-panel] border border-border bg-surface px-6 py-14 text-center">
+        <div className="mt-10 rounded-panel border border-border bg-surface px-6 py-14 text-center">
           <Heart className="mx-auto size-8 text-subtle" aria-hidden />
           <h2 className="mt-4 text-base font-semibold text-ink">{t('emptyTitle')}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted">{t('emptyBody')}</p>

@@ -172,7 +172,7 @@ export default async function ProductPage({
               <WishlistButton productId={product.id} variant="labelled" />
             </div>
 
-            <dl className="mt-8 grid gap-3 rounded-[--radius-card] border border-border bg-surface p-4 text-sm sm:grid-cols-2">
+            <dl className="mt-8 grid gap-3 rounded-card border border-border bg-surface p-4 text-sm sm:grid-cols-2">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="size-4 shrink-0 text-success" />
                 <div>
@@ -219,7 +219,7 @@ export default async function ProductPage({
 
           {specGroups.length > 0 && (
             <Section title={t('specifications')}>
-              <div className="divide-y divide-border overflow-hidden rounded-[--radius-card] border border-border bg-surface">
+              <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
                 {specGroups.map((group) => (
                   <div key={group.key} className="p-4">
                     <h3 className="mb-3 text-xs font-semibold tracking-wide text-subtle uppercase">

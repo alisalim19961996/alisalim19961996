@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 export function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('animate-pulse rounded-[--radius-control] bg-border/60', className)}
+      className={cn('animate-pulse rounded-control bg-border/60', className)}
       aria-hidden="true"
       {...props}
     />

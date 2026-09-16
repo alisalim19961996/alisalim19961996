@@ -72,7 +72,7 @@ export default async function AccountOrdersPage({
           {page > 1 && (
             <Link
               href={`/account/orders?page=${page - 1}`}
-              className="rounded-[--radius-control] border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
+              className="rounded-control border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
             >
               {tCommon('previous')}
             </Link>
@@ -83,7 +83,7 @@ export default async function AccountOrdersPage({
           {page < pageCount && (
             <Link
               href={`/account/orders?page=${page + 1}`}
-              className="rounded-[--radius-control] border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
+              className="rounded-control border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
             >
               {tCommon('next')}
             </Link>

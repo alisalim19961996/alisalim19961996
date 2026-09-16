@@ -57,7 +57,7 @@ export async function Pagination({
             href={href(entry)}
             aria-current={entry === page ? 'page' : undefined}
             className={cn(
-              'grid h-9 min-w-9 place-items-center rounded-[--radius-control] px-2 text-sm numeric transition-colors',
+              'grid h-9 min-w-9 place-items-center rounded-control px-2 text-sm numeric transition-colors',
               entry === page
                 ? 'bg-ink font-semibold text-white'
                 : 'text-ink hover:bg-canvas',
@@ -91,7 +91,7 @@ function PageArrow({
 }) {
   const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
   const className = cn(
-    'grid size-9 place-items-center rounded-[--radius-control] transition-colors',
+    'grid size-9 place-items-center rounded-control transition-colors',
     disabled ? 'pointer-events-none text-border-strong' : 'text-ink hover:bg-canvas',
   );
 

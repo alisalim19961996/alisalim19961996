@@ -52,7 +52,7 @@ export default async function AdminAttributesPage({
       </div>
 
       {attributes.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('noAttributes')}
         </p>
       ) : (
@@ -61,7 +61,7 @@ export default async function AdminAttributesPage({
             <li key={attribute.id}>
               <Link
                 href={`/admin/attributes/${attribute.id}`}
-                className="flex flex-wrap items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
               >
                 <span className="font-medium text-ink">
                   {locale === 'ar' ? attribute.labelAr : attribute.labelEn}

@@ -51,7 +51,7 @@ export async function OrderDetail({
           <h2 className="text-base font-bold text-ink">{t('timeline')}</h2>
 
           {isTerminalFailure ? (
-            <p className="mt-3 rounded-[--radius-card] border border-danger-soft bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
+            <p className="mt-3 rounded-card border border-danger-soft bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
               {t(`status${order.status}`)}
             </p>
           ) : (
@@ -110,7 +110,7 @@ export async function OrderDetail({
           <ul className="mt-4 divide-y divide-border border-y border-border">
             {order.lines.map((line) => (
               <li key={line.sku} className="flex gap-4 py-4">
-                <div className="relative aspect-product w-16 shrink-0 overflow-hidden rounded-[--radius-card] bg-canvas">
+                <div className="relative aspect-product w-16 shrink-0 overflow-hidden rounded-card bg-canvas">
                   {line.imageUrl && (
                     <Image
                       src={line.imageUrl}
@@ -155,7 +155,7 @@ export async function OrderDetail({
       </div>
 
       {/* -- Summary ----------------------------------------------------- */}
-      <aside className="rounded-[--radius-panel] border border-border bg-surface p-5">
+      <aside className="rounded-panel border border-border bg-surface p-5">
         <dl className="space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">{t('orderNumber')}</dt>

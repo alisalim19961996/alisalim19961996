@@ -94,7 +94,7 @@ export default async function ContactPage({
             <li key={channel.key} className="flex">
               <a
                 href={channel.href}
-                className="flex w-full items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                className="flex w-full items-center gap-3 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
                 {...(channel.key === 'whatsapp'
                   ? { target: '_blank', rel: 'noopener noreferrer' }
                   : {})}
@@ -113,12 +113,12 @@ export default async function ContactPage({
           ))}
         </ul>
       ) : (
-        <p className="mt-8 rounded-[--radius-card] border border-border bg-surface p-6 text-sm text-muted">
+        <p className="mt-8 rounded-card border border-border bg-surface p-6 text-sm text-muted">
           {t('noChannels')}
         </p>
       )}
 
-      <section className="mt-10 rounded-[--radius-card] border border-border bg-surface p-6">
+      <section className="mt-10 rounded-card border border-border bg-surface p-6">
         <h2 className="text-lg font-bold text-ink">{t('orderQuestion')}</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">{t('orderAnswer')}</p>
         <Link
@@ -130,7 +130,7 @@ export default async function ContactPage({
       </section>
 
       {warranty && (
-        <section className="mt-6 rounded-[--radius-card] border border-border bg-surface p-6">
+        <section className="mt-6 rounded-card border border-border bg-surface p-6">
           <h2 className="text-lg font-bold text-ink">{t('warranty')}</h2>
           <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-muted">
             {warranty}

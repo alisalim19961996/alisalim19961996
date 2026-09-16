@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { revalidatePath } from 'next/cache';
+import { revalidateCart } from '@/server/revalidate';
 import { redirect } from '@/i18n/navigation';
 import { findCart } from '@/server/services/cart';
 import {
@@ -163,7 +163,10 @@ export async function placeOrderAction(
   const store = await cookies();
   store.set(ORDER_GRANT_COOKIE, grant, appCookieOptions(ORDER_GRANT_MAX_AGE));
 
-  revalidatePath('/', 'layout');
+  // The cart is empty now, so the two pages that render it are stale. The
+  // order page itself is dynamic and the storefront is untouched by a purchase
+  // — MPS sells on status, not on a count that just changed.
+  revalidateCart();
 
   // redirect throws, so it must sit outside the try above or it would be
   // caught and reported as a failed order that actually succeeded. It is

@@ -93,8 +93,8 @@ export default async function AdminProductsPage({
                   aria-current={active ? 'page' : undefined}
                   className={
                     active
-                      ? 'inline-flex items-center gap-1.5 rounded-[--radius-control] bg-ink px-3 py-1.5 text-sm font-medium text-white'
-                      : 'inline-flex items-center gap-1.5 rounded-[--radius-control] px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface hover:text-ink'
+                      ? 'inline-flex items-center gap-1.5 rounded-control bg-ink px-3 py-1.5 text-sm font-medium text-white'
+                      : 'inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface hover:text-ink'
                   }
                 >
                   {tab.label}
@@ -122,11 +122,11 @@ export default async function AdminProductsPage({
       </form>
 
       {rows.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface px-5 py-12 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface px-5 py-12 text-center text-sm text-muted">
           {t('noProducts')}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[--radius-card] border border-border bg-surface">
+        <div className="overflow-x-auto rounded-card border border-border bg-surface">
           <table className="w-full min-w-[46rem] text-sm">
             <thead className="border-b border-border">
               <tr className="text-xs text-muted">
@@ -161,7 +161,7 @@ export default async function AdminProductsPage({
                           alt=""
                           width={40}
                           height={50}
-                          className="aspect-product w-10 rounded-[--radius-control] object-cover"
+                          className="aspect-product w-10 rounded-control object-cover"
                         />
                       )}
                       <div className="min-w-0">
@@ -223,8 +223,8 @@ export default async function AdminProductsPage({
               aria-current={number === page ? 'page' : undefined}
               className={
                 number === page
-                  ? 'grid size-9 place-items-center rounded-[--radius-control] bg-ink text-sm font-medium text-white numeric'
-                  : 'grid size-9 place-items-center rounded-[--radius-control] border border-border text-sm text-ink numeric hover:bg-surface'
+                  ? 'grid size-9 place-items-center rounded-control bg-ink text-sm font-medium text-white numeric'
+                  : 'grid size-9 place-items-center rounded-control border border-border text-sm text-ink numeric hover:bg-surface'
               }
             >
               {number}

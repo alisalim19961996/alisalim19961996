@@ -55,7 +55,7 @@ export default async function SignInPage({
         <h1 className="mt-8 text-center text-xl font-bold text-ink">{t('signIn')}</h1>
         <p className="mt-1 text-center text-sm text-muted">{t('signInHint')}</p>
 
-        <div className="mt-8 rounded-[--radius-panel] border border-border bg-surface p-6">
+        <div className="mt-8 rounded-panel border border-border bg-surface p-6">
           {/*
             `next` is only ever compared against the literal "admin" — never
             used as a redirect target — so a crafted ?next= cannot bounce a
@@ -69,7 +69,7 @@ export default async function SignInPage({
           {error && (
             <p
               role="alert"
-              className="mb-4 rounded-[--radius-control] bg-danger-soft px-3 py-2 text-sm text-danger"
+              className="mb-4 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger"
             >
               {t(oauthErrorKey(error))}
             </p>
@@ -97,7 +97,7 @@ export default async function SignInPage({
         {reset === '1' && (
           <p
             role="status"
-            className="mt-6 rounded-[--radius-control] bg-success-soft px-4 py-3 text-center text-sm text-success"
+            className="mt-6 rounded-control bg-success-soft px-4 py-3 text-center text-sm text-success"
           >
             {t('passwordChanged')}
           </p>

@@ -58,7 +58,7 @@ export default async function AccountPage({
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <section className="rounded-[--radius-card] border border-border bg-surface p-6">
+        <section className="rounded-card border border-border bg-surface p-6">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
             <User className="size-4 text-muted" aria-hidden />
             {t('details')}

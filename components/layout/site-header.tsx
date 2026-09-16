@@ -39,7 +39,7 @@ export async function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-[--radius-control] px-3 py-2 text-sm text-muted transition-colors hover:bg-canvas hover:text-ink"
+              className="rounded-control px-3 py-2 text-sm text-muted transition-colors hover:bg-canvas hover:text-ink"
             >
               {t(link.labelKey)}
             </Link>
@@ -64,7 +64,7 @@ export async function SiteHeader() {
                 // `desktopOnly` hid nothing and the phone header carried 13
                 // controls. tailwind-merge drops the loser for us.
                 className={cn(
-                  'relative inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas [&_svg]:size-5',
+                  'relative inline-flex size-10 items-center justify-center rounded-control text-ink transition-colors hover:bg-canvas [&_svg]:size-5',
                   action.desktopOnly && 'hidden sm:inline-flex',
                 )}
               >

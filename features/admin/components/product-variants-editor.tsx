@@ -133,7 +133,7 @@ export function ProductVariantsEditor({
   return (
     <div className="space-y-6">
       {/* -- Options ------------------------------------------------------ */}
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-ink">{t('options')}</h2>
@@ -245,7 +245,7 @@ export function ProductVariantsEditor({
                           id={`option-${index}-value-${valueIndex}-hex`}
                           type="color"
                           value={value.hex || DEFAULT_SWATCH_HEX}
-                          className="h-11 w-14 rounded-[--radius-control] border border-border-field bg-surface p-1"
+                          className="h-11 w-14 rounded-control border border-border-field bg-surface p-1"
                           onChange={(event) =>
                             patchOption(index, {
                               values: option.values.map((v, i) =>
@@ -261,7 +261,7 @@ export function ProductVariantsEditor({
                     <button
                       type="button"
                       aria-label={t('remove')}
-                      className="h-11 rounded-[--radius-control] px-3 text-muted transition-colors hover:text-danger"
+                      className="h-11 rounded-control px-3 text-muted transition-colors hover:text-danger"
                       onClick={() =>
                         patchOption(index, {
                           values: option.values.filter((_, i) => i !== valueIndex),
@@ -293,7 +293,7 @@ export function ProductVariantsEditor({
       </section>
 
       {/* -- Variants ----------------------------------------------------- */}
-      <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+      <section className="rounded-card border border-border bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-ink">{t('variants')}</h2>

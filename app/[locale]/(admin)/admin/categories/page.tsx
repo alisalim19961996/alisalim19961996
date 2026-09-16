@@ -51,7 +51,7 @@ export default async function AdminCategoriesPage({
       </div>
 
       {categories.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('noCategories')}
         </p>
       ) : (
@@ -63,7 +63,7 @@ export default async function AdminCategoriesPage({
                 // A logical property, so the indent is on the correct side in
                 // Arabic without a second rule (§11).
                 style={{ marginInlineStart: `${category.depth * 1.5}rem` }}
-                className="flex flex-wrap items-center gap-3 rounded-[--radius-card] border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+                className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
               >
                 <span className="font-medium text-ink">
                   {locale === 'ar' ? category.nameAr : category.nameEn}

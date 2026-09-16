@@ -73,7 +73,7 @@ export default async function OrderPage({
   if (!order) {
     return (
       <div className="container-page py-16">
-        <div className="mx-auto max-w-md rounded-[--radius-panel] border border-border bg-surface p-8 text-center">
+        <div className="mx-auto max-w-md rounded-panel border border-border bg-surface p-8 text-center">
           <p className="text-base font-semibold text-ink">{t('notFound')}</p>
           <Button asChild size="lg" className="mt-6">
             <Link href="/track">{t('trackTitle')}</Link>

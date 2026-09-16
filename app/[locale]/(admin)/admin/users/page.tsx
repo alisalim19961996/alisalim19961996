@@ -59,7 +59,7 @@ export default async function AdminUsersPage({
   */
   if (!isAdmin(actor)) {
     return (
-      <div className="rounded-[--radius-card] border border-border bg-surface p-8 text-center">
+      <div className="rounded-card border border-border bg-surface p-8 text-center">
         <p className="text-sm text-muted">{t('adminOnly')}</p>
       </div>
     );
@@ -127,8 +127,8 @@ export default async function AdminUsersPage({
                   aria-current={active ? 'page' : undefined}
                   className={
                     active
-                      ? 'inline-flex items-center rounded-[--radius-control] bg-ink px-3 py-1.5 text-sm font-medium text-white'
-                      : 'inline-flex items-center rounded-[--radius-control] px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface hover:text-ink'
+                      ? 'inline-flex items-center rounded-control bg-ink px-3 py-1.5 text-sm font-medium text-white'
+                      : 'inline-flex items-center rounded-control px-3 py-1.5 text-sm text-muted transition-colors hover:bg-surface hover:text-ink'
                   }
                 >
                   {value ? roleLabels[value] : t('allUsers')}
@@ -157,7 +157,7 @@ export default async function AdminUsersPage({
       <p className="text-sm text-muted numeric">{t('userTotal', { count: total })}</p>
 
       {rows.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-8 text-center text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-8 text-center text-sm text-muted">
           {t('noUsers')}
         </p>
       ) : (
@@ -165,7 +165,7 @@ export default async function AdminUsersPage({
           {rows.map((row) => (
             <li
               key={row.id}
-              className="flex flex-wrap items-center gap-4 rounded-[--radius-card] border border-border bg-surface p-4"
+              className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-surface p-4"
             >
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
@@ -209,7 +209,7 @@ export default async function AdminUsersPage({
           {page > 1 && (
             <Link
               href={`/admin/users?page=${page - 1}`}
-              className="rounded-[--radius-control] border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
+              className="rounded-control border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
             >
               {t('previous')}
             </Link>
@@ -220,7 +220,7 @@ export default async function AdminUsersPage({
           {page < pageCount && (
             <Link
               href={`/admin/users?page=${page + 1}`}
-              className="rounded-[--radius-control] border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
+              className="rounded-control border border-border px-4 py-2 text-sm text-ink transition-colors hover:border-border-strong"
             >
               {t('next')}
             </Link>

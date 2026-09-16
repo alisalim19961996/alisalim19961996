@@ -66,7 +66,7 @@ export default async function OffersPage({
       </p>
 
       {result.total === 0 ? (
-        <div className="mt-10 rounded-[--radius-card] border border-border bg-surface p-8 text-center">
+        <div className="mt-10 rounded-card border border-border bg-surface p-8 text-center">
           <p className="text-sm text-muted">{t('empty')}</p>
           <Link
             href="/products"

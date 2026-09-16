@@ -620,6 +620,87 @@ describe('config stays honest', () => {
       'Use `aspect-product`, defined once as --aspect-product in app/globals.css.',
     ).toEqual([]);
   });
+
+  it('writes theme tokens the way Tailwind 4 reads them', () => {
+    /*
+      `rounded-[--radius-card]` was Tailwind 3's shorthand for
+      `var(--radius-card)`. Tailwind 4 removed it: the arbitrary value is taken
+      literally, so the rule compiles to `border-radius: --radius-card`, which
+      is invalid and which the browser drops WITHOUT AN ERROR.
+
+      There were 159 of them. Every card, button, input and panel in the shop
+      had square corners, the two shadows did nothing, and every checkbox
+      rendered in the browser's default blue instead of the brand red — and
+      nothing failed, because a dropped declaration is silent by design. It was
+      found by reading the compiled CSS, not the source.
+
+      `@theme` already defines these, so `rounded-card`, `shadow-card` and
+      `accent-primary` are real utilities and compile to the variable.
+    */
+    const offences: string[] = [];
+
+    for (const file of uiFiles) {
+      for (const { line, text } of readCode(file)) {
+        const match = /[a-z-]+-\[--[a-z-]+\]/.exec(text);
+        if (match) offences.push(`${file}:${line} → ${match[0]}`);
+      }
+    }
+
+    expect(
+      offences,
+      'Tailwind 4 takes `-[--token]` literally and emits an invalid value the ' +
+        'browser drops in silence. Use the utility the @theme token generates: ' +
+        '`rounded-card`, `shadow-raised`, `accent-primary`.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('cache invalidation names a path that exists', () => {
+  /*
+    `revalidatePath` does not throw on a path that matches nothing. It returns
+    void, the action reports success, and the stale page stays on the shop
+    floor — so this class of bug is invisible until a customer sees last
+    week's price.
+
+    Every route in MPS is locale-prefixed, and three conventions were in use
+    at once: `/admin/orders` (matched nothing — the route is
+    `/ar/admin/orders`), `/[locale]/products/<slug>` (half a pattern and half
+    a value, so it matched neither the route file nor the page), and
+    `/[locale]/products/[slug]` with `type: 'page'`, which is correct.
+
+    `server/revalidate.ts` is the one module allowed to build these, and it
+    uses literal paths per locale. Outside it, a literal that names an app
+    route must carry the locale segment.
+  */
+  const ALLOWED_LITERALS = new Set(['/', '/sitemap.xml', '/robots.txt']);
+
+  it('never revalidates a storefront or admin path without its locale', () => {
+    const offences: string[] = [];
+
+    // `server/revalidate.ts` is the one module allowed to build these, and it
+    // is not in uiFiles anyway — so this sweeps exactly the callers.
+    const files = uiFiles;
+
+    for (const file of files) {
+      for (const { line, text } of readCode(file)) {
+        const match = /revalidatePath\(\s*[`'"]([^`'"]+)[`'"]/.exec(text);
+        if (!match) continue;
+        const path = match[1] as string;
+        if (ALLOWED_LITERALS.has(path)) continue;
+        if (path.startsWith('/[locale]')) continue;
+        offences.push(`${file}:${line} → revalidatePath('${path}')`);
+      }
+    }
+
+    expect(
+      offences,
+      'Every MPS route is locale-prefixed, so this path matches no cache ' +
+        'entry and the stale page stays live — silently. Use a helper from ' +
+        'server/revalidate.ts, or a `/[locale]/...` route pattern with a type.',
+    ).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

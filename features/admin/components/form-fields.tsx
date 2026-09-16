@@ -25,7 +25,7 @@ export function FormSection({
   columns?: 1 | 2;
 }) {
   return (
-    <section className="rounded-[--radius-card] border border-border bg-surface p-5">
+    <section className="rounded-card border border-border bg-surface p-5">
       <h2 className="text-sm font-semibold text-ink">{title}</h2>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
       <div className={cn('mt-4 grid gap-4', columns === 2 && 'sm:grid-cols-2')}>
@@ -52,7 +52,7 @@ export function CollapsibleSection({
   children: React.ReactNode;
 }) {
   return (
-    <details className="group rounded-[--radius-card] border border-border bg-surface">
+    <details className="group rounded-card border border-border bg-surface">
       <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-ink marker:content-none">
         <span className="inline-flex items-center gap-2">
           <span className="flip-rtl text-muted transition-transform group-open:rotate-90">
@@ -109,7 +109,7 @@ export function TextArea({ label, hint, wide, id, ...props }: TextAreaProps) {
       <textarea
         id={fieldId}
         rows={3}
-        className="w-full rounded-[--radius-control] border border-border-field bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
+        className="w-full rounded-control border border-border-field bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary"
         {...props}
       />
       {hint && <p className="text-xs text-muted">{hint}</p>}
@@ -142,7 +142,7 @@ export function Select({
       <select
         id={fieldId}
         aria-invalid={error ? true : undefined}
-        className="h-11 w-full rounded-[--radius-control] border border-border-field bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary aria-invalid:border-danger"
+        className="h-11 w-full rounded-control border border-border-field bg-surface px-3 text-sm text-ink transition-colors hover:border-border-strong focus-visible:border-primary aria-invalid:border-danger"
         {...props}
       >
         {children}
@@ -168,7 +168,7 @@ export function Checkbox({
       <input
         id={fieldId}
         type="checkbox"
-        className="mt-0.5 size-4 shrink-0 rounded-[0.25rem] border-border text-primary accent-[--color-primary]"
+        className="mt-0.5 size-4 shrink-0 rounded-[0.25rem] border-border text-primary accent-primary"
         {...props}
       />
       <div>
@@ -197,13 +197,13 @@ export function RepeatableRow({
   removeLabel: string;
 }) {
   return (
-    <div className="relative rounded-[--radius-control] border border-border bg-canvas p-4">
+    <div className="relative rounded-control border border-border bg-canvas p-4">
       <button
         type="button"
         onClick={onRemove}
         aria-label={removeLabel}
         title={removeLabel}
-        className="absolute end-2 top-2 grid size-8 place-items-center rounded-[--radius-control] text-muted transition-colors hover:bg-surface hover:text-danger"
+        className="absolute end-2 top-2 grid size-8 place-items-center rounded-control text-muted transition-colors hover:bg-surface hover:text-danger"
       >
         &times;
       </button>

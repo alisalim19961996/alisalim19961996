@@ -57,11 +57,11 @@ export default async function AdminCouponsPage({
       <p className="max-w-prose text-sm text-muted">{t('couponsHint')}</p>
 
       {coupons.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-6 text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-6 text-sm text-muted">
           {t('noCoupons')}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[--radius-card] border border-border bg-surface">
+        <div className="overflow-x-auto rounded-card border border-border bg-surface">
           <table className="w-full min-w-[42rem] text-start text-sm">
             <thead className="border-b border-border">
               <tr className="text-xs text-muted">

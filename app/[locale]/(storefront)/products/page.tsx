@@ -157,7 +157,7 @@ async function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   ]);
 
   return (
-    <div className="grid place-items-center rounded-[--radius-panel] border border-dashed border-border py-20 text-center">
+    <div className="grid place-items-center rounded-panel border border-dashed border-border py-20 text-center">
       <SearchX className="size-8 text-subtle" aria-hidden="true" />
       <p className="mt-4 text-base font-semibold text-ink">{tEmpty('noProducts')}</p>
       <p className="mt-1 max-w-sm text-sm text-muted">{tEmpty('noProductsHint')}</p>

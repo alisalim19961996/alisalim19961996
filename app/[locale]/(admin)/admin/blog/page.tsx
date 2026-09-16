@@ -86,8 +86,8 @@ export default async function AdminBlogPage({
               href={tab.href}
               className={
                 tab.active
-                  ? 'inline-flex rounded-[--radius-control] bg-ink px-3 py-1.5 text-xs font-medium text-white'
-                  : 'inline-flex rounded-[--radius-control] border border-border px-3 py-1.5 text-xs font-medium text-muted hover:border-border-strong'
+                  ? 'inline-flex rounded-control bg-ink px-3 py-1.5 text-xs font-medium text-white'
+                  : 'inline-flex rounded-control border border-border px-3 py-1.5 text-xs font-medium text-muted hover:border-border-strong'
               }
             >
               {tab.label}
@@ -97,11 +97,11 @@ export default async function AdminBlogPage({
       </ul>
 
       {list.rows.length === 0 ? (
-        <p className="rounded-[--radius-card] border border-border bg-surface p-6 text-sm text-muted">
+        <p className="rounded-card border border-border bg-surface p-6 text-sm text-muted">
           {t('noGuides')}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-[--radius-card] border border-border bg-surface">
+        <div className="overflow-x-auto rounded-card border border-border bg-surface">
           <table className="w-full min-w-[40rem] text-start text-sm">
             <thead className="border-b border-border">
               <tr className="text-xs text-muted">

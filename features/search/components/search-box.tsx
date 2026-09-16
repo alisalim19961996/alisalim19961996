@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useCallback, useRef, useState, useTransition } from 'react';
+import { useFocusTrap } from '@/components/ui/use-focus-trap';
 import { useTranslations } from 'next-intl';
 import { Search, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
@@ -86,10 +87,25 @@ export function SearchBox({
   );
 }
 
-/** Header search: an icon on phones that opens a full-width overlay. */
+/**
+ * Header search: an icon on phones that opens a full-width overlay.
+ *
+ * The overlay claimed `aria-modal="true"` — which tells a screen reader that
+ * everything behind it is inert — while Tab walked straight out of it into the
+ * header links underneath, Escape did nothing, and closing it dropped focus to
+ * `<body>` so the next Tab restarted from the top of the page. The mobile nav
+ * and the filter drawer made exactly the same claim and were fixed with
+ * `useFocusTrap`; this was the third and last one still saying it.
+ */
 export function HeaderSearch() {
   const [open, setOpen] = useState(false);
   const t = useTranslations('nav');
+  const opener = useRef<HTMLButtonElement>(null);
+
+  // useCallback so the trap's effect is not torn down and rebuilt on every
+  // render of the header — which would re-run its initial focus each time.
+  const close = useCallback(() => setOpen(false), []);
+  const panel = useFocusTrap({ open, onClose: close, opener });
 
   return (
     <>
@@ -98,32 +114,36 @@ export function HeaderSearch() {
       </div>
 
       <button
+        ref={opener}
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t('search')}
-        className="inline-flex size-10 items-center justify-center rounded-[--radius-control] text-ink transition-colors hover:bg-canvas md:hidden"
+        aria-expanded={open}
+        className="inline-flex size-10 items-center justify-center rounded-control text-ink transition-colors hover:bg-canvas md:hidden"
       >
         <Search className="size-5" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+        <div
+          ref={panel}
+          className="fixed inset-0 z-50 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('search')}
+        >
           <button
             type="button"
             aria-label={t('closeSearch')}
-            onClick={() => setOpen(false)}
+            onClick={close}
             className="absolute inset-0 bg-ink/40"
           />
-          <div className="absolute inset-x-0 top-0 bg-surface p-4 shadow-[--shadow-raised]">
+          <div className="absolute inset-x-0 top-0 bg-surface p-4 shadow-raised">
             <div className="flex items-center gap-2">
-              <SearchBox
-                autoFocus
-                className="flex-1"
-                onSubmitted={() => setOpen(false)}
-              />
+              <SearchBox autoFocus className="flex-1" onSubmitted={close} />
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 aria-label={t('closeSearch')}
                 className="grid size-10 shrink-0 place-items-center rounded-full text-ink hover:bg-canvas"
               >

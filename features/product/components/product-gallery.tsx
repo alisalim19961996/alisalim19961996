@@ -65,13 +65,13 @@ export function ProductGallery({
 
   if (!active) {
     return (
-      <div className="aspect-product rounded-[--radius-panel] border border-border bg-canvas" />
+      <div className="aspect-product rounded-panel border border-border bg-canvas" />
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-product overflow-hidden rounded-[--radius-panel] border border-border bg-canvas">
+      <div className="relative aspect-product overflow-hidden rounded-panel border border-border bg-canvas">
         {active.kind === 'image' ? (
           <>
             <Image
@@ -116,7 +116,7 @@ export function ProductGallery({
               loading="lazy"
             />
             <span className="absolute inset-0 grid place-items-center bg-ink/25 transition-colors group-hover:bg-ink/35">
-              <span className="grid size-16 place-items-center rounded-full bg-white/95 shadow-[--shadow-raised]">
+              <span className="grid size-16 place-items-center rounded-full bg-white/95 shadow-raised">
                 <Play className="size-6 translate-x-0.5 fill-ink text-ink" />
               </span>
             </span>
@@ -150,7 +150,7 @@ export function ProductGallery({
                       : t('galleryVideo', { number: index + 1 })
                   }
                   className={cn(
-                    'relative size-16 overflow-hidden rounded-[--radius-control] border-2 transition-colors',
+                    'relative size-16 overflow-hidden rounded-control border-2 transition-colors',
                     isActive
                       ? 'border-ink'
                       : 'border-border hover:border-border-strong',

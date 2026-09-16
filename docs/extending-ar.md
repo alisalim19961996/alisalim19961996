@@ -65,7 +65,13 @@ const t = useTranslations('nav');
 ```
 
 التغيير ينطبق على الموقع كله فوراً، لأن كل component يستعمل الـ token
-(`bg-primary`, `rounded-[--radius-card]`) ولا يكتب اللون بنفسه.
+(`bg-primary`, `rounded-card`) ولا يكتب اللون بنفسه.
+
+> **انتبه للصيغة.** Tailwind 4 يكتب الـ token هكذا: `rounded-card`,
+> `shadow-card`, `accent-primary`. الصيغة القديمة `rounded-[--radius-card]`
+> من Tailwind 3 وتُنتج `border-radius: --radius-card` — قيمة غير صالحة
+> يتجاهلها المتصفح بصمت، فتختفي الحواف كلها بلا أي خطأ. حصل هذا فعلاً في
+> ١٥٩ موضعاً، ويمنعه الآن اختبار في `tests/architecture.test.ts`.
 
 **ممنوع** تكتب `#e11b22` داخل أي ملف في `app/` أو `components/` أو `features/`.
 هناك اختبار يمنعها، ورسالته تسمّي الملف والسطر.
