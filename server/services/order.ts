@@ -19,6 +19,7 @@ import {
   sequenceFromOrderNumber,
 } from '@/lib/domain/order-number';
 import { createOrderGrant, hashOrderGrant } from '@/lib/domain/order-grant';
+import { checkoutIdempotencyKey } from '@/lib/domain/checkout-request';
 import type { CheckoutInput } from '@/schemas/checkout';
 
 /**
@@ -132,13 +133,28 @@ function dayKey(date: Date): number {
  * them — a second implementation for display is how a store ends up showing
  * one fee and billing another.
  */
-export async function quoteDeliveryFor(governorate: Governorate, subtotalIqd: number) {
+export async function quoteDeliveryFor(
+  governorate: Governorate,
+  subtotalIqd: number,
+  /**
+   * The transaction to read inside, when there is one.
+   *
+   * `placeOrder` calls this from within its transaction and used to get the
+   * global client, so the fee an order was written with came from a SECOND
+   * connection — outside the transaction's snapshot, and one more client than
+   * the pool was asked for. On a pooled `DATABASE_URL` that is the difference
+   * between a checkout and an `EMAXCONNSESSION` (§18), and it meant the rate
+   * could change between the rows the order was priced from and the row it was
+   * charged by.
+   */
+  client: DbTransaction | typeof db = db,
+) {
   const [rate, settings] = await Promise.all([
-    db.deliveryRate.findFirst({
+    client.deliveryRate.findFirst({
       where: { governorate, isActive: true },
       select: { feeIqd: true, etaMinDays: true, etaMaxDays: true },
     }),
-    db.siteSetting.findFirst({
+    client.siteSetting.findFirst({
       select: { defaultDeliveryIqd: true, freeDeliveryOverIqd: true },
     }),
   ]);
@@ -302,17 +318,59 @@ export interface PlacedOrder {
  *
  * `cartId` is resolved by the caller from the cart cookie or session, never
  * accepted from a form — otherwise anyone could check out somebody else's cart.
+ *
+ * `requestId` is the browser's per-page `crypto.randomUUID()`. It is what makes
+ * one confirmation attempt happen once; see the two guards at the top of the
+ * transaction.
  */
 export async function placeOrder(
   cartId: string,
   input: CheckoutInput,
+  requestId?: unknown,
 ): Promise<PlacedOrder> {
   const user = await getCurrentUser();
+  const idempotencyKey = checkoutIdempotencyKey(cartId, requestId);
 
   return db.$transaction(async (tx) => {
+    /*
+      Two guards against one basket becoming two orders, and both are needed.
+
+      First the cart row is locked. Postgres runs at READ COMMITTED, so without
+      this two overlapping submissions both read the lines, both write an order
+      and both delete the same rows: the customer pays twice for one basket,
+      and the only thing that had been in the way was a button the browser
+      disables — which a second tab, a slow network or a double tap all get
+      past. The second transaction now waits here, and finds an empty cart.
+
+      Then the replay check. Waiting and then answering "your cart is empty" is
+      correct but reads as a failure to somebody whose order actually went
+      through, so an attempt carrying a key that has already been used is handed
+      the order it created rather than an error. The key is scoped to this cart
+      by construction (lib/domain/checkout-request.ts), so it cannot return
+      anybody else's.
+    */
+    await tx.$executeRaw`SELECT "id" FROM "cart" WHERE "id" = ${cartId} FOR UPDATE`;
+
+    if (idempotencyKey) {
+      const already = await tx.order.findUnique({
+        where: { checkoutRequestId: idempotencyKey },
+        select: { id: true, orderNumber: true, totalIqd: true },
+      });
+      if (already) {
+        return {
+          orderNumber: already.orderNumber,
+          totalIqd: already.totalIqd,
+          // A fresh grant: it is the same browser asking again, and the cookie
+          // it is about to be handed has to work.
+          grant: await issueOrderGrant(already.id, tx),
+        };
+      }
+    }
+
     const items = await tx.cartItem.findMany({
       where: { cartId },
       select: {
+        id: true,
         quantity: true,
         variant: {
           select: {
@@ -380,7 +438,7 @@ export async function placeOrder(
       quantity: item.quantity,
     }));
     const { subtotalIqd } = cartTotals(lines);
-    const delivery = await quoteDeliveryFor(input.governorate, subtotalIqd);
+    const delivery = await quoteDeliveryFor(input.governorate, subtotalIqd, tx);
 
     /*
       The coupon is resolved from the row, inside this transaction, by the same
@@ -460,6 +518,7 @@ export async function placeOrder(
     const order = await tx.order.create({
       data: {
         orderNumber: formatOrderNumber(placedAt, sequence),
+        checkoutRequestId: idempotencyKey,
         userId: user?.id ?? null,
         status: OrderStatus.PENDING,
         fullName: input.fullName,
@@ -572,9 +631,26 @@ export async function placeOrder(
       });
     }
 
-    // The cart is emptied, not deleted, so the visitor's token stays valid and
-    // they can keep shopping without a new cookie round-trip.
-    await tx.cartItem.deleteMany({ where: { cartId } });
+    /*
+      Only the lines this order actually snapshotted are removed — not
+      everything in the cart. The row lock above stops a second CHECKOUT, but
+      not a second tab adding a cable while this transaction is in flight, and
+      `deleteMany({ cartId })` would have thrown that line away unpaid and
+      unremarked.
+
+      This one is ARGUED, not measured, and it is worth saying so: the window
+      is a few milliseconds inside one transaction, and a test that tried to
+      land an insert inside it passed against the broken code every time, which
+      makes it a test that cannot fail for its own reason (§17). The `where`
+      is narrowed anyway, because the narrow one is not harder to write and the
+      wide one is only ever correct by luck.
+
+      The cart itself is emptied rather than deleted, so the visitor keeps their
+      token and can carry on shopping without a new cookie round trip.
+    */
+    await tx.cartItem.deleteMany({
+      where: { id: { in: items.map((item) => item.id) } },
+    });
 
     // Issued inside the transaction: an order that rolls back must not leave a
     // grant behind, and a grant that fails to store must not leave an order

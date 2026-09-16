@@ -743,6 +743,13 @@ model Order {
 
   couponCode String?
 
+  /// Makes one confirmation attempt happen once.
+  ///
+  /// The hash of the browser's per-page request id together with the cart the
+  /// server resolved — never the raw id, so a guessed id cannot replay somebody
+  /// else's order. See lib/domain/checkout-request.ts.
+  checkoutRequestId String? @unique
+
   /// Hash of the one-time grant handed to the browser that placed this order.
   ///
   /// Never the raw value: a leaked backup would otherwise be a list of working

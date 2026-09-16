@@ -24,7 +24,12 @@ export class OrderAdminError extends Error {
   constructor(
     message: string,
     /** Key under the `admin` namespace in messages/, so the UI can translate it. */
-    readonly code: 'notFound' | 'illegalTransition' | 'reservationUnderflow',
+    readonly code:
+      | 'notFound'
+      | 'illegalTransition'
+      | 'reservationUnderflow'
+      /** Somebody else moved this order between the read and the write. */
+      | 'statusChanged',
   ) {
     super(message);
     this.name = 'OrderAdminError';
@@ -194,10 +199,33 @@ export async function advanceOrder(input: AdvanceOrderInput): Promise<void> {
       timestamps.cancelReason = input.note ?? null;
     }
 
-    await tx.order.update({
-      where: { id: order.id },
+    /*
+      Compare-and-set, not `update where id`.
+
+      Everything above this line is a read followed by a decision, which two
+      staff in two tabs make identically: both read PENDING, both find the move
+      to CONFIRMED legal, and — with `where: { id }` — both write it. The
+      order ends up in the right state by luck, and the rest does not: two
+      timeline events for one transition, a cancel that releases the same
+      reservation twice, a delivery that settles the payment twice.
+
+      The expected status goes in the WHERE clause instead, so Postgres decides
+      who won. The loser updates no row, and is told to look again rather than
+      being allowed to act on a state that has already moved. Same shape as the
+      stock reservation in `placeOrder` and the coupon claim, and for the same
+      reason: the invariant belongs in the statement, not in the gap before it.
+    */
+    const claimed = await tx.order.updateMany({
+      where: { id: order.id, status: order.status },
       data: { status: input.toStatus, ...timestamps },
     });
+
+    if (claimed.count !== 1) {
+      throw new OrderAdminError(
+        `order ${input.orderNumber} moved out of ${order.status} concurrently`,
+        'statusChanged',
+      );
+    }
 
     await tx.orderEvent.create({
       data: {

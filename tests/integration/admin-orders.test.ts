@@ -333,3 +333,117 @@ describe('delivering consumes counted stock', () => {
     expect(order.payment?.status).toBe(PaymentStatus.REFUNDED);
   });
 });
+
+/**
+ * Two staff, two tabs, one order.
+ *
+ * `advanceOrder` read the status, checked the transition, then wrote with
+ * `where: { id }`. Both readers see PENDING, both find CONFIRMED legal, and
+ * both write it — so the order lands in the right state by luck while
+ * everything that follows from the move happens twice: two timeline events for
+ * one transition, a cancel that releases the same reservation twice, a delivery
+ * that settles the payment twice.
+ *
+ * The expected status is in the WHERE clause now, so Postgres picks the winner
+ * and the loser is told to look again.
+ */
+describe('concurrent status changes', () => {
+  it('lets exactly one of two identical moves win', async () => {
+    const { variantId } = await fixture({ trackQuantity: false });
+    const { orderNumber } = await placeOne(variantId);
+
+    const results = await Promise.allSettled([
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CONFIRMED }),
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CONFIRMED }),
+    ]);
+
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+
+    const order = await db.order.findUniqueOrThrow({
+      where: { orderNumber },
+      select: { status: true, events: { select: { toStatus: true } } },
+    });
+
+    expect(order.status).toBe(OrderStatus.CONFIRMED);
+    // The timeline is the part that used to double: PENDING, then CONFIRMED
+    // once — not twice.
+    expect(order.events.map((event) => event.toStatus)).toEqual([
+      OrderStatus.PENDING,
+      OrderStatus.CONFIRMED,
+    ]);
+  });
+
+  it('lets exactly one of two DIFFERENT moves win, and leaves the payment consistent', async () => {
+    const { variantId } = await fixture({ trackQuantity: false });
+    const { orderNumber } = await placeOne(variantId);
+
+    // Confirming and cancelling are both legal from PENDING, and they settle
+    // the payment in opposite directions — which is the state the business
+    // cannot reason about if both land.
+    const results = await Promise.allSettled([
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CONFIRMED }),
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CANCELLED, note: 'race' }),
+    ]);
+
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+
+    const order = await db.order.findUniqueOrThrow({
+      where: { orderNumber },
+      select: {
+        status: true,
+        payment: { select: { status: true } },
+        events: { select: { toStatus: true } },
+      },
+    });
+
+    expect(order.events).toHaveLength(2);
+    if (order.status === OrderStatus.CANCELLED) {
+      expect(order.payment?.status).toBe(PaymentStatus.FAILED);
+    } else {
+      expect(order.status).toBe(OrderStatus.CONFIRMED);
+      expect(order.payment?.status).toBe(PaymentStatus.PENDING);
+    }
+  });
+
+  it('does not release a counted reservation twice', async () => {
+    const { variantId } = await fixture({ trackQuantity: true, onHand: 5 });
+    const { orderNumber } = await placeOne(variantId, 2);
+
+    expect((await inventoryOf(variantId)).reserved).toBe(2);
+
+    const results = await Promise.allSettled([
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CANCELLED, note: 'a' }),
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CANCELLED, note: 'b' }),
+    ]);
+
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+
+    const inventory = await inventoryOf(variantId);
+    expect(inventory.reserved).toBe(0);
+    expect(inventory.onHand).toBe(5);
+  });
+
+  it('tells the loser the order moved, rather than failing silently', async () => {
+    const { variantId } = await fixture({ trackQuantity: false });
+    const { orderNumber } = await placeOne(variantId);
+
+    const results = await Promise.allSettled([
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CONFIRMED }),
+      advanceOrder({ orderNumber, toStatus: OrderStatus.CONFIRMED }),
+    ]);
+
+    const rejected = results.find((r) => r.status === 'rejected');
+    const reason = rejected?.reason as unknown;
+    // Either refusal is correct and which one arrives depends on where the
+    // loser was when the winner committed: it read the old status and lost the
+    // CAS, or it read the new one and the move is now illegal. Both say "look
+    // again" to the person, and neither is a silent double write.
+    expect(
+      reason instanceof OrderAdminError ||
+        reason instanceof InvalidOrderTransitionError,
+    ).toBe(true);
+    if (reason instanceof OrderAdminError) {
+      expect(reason.code).toBe('statusChanged');
+    }
+  });
+});

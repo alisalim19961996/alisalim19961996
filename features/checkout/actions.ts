@@ -131,7 +131,14 @@ export async function placeOrderAction(
   let orderNumber: string;
   let grant: string;
   try {
-    const placed = await placeOrder(cart.id, parsed.data);
+    // Straight from the form, unvalidated here on purpose: the service hashes
+    // it with the cart id and refuses anything that is not a UUID, so there is
+    // nothing this layer could usefully check that is not checked there.
+    const placed = await placeOrder(
+      cart.id,
+      parsed.data,
+      formData.get('checkoutRequestId'),
+    );
     orderNumber = placed.orderNumber;
     grant = placed.grant;
   } catch (error) {

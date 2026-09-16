@@ -691,6 +691,18 @@ discount cannot render.
 this be bought". Never read `onHand` directly. A product card shows "out of
 stock" only when **no** variant is purchasable.
 
+**A status transition is a compare-and-set.** `advanceOrder` read the status,
+checked the transition and wrote with `where: { id }` — so two staff in two tabs
+both read PENDING, both found CONFIRMED legal and both wrote it. The order
+landed in the right state by luck while everything that follows happened twice:
+two timeline events for one move, a cancel releasing the same reservation twice,
+a delivery settling the payment twice. The expected status is in the WHERE
+clause now and `count === 1` is checked before any side effect; the loser is
+told the order moved (`statusChanged`) instead of acting on a state that is
+gone. Three integration tests fail against the old version — the fourth, a
+double release, was already caught by the inventory UPDATE's own condition,
+which is what "enforced twice" is for.
+
 **Orders** — `lib/domain/order-state.ts`:
 
 ```
@@ -729,6 +741,35 @@ is recomputed inside the transaction from the variant rows and `DeliveryRate`.
 One transaction writes the order, the snapshotted `OrderItem`s, the COD
 `Payment`, the first `OrderEvent` and the stock ledger, then empties the cart —
 the cart survives so the visitor keeps their token.
+
+**One confirmation is one order, and it took two guards.** Postgres runs at
+READ COMMITTED, so two submissions that overlapped both read the lines, both
+wrote an order and both deleted the same rows: the customer paid twice for one
+basket, and the only thing in the way was a button the browser disables — which
+a second tab, a slow network or a double tap all get past.
+
+- The transaction opens by taking a **row lock on the cart**
+  (`SELECT … FOR UPDATE`). The second submission waits there and then finds an
+  empty cart, which is a refusal rather than a second order. This half depends
+  on nothing the client sends.
+- Waiting and then answering "your cart is empty" reads as a failure to
+  somebody whose order DID go through, so an attempt carrying a key already
+  used is handed the order it created. The browser generates one
+  `crypto.randomUUID()` per checkout page; what is stored is the **hash of that
+  id together with the cart id** (`lib/domain/checkout-request.ts`), because a
+  bare client-chosen id would let a guess replay somebody else's order number
+  back to whoever asked. The unique index on `Order.checkoutRequestId` is what
+  makes the replay check a guarantee rather than a race of its own.
+- **Only the lines the order snapshotted are deleted**, not the whole cart: the
+  row lock stops a second checkout, not a second tab adding a cable. That one
+  is argued rather than measured — a test that tried to land an insert inside
+  the window passed against the broken code every time, so it was deleted
+  rather than kept as a test that cannot fail (§17).
+
+**`quoteDeliveryFor` takes the transaction client.** It used the global `db`
+while being called from inside `placeOrder`'s transaction, so the fee an order
+was written with came from a second connection, outside the transaction's
+snapshot and outside the pool budget §18 sets for a build.
 
 **Stock reservation is atomic.** Only variants with `trackQuantity` reserve
 anything, and they do it with a conditional UPDATE:
@@ -1486,6 +1527,14 @@ pass has been done once — see §19 for exactly what it did and did not check.
 ---
 
 ## 15. Known issues and technical debt
+
+**Deactivating a `DeliveryRate` has never meant "we do not deliver here."**
+`quoteDeliveryFor` looks for an ACTIVE rate and falls back to the default fee
+when it finds none, so unticking a governorate changes its price and nothing
+else. The tick was labelled "active", which reads as the opposite; it says
+"custom fee" now and the screen shows the default it falls back to. Switching a
+governorate off entirely would be a new column and a new refusal at checkout —
+a business decision for the owner, not a rename.
 
 | Item                                               | Impact                                                                                                                                  | Plan                                                        |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |

@@ -262,14 +262,32 @@ describe('concurrent checkout', () => {
     const results = await Promise.allSettled(
       carts.map((cartId) => placeOrder(cartId, ADDRESS)),
     );
+
+    /*
+      EVERY attempt must succeed, not merely some of them.
+
+      This assertion used to be `numbers.length > 0`, which is a test that
+      cannot fail for the reason it exists: three independent carts with
+      untracked stock have nothing to contend over except the order number, so
+      a numbering bug shows up as two of the three THROWING — and the old
+      version reported that as a pass. It is the same class of blindness as the
+      cart's line total (§17), found the same way.
+    */
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(
+      rejected.map((r) => String(r.reason)),
+      'an independent cart failed to check out',
+    ).toEqual([]);
+
     const numbers = results
       .filter((r) => r.status === 'fulfilled')
       .map((r) => r.value.orderNumber);
 
+    expect(numbers).toHaveLength(carts.length);
+
     // Whatever survives contention, no two orders may share a reference — the
     // customer reads it down the phone to identify their delivery.
     expect(new Set(numbers).size).toBe(numbers.length);
-    expect(numbers.length).toBeGreaterThan(0);
     for (const number of numbers) {
       expect(number).toMatch(/^MPS-\d{5}-\d{4,}$/);
     }
@@ -290,5 +308,101 @@ describe('concurrent checkout', () => {
     expect(
       await db.inventoryMovement.count({ where: { inventory: { variantId } } }),
     ).toBe(0);
+  });
+});
+
+/**
+ * One confirmation, one order.
+ *
+ * `placeOrder` read the cart, wrote the order and emptied the cart in one
+ * transaction — and Postgres runs at READ COMMITTED, so two submissions that
+ * overlap both see the lines, both write an order and both delete the same
+ * rows. The customer is charged twice for one basket. The only thing that had
+ * been in the way was a button the browser disables, which a second tab, a slow
+ * network or a double tap all get past.
+ */
+describe('checkout idempotency', () => {
+  const requestId = () => crypto.randomUUID();
+
+  it('creates one order when the same attempt arrives twice at once', async () => {
+    const { variantId } = await fixture({ priceIqd: 120_000, trackQuantity: false });
+    const cartId = await createCartWith(variantId, 1);
+    const key = requestId();
+
+    const results = await Promise.allSettled([
+      placeOrder(cartId, ADDRESS, key),
+      placeOrder(cartId, ADDRESS, key),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    expect(fulfilled).toHaveLength(2);
+
+    // Both callers are told about the SAME order — the second is not an error,
+    // because the customer's order did go through.
+    const [first, second] = fulfilled.map((r) => r.value.orderNumber);
+    expect(second).toBe(first);
+    expect(await db.order.count({ where: { fullName: ADDRESS.fullName } })).toBe(1);
+  });
+
+  it('creates one order when the same attempt is retried afterwards', async () => {
+    const { variantId } = await fixture({ priceIqd: 90_000, trackQuantity: false });
+    const cartId = await createCartWith(variantId, 1);
+    const key = requestId();
+
+    const first = await placeOrder(cartId, ADDRESS, key);
+    const replay = await placeOrder(cartId, ADDRESS, key);
+
+    expect(replay.orderNumber).toBe(first.orderNumber);
+    expect(replay.totalIqd).toBe(first.totalIqd);
+    // A fresh grant, because it is the same browser asking and the cookie it is
+    // about to be handed has to work.
+    expect(replay.grant).not.toBe(first.grant);
+    expect(await db.order.count({ where: { fullName: ADDRESS.fullName } })).toBe(1);
+  });
+
+  it('refuses a second, DIFFERENT attempt from a cart already consumed', async () => {
+    const { variantId } = await fixture({ priceIqd: 70_000, trackQuantity: false });
+    const cartId = await createCartWith(variantId, 1);
+
+    await placeOrder(cartId, ADDRESS, requestId());
+    // A new page, a new key, an empty cart: this is a genuine failure and must
+    // read as one rather than quietly ordering nothing.
+    await expect(placeOrder(cartId, ADDRESS, requestId())).rejects.toThrow(
+      PlaceOrderError,
+    );
+    expect(await db.order.count({ where: { fullName: ADDRESS.fullName } })).toBe(1);
+  });
+
+  it('still places one order when two overlap with NO key at all', async () => {
+    // The row lock is the half that does not depend on the client sending
+    // anything, so it is worth its own test: an old page, or a browser with no
+    // crypto.randomUUID, must not be able to order twice either.
+    const { variantId } = await fixture({ priceIqd: 55_000, trackQuantity: false });
+    const cartId = await createCartWith(variantId, 1);
+
+    const results = await Promise.allSettled([
+      placeOrder(cartId, ADDRESS),
+      placeOrder(cartId, ADDRESS),
+    ]);
+
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(await db.order.count({ where: { fullName: ADDRESS.fullName } })).toBe(1);
+  });
+
+  it('keeps a key from reaching an order placed from a different cart', async () => {
+    // The key stored is the hash of the client's id WITH the cart id, so a
+    // guessed id cannot replay somebody else's order back to whoever asked.
+    const { variantId } = await fixture({ priceIqd: 40_000, trackQuantity: false });
+    const [cartA, cartB] = await Promise.all([
+      createCartWith(variantId, 1),
+      createCartWith(variantId, 1),
+    ]);
+    const key = requestId();
+
+    const mine = await placeOrder(cartA, ADDRESS, key);
+    const theirs = await placeOrder(cartB, ADDRESS, key);
+
+    expect(theirs.orderNumber).not.toBe(mine.orderNumber);
+    expect(await db.order.count({ where: { fullName: ADDRESS.fullName } })).toBe(2);
   });
 });

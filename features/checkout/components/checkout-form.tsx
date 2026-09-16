@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useRef, useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Truck, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,29 @@ export function CheckoutForm({
 
   const [governorate, setGovernorate] = useState('');
   const [quote, setQuote] = useState<DeliveryQuoteResult | null>(null);
+
+  /**
+   * One id per checkout page, so a double submission is one order.
+   *
+   * Generated in a `useState` initialiser rather than an effect or a render
+   * expression: it must be stable across re-renders (a new value every render
+   * would defeat the whole thing) and it must NOT change between an attempt
+   * that fails validation and the retry. It is a client value and the server
+   * treats it as one — it is hashed with the cart id, so guessing somebody
+   * else's is useless (lib/domain/checkout-request.ts).
+   */
+  const [checkoutRequestId] = useState(() => crypto.randomUUID());
+
+  /**
+   * Which quote request is the newest.
+   *
+   * Two changes of governorate in quick succession are two requests, and the
+   * first can answer last — which put Basra's fee against Baghdad's name on
+   * screen, and the customer agreed to a total the server was never going to
+   * charge. The counter is a ref rather than state because nothing renders
+   * from it and bumping it must not itself cause a render.
+   */
+  const quoteRequest = useRef(0);
   const [couponInput, setCouponInput] = useState('');
   const [coupon, setCoupon] = useState<{ code: string; discountIqd: number } | null>(
     null,
@@ -65,18 +88,37 @@ export function CheckoutForm({
    */
   const chooseGovernorate = (value: string) => {
     setGovernorate(value);
-    if (!value) {
-      setQuote(null);
-      return;
-    }
+
+    // Cleared first, always. Leaving the previous governorate's fee on screen
+    // while the new one is fetched shows a total for an address the customer
+    // is no longer buying to.
+    setQuote(null);
+
+    const request = (quoteRequest.current += 1);
+    if (!value) return;
+
     startQuoting(async () => {
-      setQuote(await quoteDeliveryAction(value));
+      const result = await quoteDeliveryAction(value);
+      // A response that is no longer the newest is dropped, not rendered.
+      if (quoteRequest.current !== request) return;
+      setQuote(result);
     });
   };
 
   const fieldError = (name: string) => state.fieldErrors?.[name];
   const discountIqd = coupon?.discountIqd ?? 0;
-  const total = subtotalIqd - discountIqd + (quote?.feeIqd ?? 0);
+  const total = quote ? subtotalIqd - discountIqd + quote.feeIqd : null;
+
+  /**
+   * Nothing is ordered before the delivery fee is known.
+   *
+   * The button used to be disabled only while submitting, so an order could be
+   * placed with no governorate quoted at all — and the summary showed the
+   * subtotal in the Total row, which is a different number from the one the
+   * server charges. The server recomputes either way (§12); this is about not
+   * asking somebody to agree to a figure that is not the figure.
+   */
+  const canSubmit = Boolean(governorate) && !quoting && quote !== null;
 
   /**
    * Ask the server what the code is worth. It never answers with a number the
@@ -107,6 +149,12 @@ export function CheckoutForm({
       action={formAction}
       className="grid gap-10 lg:grid-cols-[1fr_22rem] lg:items-start"
     >
+      {/*
+        One id per page, sent with every attempt from it. Two submissions that
+        overlap therefore carry the same key, and the second is handed the order
+        the first created instead of creating a second one.
+      */}
+      <input type="hidden" name="checkoutRequestId" value={checkoutRequestId} />
       {/* The locale travels with the form so the action can redirect into it. */}
       <input type="hidden" name="locale" value={locale} />
 
@@ -288,7 +336,11 @@ export function CheckoutForm({
 
         <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm font-semibold text-ink">{tCart('total')}</span>
-          <ProductPrice priceIqd={total} comparePriceIqd={null} size="md" />
+          {total === null ? (
+            <span className="text-sm text-muted">{t('selectGovernorate')}</span>
+          ) : (
+            <ProductPrice priceIqd={total} comparePriceIqd={null} size="md" />
+          )}
         </div>
 
         {/*
@@ -350,10 +402,23 @@ export function CheckoutForm({
           )}
         </div>
 
-        <Button type="submit" size="lg" block className="mt-5" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          size="lg"
+          block
+          className="mt-5"
+          disabled={isSubmitting || !canSubmit}
+        >
           {isSubmitting && <Loader2 className="animate-spin" aria-hidden />}
           {isSubmitting ? t('submitting') : t('submit')}
         </Button>
+        {!canSubmit && !isSubmitting && (
+          // Said out loud rather than left to a greyed-out button: a control
+          // that does nothing is indistinguishable from one that is broken.
+          <p className="mt-2 text-center text-xs text-muted">
+            {t('selectGovernorate')}
+          </p>
+        )}
 
         {state.errorKey && (
           <p role="alert" className="mt-3 text-sm text-danger">

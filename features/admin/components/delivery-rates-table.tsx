@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { formatIqd } from '@/lib/money';
+import type { Locale } from '@/i18n/routing';
 import { updateDeliveryRateAction } from '../actions';
 
 export interface DeliveryRateRow {
@@ -24,16 +26,28 @@ export interface DeliveryRateRow {
  *
  * A governorate with no row is not an error: checkout falls back to the
  * default fee. That is why the server upserts.
+ *
+ * The tick used to be labelled "active", which reads as "we deliver here".
+ * It has never meant that: `quoteDeliveryFor` looks for an ACTIVE rate and
+ * falls back to the default fee when it finds none, so unticking a governorate
+ * changes its price and nothing else. The label says that now, and the default
+ * it falls back to is shown rather than left to be discovered on an order.
+ * Switching a governorate off entirely would be a new column and a new refusal
+ * at checkout — a business decision, not a rename.
  */
 export function DeliveryRatesTable({
   governorates,
   rates,
+  defaultDeliveryIqd,
 }: {
   governorates: readonly string[];
   rates: readonly DeliveryRateRow[];
+  /** What an unticked governorate is actually charged. */
+  defaultDeliveryIqd: number;
 }) {
   const t = useTranslations('admin');
   const tGov = useTranslations('governorate');
+  const locale = useLocale() as Locale;
 
   const byGovernorate = new Map(rates.map((rate) => [rate.governorate, rate]));
 
@@ -52,7 +66,13 @@ export function DeliveryRatesTable({
               {t('etaDays')}
             </th>
             <th scope="col" className="px-4 py-2.5 text-start font-medium">
-              {t('active')}
+              <span
+                title={t('deliveryCustomRateHint', {
+                  fee: formatIqd(defaultDeliveryIqd, locale),
+                })}
+              >
+                {t('deliveryCustomRate')}
+              </span>
             </th>
             <th scope="col" className="px-4 py-2.5" />
           </tr>
@@ -151,7 +171,7 @@ function RateRow({
           type="checkbox"
           checked={isActive}
           onChange={(event) => setIsActive(event.target.checked)}
-          aria-label={`${t('active')} — ${label}`}
+          aria-label={`${t('deliveryCustomRate')} — ${label}`}
           className="size-4 accent-[--color-primary]"
         />
       </td>

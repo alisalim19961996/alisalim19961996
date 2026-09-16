@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { DeliveryRatesTable } from '@/features/admin/components/delivery-rates-table';
-import { getDeliveryRates } from '@/server/services/admin-settings';
+import { getDeliveryRates, getSiteSettings } from '@/server/services/admin-settings';
 import { GOVERNORATE_VALUES } from '@/schemas/checkout';
 import type { Locale } from '@/i18n/routing';
 
@@ -24,7 +24,7 @@ export default async function AdminDeliveryPage({
   setRequestLocale(locale);
 
   const t = await getTranslations('admin');
-  const rates = await getDeliveryRates();
+  const [rates, settings] = await Promise.all([getDeliveryRates(), getSiteSettings()]);
 
   return (
     <div className="space-y-6">
@@ -33,7 +33,13 @@ export default async function AdminDeliveryPage({
         <p className="mt-1 text-sm text-muted">{t('deliveryHint')}</p>
       </div>
 
-      <DeliveryRatesTable governorates={GOVERNORATE_VALUES} rates={rates} />
+      <DeliveryRatesTable
+        governorates={GOVERNORATE_VALUES}
+        rates={rates}
+        // The fee an unticked governorate actually gets. Shown here rather than
+        // described in prose, so the tick's effect is visible from this screen.
+        defaultDeliveryIqd={settings?.defaultDeliveryIqd ?? 5000}
+      />
     </div>
   );
 }
