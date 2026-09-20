@@ -395,7 +395,7 @@ Locale-prefixed always: `/ar/...` and `/en/...`. `/` redirects to `/ar`.
 
 | Route                                      | Rendering    | Purpose                                                                  |
 | ------------------------------------------ | ------------ | ------------------------------------------------------------------------ |
-| `/[locale]`                                | SSG          | Homepage: hero, shop-by-type, trust, 3 product rails, brands, final CTA  |
+| `/[locale]`                                | SSG          | Homepage: hero + budget, trust, rails, brands; best sellers only if sold |
 | `/[locale]/products`                       | Dynamic      | Catalogue: filters, sort, pagination, search results (`?q=`)             |
 | `/[locale]/products/[slug]`                | SSG per slug | Product detail                                                           |
 | `/[locale]/cart`                           | Dynamic      | Cart: lines, quantities, subtotal                                        |
@@ -902,6 +902,25 @@ them.
   delete would erase the record of which orders were discounted while the
   discounts stay on those orders — money missing from the books with nothing
   left to explain it. Deactivating is the answer.
+
+**"Best sellers" counts DELIVERED order lines, not a flag.** The rail read
+`isBestSeller`, which is a merchandising tick — and a section under that
+heading is a claim about what customers bought (§13.12). `getBestSellerRail()`
+aggregates in SQL (raw, because `OrderItem` points at a variant and carries no
+`productId`) and the homepage renders no section at all when nothing has been
+delivered, rather than an empty shelf under a claim.
+
+**The homepage hero sells rather than repeats itself.** Three large
+shop-by-type cards duplicated the header's own links at the size of a hero
+image and pushed every product below the fold; they are chips now, and the
+column they vacated holds budget brackets computed from the catalogue's real
+minimum and maximum by the same pure function `/guides` uses — three links into
+filters that already exist, not a recommendation engine. The brands grid is
+`auto-fit` because a fixed six columns left a seventh brand alone on its own
+row, and it only lists brands with something to sell: a shortcut to an empty
+catalogue is a dead end, while `/brands` remains the full directory. The final
+CTA points at the guides and at contact instead of repeating the browse button
+somebody has just scrolled three rails past.
 
 **`Offer` is still schema-only, deliberately.** It would be a _second_ way for a
 product to have a discounted price, beside `comparePriceIqd` — which is what

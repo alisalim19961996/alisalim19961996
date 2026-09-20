@@ -227,6 +227,54 @@ export async function getProductRail(
 }
 
 /**
+ * The best sellers, from orders that actually arrived.
+ *
+ * `getProductRail('isBestSeller')` reads a flag somebody ticked, which is a
+ * merchandising choice and not a sales figure — and a section headed "best
+ * sellers" is a claim about what customers bought (§13.12). This counts
+ * DELIVERED order lines instead: not placed, not confirmed, delivered, because
+ * a cancelled order is not a sale.
+ *
+ * Raw SQL because `OrderItem` carries no `productId` — it points at a variant,
+ * which points at the product — so the aggregate needs a join Prisma's
+ * `groupBy` cannot express. Ranking in SQL rather than in JavaScript is the
+ * rule (§5); only the ids come back, and the cards are read the ordinary way.
+ *
+ * An empty result is the honest answer for a shop that has not delivered
+ * anything yet, and the homepage renders no section at all rather than an
+ * empty shelf.
+ */
+export async function getBestSellerRail(take = 8): Promise<ProductCardData[]> {
+  const ranked = await db.$queryRaw<{ productId: string }[]>`
+    SELECT v."productId"
+      FROM "order_item" oi
+      JOIN "product_variant" v ON v."id" = oi."variantId"
+      JOIN "order" o ON o."id" = oi."orderId"
+     WHERE o."status" = 'DELIVERED'
+     GROUP BY v."productId"
+     ORDER BY SUM(oi."quantity") DESC, v."productId" ASC
+     LIMIT ${take}
+  `;
+
+  const ids = ranked.map((row) => row.productId);
+  if (ids.length === 0) return [];
+
+  const products = await db.product.findMany({
+    where: { id: { in: ids }, isPublished: true },
+    select: cardSelect,
+  });
+
+  // The rail's order IS the ranking, and `findMany` does not promise the order
+  // of an `in` clause. Restoring it from `ids` is the one place ordering
+  // happens outside SQL, because SQL already decided it.
+  const byId = new Map(products.map((product) => [product.id, product]));
+  return ids.flatMap((id) => {
+    const product = byId.get(id);
+    return product ? [product] : [];
+  });
+}
+
+/**
  * The filter options a shopper can actually pick, with the number of products
  * behind each. Counts are computed against the *other* active filters, so a
  * facet never offers a choice that would return nothing.
@@ -336,9 +384,17 @@ export async function getCatalogueFacets(
 }
 
 /** Brands for the homepage rail and the brands page. */
-export async function getBrands() {
+export async function getBrands(options: { withProductsOnly?: boolean } = {}) {
   return db.brand.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      // A brand with nothing to sell is a dead end on a shopping shortcut, and
+      // an empty catalogue page for anybody who follows it. `/brands` still
+      // lists everything — that page is a directory, not a shortcut.
+      ...(options.withProductsOnly
+        ? { products: { some: { isPublished: true } } }
+        : {}),
+    },
     select: {
       slug: true,
       nameAr: true,

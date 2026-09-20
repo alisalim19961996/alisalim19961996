@@ -65,7 +65,16 @@
     "bestSellers": "الأكثر مبيعًا",
     "shopByBrand": "تسوّق حسب البراند",
     "finalCtaTitle": "ما لكيت الي يناسبك؟",
-    "finalCtaBody": "تصفّح كل الأجهزة وفلترها حسب الميزانية والذاكرة والبراند."
+    "finalCtaBody": "تصفّح كل الأجهزة وفلترها حسب الميزانية والذاكرة والبراند.",
+    "budgetTitle": "اختار حسب ميزانيتك",
+    "budgetHint": "النطاقات محسوبة من أسعار المتجر الحالية، وتوديك للفلاتر مباشرة.",
+    "budgetRange": "من {min} إلى {max}",
+    "budgetFrom": "فوق {min}",
+    "trustGenuineLink": "شنو نبيع ومنين",
+    "trustWarrantyLink": "تفاصيل الضمان",
+    "trustDeliveryLink": "التوصيل والدفع",
+    "finalCtaGuides": "اقرا دليل الاختيار",
+    "finalCtaContact": "تواصل ويانا"
   },
   "product": {
     "addToCart": "أضف إلى السلة",

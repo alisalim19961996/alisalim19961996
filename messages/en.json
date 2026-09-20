@@ -65,7 +65,16 @@
     "bestSellers": "Best sellers",
     "shopByBrand": "Shop by brand",
     "finalCtaTitle": "Not sure what fits?",
-    "finalCtaBody": "Browse everything and filter by budget, memory and brand."
+    "finalCtaBody": "Browse everything and filter by budget, memory and brand.",
+    "budgetTitle": "Shop by budget",
+    "budgetHint": "Computed from the prices in the shop right now, straight into the filters.",
+    "budgetRange": "{min} to {max}",
+    "budgetFrom": "Above {min}",
+    "trustGenuineLink": "What we sell, and from where",
+    "trustWarrantyLink": "Warranty details",
+    "trustDeliveryLink": "Delivery and payment",
+    "finalCtaGuides": "Read the buying guide",
+    "finalCtaContact": "Get in touch"
   },
   "product": {
     "addToCart": "Add to cart",

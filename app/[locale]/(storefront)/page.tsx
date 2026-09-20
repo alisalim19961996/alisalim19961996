@@ -13,7 +13,15 @@ import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/features/product/components/product-card';
 import { cn } from '@/lib/utils';
-import { getBrands, getProductRail, getProductTypes } from '@/server/queries/catalogue';
+import {
+  getBestSellerRail,
+  getBrands,
+  getProductRail,
+  getProductTypes,
+} from '@/server/queries/catalogue';
+import { getPriceRange } from '@/server/queries/site';
+import { priceBands } from '@/lib/domain/price-bands';
+import { formatIqd } from '@/lib/money';
 import type { Locale } from '@/i18n/routing';
 import { RAIL_SIZE } from '@/config/ui';
 
@@ -35,15 +43,20 @@ export default async function HomePage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const [t, tCommon, featured, newArrivals, bestSellers, brands, types] =
+  const [t, tCommon, featured, newArrivals, bestSellers, brands, types, range] =
     await Promise.all([
       getTranslations('home'),
       getTranslations('common'),
       getProductRail('isFeatured', RAIL_SIZE),
       getProductRail('isNewArrival', RAIL_SIZE),
-      getProductRail('isBestSeller', RAIL_SIZE),
-      getBrands(),
+      // Real deliveries, not a flag somebody ticked: a section headed "best
+      // sellers" is a claim about what customers bought (§13.12).
+      getBestSellerRail(RAIL_SIZE),
+      // Only brands with something to sell — a shortcut to an empty catalogue
+      // is a dead end. `/brands` still lists every one of them.
+      getBrands({ withProductsOnly: true }),
       getProductTypes(),
+      getPriceRange(),
     ]);
 
   const isRtl = (locale as Locale) === 'ar';
@@ -54,6 +67,14 @@ export default async function HomePage({
     tablet: <Tablet />,
     accessory: <Cable />,
   };
+
+  /*
+    Budget brackets computed from the catalogue's real minimum and maximum, by
+    the same pure function `/guides` uses. Not a recommendation engine and not
+    a claim about value: three links into filters that already exist, which is
+    the question a phone shopper actually opens with.
+  */
+  const bands = range ? priceBands(range.min, range.max, 3) : [];
 
   return (
     <>
@@ -77,30 +98,69 @@ export default async function HomePage({
                 <Link href="/guides">{t('heroCtaSecondary')}</Link>
               </Button>
             </div>
+
+            {/*
+              Types as chips rather than three large cards. The cards repeated
+              the header's own links at the size of a hero image and pushed
+              every product below the fold on a laptop; the same links this
+              size leave the first screen for what is actually being sold.
+            */}
+            <ul className="mt-6 flex flex-wrap gap-2">
+              {types.map((type) => (
+                <li key={type.key}>
+                  <Link
+                    href={`/products?type=${type.key}`}
+                    className="inline-flex items-center gap-2 rounded-control border border-border bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-border-strong hover:bg-surface [&_svg]:size-4"
+                  >
+                    {typeIcons[type.key] ?? <Smartphone />}
+                    {isRtl ? type.nameAr : type.nameEn}
+                    <span className="text-xs text-subtle numeric">
+                      {type._count.products}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Shop-by-type tiles double as the hero's visual weight, which keeps
-              the first screen useful instead of decorative. */}
-          <ul className="grid grid-cols-3 gap-3 lg:justify-self-end">
-            {types.map((type) => (
-              <li key={type.key}>
-                <Link
-                  href={`/products?type=${type.key}`}
-                  className="flex h-full flex-col items-center gap-3 rounded-panel border border-border bg-canvas p-5 text-center transition-colors hover:border-border-strong hover:bg-surface"
-                >
-                  <span className="grid size-11 place-items-center rounded-full bg-surface text-ink [&_svg]:size-5">
-                    {typeIcons[type.key] ?? <Smartphone />}
-                  </span>
-                  <span className="text-sm font-semibold text-ink">
-                    {isRtl ? type.nameAr : type.nameEn}
-                  </span>
-                  <span className="text-xs text-subtle numeric">
-                    {type._count.products}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {/* --------------------------------------------- shop by budget */}
+          {bands.length > 0 && (
+            <div className="rounded-panel border border-border bg-canvas p-5 lg:justify-self-end lg:p-6">
+              <h2 className="text-sm font-semibold text-ink">{t('budgetTitle')}</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {t('budgetHint')}
+              </p>
+              <ul className="mt-4 space-y-2">
+                {bands.map((band) => (
+                  <li key={`${band.min}-${band.max ?? 'up'}`}>
+                    <Link
+                      href={
+                        band.max === null
+                          ? `/products?min=${band.min}`
+                          : `/products?min=${band.min}&max=${band.max}`
+                      }
+                      className="flex items-center justify-between gap-3 rounded-control border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-border-strong"
+                    >
+                      <span className="numeric">
+                        {band.max === null
+                          ? t('budgetFrom', {
+                              min: formatIqd(band.min, locale as Locale),
+                            })
+                          : t('budgetRange', {
+                              min: formatIqd(band.min, locale as Locale),
+                              max: formatIqd(band.max, locale as Locale),
+                            })}
+                      </span>
+                      <Arrow
+                        className="size-4 shrink-0 text-subtle"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 
@@ -111,16 +171,22 @@ export default async function HomePage({
             icon={<BadgeCheck />}
             title={t('trustGenuineTitle')}
             body={t('trustGenuineBody')}
+            href="/about"
+            linkLabel={t('trustGenuineLink')}
           />
           <TrustItem
             icon={<ShieldCheck />}
             title={t('trustWarrantyTitle')}
             body={t('trustWarrantyBody')}
+            href="/about"
+            linkLabel={t('trustWarrantyLink')}
           />
           <TrustItem
             icon={<Truck />}
             title={t('trustDeliveryTitle')}
             body={t('trustDeliveryBody')}
+            href="/about"
+            linkLabel={t('trustDeliveryLink')}
           />
         </ul>
       </section>
@@ -140,7 +206,9 @@ export default async function HomePage({
           <h2 className="mb-5 text-lg font-bold text-ink sm:text-xl">
             {t('shopByBrand')}
           </h2>
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {/* auto-fit rather than a fixed column count: with seven brands the
+              six-column grid left the seventh alone on its own row. */}
+          <ul className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
             {brands.map((brand) => (
               <li key={brand.slug}>
                 <Link
@@ -171,12 +239,16 @@ export default async function HomePage({
         products={newArrivals}
       />
 
-      <ProductRail
-        title={t('bestSellers')}
-        href="/products?sort=best_selling"
-        linkLabel={tCommon('viewAll')}
-        products={bestSellers}
-      />
+      {/* Nothing delivered yet means no best sellers — an empty shelf under
+          that heading would be the shop inventing a sales figure (§13.12). */}
+      {bestSellers.length > 0 && (
+        <ProductRail
+          title={t('bestSellers')}
+          href="/products?sort=best_selling"
+          linkLabel={tCommon('viewAll')}
+          products={bestSellers}
+        />
+      )}
 
       {/* ------------------------------------------------------- final CTA */}
       <section className="container-page pt-6 pb-16">
@@ -187,12 +259,22 @@ export default async function HomePage({
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/70">
             {t('finalCtaBody')}
           </p>
-          <Button size="lg" className="mt-7" asChild>
-            <Link href="/products">
-              {t('heroCta')}
-              <Arrow aria-hidden="true" />
-            </Link>
-          </Button>
+          {/*
+            Not a second copy of the hero's browse button: somebody who has
+            scrolled the whole page past three rails has already seen the
+            catalogue. What they have not seen is a way to ask.
+          */}
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button size="lg" asChild>
+              <Link href="/guides">
+                {t('finalCtaGuides')}
+                <Arrow aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/contact">{t('finalCtaContact')}</Link>
+            </Button>
+          </div>
         </div>
       </section>
     </>
@@ -250,14 +332,26 @@ async function ProductRail({
   );
 }
 
+/**
+ * One trust claim, and where to go and check it.
+ *
+ * A promise with nowhere to read the detail is a slogan. Each of the three now
+ * carries a link to the page that actually says something — the delivery fee
+ * table's own explanation, the warranty terms — so the bar answers "how do you
+ * know?" instead of asserting it.
+ */
 function TrustItem({
   icon,
   title,
   body,
+  href,
+  linkLabel,
 }: {
   icon: React.ReactNode;
   title: string;
   body: string;
+  href: '/about' | '/contact' | '/guides';
+  linkLabel: string;
 }) {
   return (
     <li className="flex gap-4">
@@ -267,6 +361,12 @@ function TrustItem({
       <div>
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
         <p className="mt-1 text-sm leading-relaxed text-muted">{body}</p>
+        <Link
+          href={href}
+          className="mt-1.5 inline-block text-xs font-medium text-ink underline underline-offset-2 hover:text-primary"
+        >
+          {linkLabel}
+        </Link>
       </div>
     </li>
   );

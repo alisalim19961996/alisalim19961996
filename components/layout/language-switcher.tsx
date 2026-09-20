@@ -55,7 +55,18 @@ export function LanguageSwitcher({ className }: { className?: string }) {
               isActive ? 'bg-ink text-white' : 'text-muted hover:text-ink',
             )}
           >
-            {localeShortLabel[locale]}
+            {/*
+              The full name where there is room, the short one where there is
+              not. A single Arabic letter on its own is a guess for anybody
+              who does not already read Arabic, and the phone header carries
+              thirteen controls (§9),
+              so the two spellings sit behind a breakpoint rather than one of
+              them winning everywhere. Two elements rather than one class
+              string: a `hidden` appended to a template literal that already
+              carries a display utility hides nothing (§17).
+            */}
+            <span className="sm:hidden">{localeShortLabel[locale]}</span>
+            <span className="hidden sm:inline">{localeLabel[locale]}</span>
             <span className="sr-only"> — {localeLabel[locale]}</span>
           </button>
         );
