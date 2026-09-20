@@ -115,7 +115,10 @@
     "new": "جديد",
     "galleryImage": "صورة {number}",
     "galleryVideo": "فيديو {number}",
-    "startingFrom": "يبدأ من"
+    "startingFrom": "يبدأ من",
+    "deliveryTo": "التوصيل إلى",
+    "deliveryPickGovernorate": "اختر المحافظة",
+    "deliveryEtaDays": "خلال {min}–{max} يوم"
   },
   "cart": {
     "title": "سلة التسوق",

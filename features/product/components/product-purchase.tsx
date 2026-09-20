@@ -1,5 +1,6 @@
 'use client';
 
+import { DeliveryEstimate } from './delivery-estimate';
 import { MobileBuyBar } from './mobile-buy-bar';
 import {
   useVariantSelection,
@@ -28,11 +29,16 @@ export function ProductPurchase({
   options,
   variants,
   name,
+  governorates,
+  warranty,
 }: {
   options: PickerOption[];
   variants: PickerVariant[];
   /** For the bar's one line of context, since it scrolls past the heading. */
   name: string;
+  governorates: readonly string[];
+  /** Rendered here so warranty and delivery sit together, beside the price. */
+  warranty: React.ReactNode;
 }) {
   const selection = useVariantSelection(options, variants);
   const { selected, purchasable } = selection;
@@ -40,6 +46,21 @@ export function ProductPurchase({
   return (
     <>
       <VariantPicker options={options} variants={variants} selection={selection} />
+
+      {/*
+        Warranty and delivery in one box, under the buttons. The box used to
+        hold the warranty and the product's CATEGORY, which the breadcrumb
+        already says two lines above and which nobody decides a purchase on.
+        The estimate needs the selected variant's price, which only this
+        component knows — which is why it renders here rather than in the page.
+      */}
+      <dl className="mt-2 grid gap-3 rounded-card border border-border bg-surface p-4 text-sm sm:grid-cols-2">
+        {warranty}
+        <DeliveryEstimate
+          governorates={governorates}
+          subtotalIqd={selected?.priceIqd ?? 0}
+        />
+      </dl>
 
       {selected && (
         <MobileBuyBar

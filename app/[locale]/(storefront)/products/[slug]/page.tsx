@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Check, ChevronLeft, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ShieldCheck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductGallery } from '@/features/product/components/product-gallery';
 import { ProductPurchase } from '@/features/product/components/product-purchase';
@@ -19,6 +19,7 @@ import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
 import { jsonLdScript } from '@/lib/seo';
+import { GOVERNORATE_VALUES } from '@/schemas/checkout';
 import {
   KeyFeatureList,
   PointList,
@@ -109,7 +110,6 @@ export default async function ProductPage({
   const warrantyNote = isAr ? product.warrantyNoteAr : product.warrantyNoteEn;
   const thingsToKnow = isAr ? product.thingsToKnowAr : product.thingsToKnowEn;
   const brandName = isAr ? product.brand.nameAr : product.brand.nameEn;
-  const categoryName = isAr ? product.category.nameAr : product.category.nameEn;
 
   // Which rows this table has is decided by the product's type, not by this
   // file: a tablet shows stylus support and no NFC, a cable shows neither.
@@ -174,6 +174,26 @@ export default async function ProductPage({
                 options={product.options}
                 variants={pickerVariants}
                 name={name}
+                governorates={GOVERNORATE_VALUES}
+                warranty={
+                  <div className="flex items-start gap-2.5">
+                    <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
+                    <div>
+                      <dt className="text-xs text-subtle">{t('warranty')}</dt>
+                      <dd className="font-medium text-ink">
+                        {t('warrantyMonths', { count: product.warrantyMonths })}
+                      </dd>
+                      {/* The product's own note qualifies the months, so it
+                          sits under them rather than in a section nobody
+                          scrolls to. */}
+                      {warrantyNote && (
+                        <dd className="mt-0.5 text-xs leading-relaxed text-muted">
+                          {warrantyNote}
+                        </dd>
+                      )}
+                    </div>
+                  </div>
+                }
               />
             </div>
 
@@ -187,37 +207,20 @@ export default async function ProductPage({
             </div>
 
             <KeyFeatureList features={keyFeatures} />
-
-            <dl className="mt-8 grid gap-3 rounded-card border border-border bg-surface p-4 text-sm sm:grid-cols-2">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="size-4 shrink-0 text-success" />
-                <div>
-                  <dt className="text-xs text-subtle">{t('warranty')}</dt>
-                  <dd className="font-medium text-ink">
-                    {t('warrantyMonths', { count: product.warrantyMonths })}
-                  </dd>
-                  {/* The product's own note qualifies the months, so it sits
-                      under them rather than in a section nobody scrolls to. */}
-                  {warrantyNote && (
-                    <dd className="mt-0.5 text-xs leading-relaxed text-muted">
-                      {warrantyNote}
-                    </dd>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Check className="size-4 shrink-0 text-success" />
-                <div>
-                  <dt className="text-xs text-subtle">{t('category')}</dt>
-                  <dd className="font-medium text-ink">{categoryName}</dd>
-                </div>
-              </div>
-            </dl>
           </div>
         </div>
 
-        <div className="mt-14 grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
-          <div className="space-y-12">
+        {/*
+          Editorial content first, at full width, then the specifications.
+
+          The two used to sit side by side, a tall narrow specification column
+          against short prose — which §15 carried as "whitespace on sparse
+          products" and which is really the wrong shape: a 380px column makes a
+          twenty-row table twice as long as it needs to be, and leaves the
+          content beside it ending halfway up. One column each, in order.
+        */}
+        <div className="mt-14 space-y-14">
+          <div className="max-w-3xl space-y-12">
             {overview && (
               <Section title={t('overview')}>
                 <p className="text-[15px] leading-relaxed text-muted">{overview}</p>
@@ -250,9 +253,18 @@ export default async function ProductPage({
 
           {specGroups.length > 0 && (
             <Section title={t('specifications')}>
-              <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
+              {/*
+                Groups beside each other where there is room. Each is a small
+                self-contained table, so two columns halve the page's length
+                without making any single row harder to read; one column on a
+                phone, where side by side would mean four words per line.
+              */}
+              <div className="grid gap-4 md:grid-cols-2">
                 {specGroups.map((group) => (
-                  <div key={group.key} className="p-4">
+                  <div
+                    key={group.key}
+                    className="rounded-card border border-border bg-surface p-4"
+                  >
                     <h3 className="mb-3 text-xs font-semibold tracking-wide text-subtle uppercase">
                       {group.name}
                     </h3>

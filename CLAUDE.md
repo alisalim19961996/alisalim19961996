@@ -545,7 +545,18 @@ mobile buy bar), `MobileNav`, `LanguageSwitcher` (preserves path **and** query),
   stops to ask again is "add to cart" with a longer name.
 - `ProductGallery` — client; images + videos in one strip, player created on
   click only.
-- `MobileBuyBar` — client; appears after 520px of scroll, `lg:hidden`.
+- `MobileBuyBar` — client; appears after 520px of scroll, `lg:hidden`, and
+  pads to `env(safe-area-inset-bottom)` so it clears a notched phone's home
+  indicator instead of sitting under it.
+- `DeliveryEstimate` — client, inside `ProductPurchase` because it needs the
+  selected variant's price. The box beside the buy controls used to hold the
+  warranty and the product's CATEGORY — which the breadcrumb says two lines
+  above and which nobody decides a purchase on — while the delivery fee first
+  appeared at checkout, after the address. It loads after hydration: the page
+  is prerendered and the fee depends on a governorate this visitor has not
+  chosen, so there is nothing to render on the server and reading a cookie to
+  guess would turn all 32 product pages dynamic (§8). The figure comes from
+  `quoteDeliveryFor`, the same function that prices the order.
 
 **Wishlist** — `features/wishlist/`: `WishlistButton` (the heart, in an icon
 shape for a card and a labelled one beside add-to-cart), `WishlistRefresher`
@@ -979,6 +990,20 @@ that put a rate limit on tracking; tracking was hardened and this was not.
 
 Payment is COD only today, behind `PaymentMethod`, so an Iraqi gateway can be
 added without touching order code.
+
+**The product page reads in the order a decision is made**: name, price,
+availability, variant, key features, buttons, then warranty and delivery
+together. Specifications used to sit in a 380px column beside the prose, which
+made a twenty-row table twice as long as it needed to be and left the content
+next to it ending halfway up — §15 carried that as "whitespace on sparse
+products" when it was really the wrong shape. Content is full width now and
+specifications follow it, two groups abreast where there is room.
+
+**A colour swatch names nothing.** The picker's legend carries the chosen
+value — "Colour: Midnight" — because a circle cannot be read aloud and cannot
+be told from another circle. An unreachable combination is struck through and
+announced as out of stock rather than only dimmed: 40% opacity reads as a weak
+button, and reads as nothing at all to somebody who cannot see the difference.
 
 **Editing the catalogue** — `server/services/admin-products.ts`, with the pure
 parts in `lib/domain/product.ts`. One transaction per save; a product whose
@@ -1641,27 +1666,26 @@ else. The tick was labelled "active", which reads as the opposite; it says
 governorate off entirely would be a new column and a new refusal at checkout —
 a business decision for the owner, not a rename.
 
-| Item                                               | Impact                                                                                                                                  | Plan                                                        |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| e2e covers the flows, not the filters              | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
-| Rate limiting is in process                        | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
-| No cache layer, deliberately                       | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
-| Uploaded images are never deleted from storage     | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
-| No image resizing or thumbnails on upload          | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
-| A coupon's per-user limit does not bind a guest    | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
-| `Offer` is schema-only                             | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
-| Attribute _groups_ are still seed-only             | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
-| No address book or profile editing                 | The account shows details and orders; changing them means getting in touch                                                              | Phase 5.5                                                   |
-| Staff cannot be invited, only promoted             | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
-| Demo admin password is still the weak default      | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
-| `server/db/seed-data/products.ts` is ~1050 lines   | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
-| A save lost to an instant navigation               | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
-| No rating on a product card                        | A line rendered only for products that have a rating makes cards different heights — the bug `check:layout` exists for                  | Revisit when most products have reviews (§12)               |
-| No "highest rated" sort                            | One five-star review would outrank fifty averaging 4.8                                                                                  | Needs a weighted average, which needs reviews (§12)         |
-| Compare ticks are per browser                      | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
-| Mail is built but unconfigured                     | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
-| Product page spec column is tall vs. short content | Whitespace on sparse products                                                                                                           | Consider sticky panel                                       |
-| `as unknown` × 1, `eslint-disable` × 2             | All documented and justified                                                                                                            | Keep                                                        |
+| Item                                             | Impact                                                                                                                                  | Plan                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| e2e covers the flows, not the filters            | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
+| Rate limiting is in process                      | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
+| No cache layer, deliberately                     | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
+| Uploaded images are never deleted from storage   | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
+| No image resizing or thumbnails on upload        | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
+| A coupon's per-user limit does not bind a guest  | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
+| `Offer` is schema-only                           | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
+| Attribute _groups_ are still seed-only           | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
+| No address book or profile editing               | The account shows details and orders; changing them means getting in touch                                                              | Phase 5.5                                                   |
+| Staff cannot be invited, only promoted           | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
+| Demo admin password is still the weak default    | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
+| `server/db/seed-data/products.ts` is ~1050 lines | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
+| A save lost to an instant navigation             | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
+| No rating on a product card                      | A line rendered only for products that have a rating makes cards different heights — the bug `check:layout` exists for                  | Revisit when most products have reviews (§12)               |
+| No "highest rated" sort                          | One five-star review would outrank fifty averaging 4.8                                                                                  | Needs a weighted average, which needs reviews (§12)         |
+| Compare ticks are per browser                    | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
+| Mail is built but unconfigured                   | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
+| `as unknown` × 1, `eslint-disable` × 2           | All documented and justified                                                                                                            | Keep                                                        |
 
 **Zero `any`. Zero type suppressions.**
 

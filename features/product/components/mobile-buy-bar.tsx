@@ -81,7 +81,9 @@ export function MobileBuyBar({
         aria-hidden={!visible}
         inert={!visible}
       >
-        <div className="container-page flex items-center gap-3 py-3">
+        {/* `env(safe-area-inset-bottom)` so the bar clears the home indicator
+            on a notched phone rather than sitting under it. */}
+        <div className="container-page flex items-center gap-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-muted">{name}</p>
             <ProductPrice

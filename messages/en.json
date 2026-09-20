@@ -115,7 +115,10 @@
     "new": "New",
     "galleryImage": "Image {number}",
     "galleryVideo": "Video {number}",
-    "startingFrom": "From"
+    "startingFrom": "From",
+    "deliveryTo": "Delivery to",
+    "deliveryPickGovernorate": "Choose a governorate",
+    "deliveryEtaDays": "in {min}–{max} days"
   },
   "cart": {
     "title": "Shopping cart",

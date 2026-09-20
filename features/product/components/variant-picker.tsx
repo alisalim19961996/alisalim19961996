@@ -146,6 +146,13 @@ export function VariantPicker({
 
   const { selected, selectedIds, choose, availability, purchasable } = selection;
 
+  /** The name of the value currently chosen for this option, for the legend. */
+  function chosenValueLabel(option: PickerOption): string | null {
+    const value = option.values.find((entry) => selectedIds.includes(entry.id));
+    if (!value) return null;
+    return isAr ? value.valueAr : value.valueEn;
+  }
+
   /** Would choosing this value still leave a real variant to buy? */
   function isReachable(optionId: string, valueId: string): boolean {
     const others = selectedIds.filter(
@@ -172,8 +179,19 @@ export function VariantPicker({
 
       {options.map((option) => (
         <fieldset key={option.id}>
+          {/*
+            The option's name AND the value chosen. A colour swatch on its own
+            names nothing — the shopper can see a circle and cannot tell
+            "Midnight" from "Black", and neither can anybody reading the page
+            aloud. The tick on the swatch says which, this says what.
+          */}
           <legend className="mb-2.5 text-xs font-semibold tracking-wide text-subtle uppercase">
             {isAr ? option.nameAr : option.nameEn}
+            {chosenValueLabel(option) && (
+              <span className="ms-1.5 text-ink normal-case">
+                {chosenValueLabel(option)}
+              </span>
+            )}
           </legend>
 
           <div className="flex flex-wrap gap-2">
@@ -189,8 +207,11 @@ export function VariantPicker({
                     type="button"
                     onClick={() => choose(option.id, value.id)}
                     aria-pressed={active}
-                    aria-label={label}
-                    title={label}
+                    // The unavailable state is announced, not only dimmed:
+                    // 40% opacity reads as a weak button rather than as a
+                    // combination that does not exist.
+                    aria-label={reachable ? label : `${label} — ${t('outOfStock')}`}
+                    title={reachable ? label : `${label} — ${t('outOfStock')}`}
                     className={cn(
                       'relative grid size-9 place-items-center rounded-full border-2 transition-colors',
                       active ? 'border-ink' : 'border-border',
@@ -217,12 +238,16 @@ export function VariantPicker({
                   type="button"
                   onClick={() => choose(option.id, value.id)}
                   aria-pressed={active}
+                  aria-label={reachable ? undefined : `${label} — ${t('outOfStock')}`}
                   className={cn(
                     'rounded-control border px-3.5 py-2 text-sm font-medium numeric transition-colors',
                     active
                       ? 'border-ink bg-ink text-white'
                       : 'border-border bg-surface text-ink hover:border-border-strong',
-                    !reachable && 'opacity-40',
+                    // Struck through as well as dimmed: the strike says "this
+                    // does not exist" where opacity alone says "weak button",
+                    // and it survives a colour-blind reader.
+                    !reachable && 'text-muted line-through opacity-60',
                   )}
                 >
                   {label}
