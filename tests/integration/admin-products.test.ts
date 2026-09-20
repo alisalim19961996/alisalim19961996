@@ -38,8 +38,13 @@ vi.mock('@/server/auth/guards', () => ({
 }));
 
 const { db } = await import('@/server/db/client');
-const { createProduct, deleteProduct, updateProduct, ProductAdminError } =
-  await import('@/server/services/admin-products');
+const {
+  createProduct,
+  deleteProduct,
+  setProductPublished,
+  updateProduct,
+  ProductAdminError,
+} = await import('@/server/services/admin-products');
 const { placeOrder } = await import('@/server/services/order');
 const { productFormSchema } = await import('@/schemas/product');
 
@@ -648,5 +653,77 @@ describe('option values with the same name in different options', () => {
     expect(linked).toHaveLength(2);
     expect(linked).toContain(editionStandard?.id);
     expect(linked).toContain(warrantyStandard?.id);
+  });
+});
+
+/**
+ * Publishing asks more of a product than saving a draft does.
+ *
+ * `setProductPublished` flipped a boolean with no check at all, so a product
+ * with no active variant — nothing to add to a cart, no price to print — went
+ * live from the list with one click and rendered a card whose button did
+ * nothing. Unpublishing stays unconditional: taking something off the shop
+ * floor has to work whatever state it is in.
+ */
+describe('publishing validation', () => {
+  it('refuses to publish a product whose only variant is inactive', async () => {
+    const slug = `unpublishable-${SUFFIX}`;
+    const { id } = await create(slug, { isPublished: false });
+
+    await db.productVariant.updateMany({
+      where: { productId: id },
+      data: { isActive: false },
+    });
+
+    await expect(setProductPublished(id, true)).rejects.toMatchObject({
+      code: 'notPublishable',
+      field: 'publishNeedsVariant',
+    });
+
+    const after = await db.product.findUniqueOrThrow({
+      where: { id },
+      select: { isPublished: true },
+    });
+    expect(after.isPublished).toBe(false);
+  });
+
+  it('leaves a zero price to the database, which refuses it outright', async () => {
+    // The other candidate for a publish blocker, and it is unreachable: the
+    // `variant_price_positive` CHECK refuses the row long before publishing is
+    // considered. Asserting that here is what keeps the rule out of the code.
+    const { id } = await create(`freeproduct-${SUFFIX}`, { isPublished: false });
+
+    await expect(
+      db.productVariant.updateMany({ where: { productId: id }, data: { priceIqd: 0 } }),
+    ).rejects.toThrow(/variant_price_positive/);
+  });
+
+  it('publishes a product that has something to sell', async () => {
+    const { id } = await create(`publishable-${SUFFIX}`, { isPublished: false });
+
+    await setProductPublished(id, true);
+
+    const after = await db.product.findUniqueOrThrow({
+      where: { id },
+      select: { isPublished: true, publishedAt: true },
+    });
+    expect(after.isPublished).toBe(true);
+    expect(after.publishedAt).not.toBeNull();
+  });
+
+  it('never blocks unpublishing, whatever state the product is in', async () => {
+    const { id } = await create(`takedown-${SUFFIX}`, { isPublished: true });
+    await db.productVariant.updateMany({
+      where: { productId: id },
+      data: { isActive: false },
+    });
+
+    await setProductPublished(id, false);
+
+    const after = await db.product.findUniqueOrThrow({
+      where: { id },
+      select: { isPublished: true },
+    });
+    expect(after.isPublished).toBe(false);
   });
 });

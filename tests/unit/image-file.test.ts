@@ -28,20 +28,88 @@ const concat = (...parts: Uint8Array[]) => {
 /** Pad so a signature test is not accidentally passing on length alone. */
 const padded = (head: Uint8Array) => concat(head, new Uint8Array(64));
 
+/*
+  Fixtures with real HEADERS, not just signatures.
+
+  The four format tests below used to hand over three or eight bytes and a run
+  of zeros, and they passed — which is exactly the hole the audit found: `FF D8
+  FF` alone was accepted as a JPEG, stored in the bucket, and rendered on a
+  product page as a broken image. So the fixtures now carry the part of the
+  header that says how big the picture is, because that is what the module
+  reads. A test that asserts the old behaviour is a test that defends the bug.
+*/
+
+/** SOI, a JFIF APP0 segment, then an SOF0 frame declaring the size. */
+function jpegBytes(width = 1200, height = 1500): Uint8Array {
+  return concat(
+    bytes(0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10),
+    new Uint8Array(14),
+    bytes(
+      0xff,
+      0xc0,
+      0x00,
+      0x11,
+      0x08,
+      (height >> 8) & 0xff,
+      height & 0xff,
+      (width >> 8) & 0xff,
+      width & 0xff,
+    ),
+    new Uint8Array(200),
+  );
+}
+
+/** The 8-byte signature, then an IHDR chunk carrying the dimensions. */
+function pngBytes(width = 800, height = 600): Uint8Array {
+  return concat(
+    bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d),
+    ascii('IHDR'),
+    bytes(
+      (width >>> 24) & 0xff,
+      (width >>> 16) & 0xff,
+      (width >>> 8) & 0xff,
+      width & 0xff,
+      (height >>> 24) & 0xff,
+      (height >>> 16) & 0xff,
+      (height >>> 8) & 0xff,
+      height & 0xff,
+    ),
+    new Uint8Array(100),
+  );
+}
+
+/** A RIFF/WEBP container holding a lossy VP8 frame of a stated size. */
+function webpBytes(width = 640, height = 480): Uint8Array {
+  return concat(
+    ascii('RIFF'),
+    bytes(0, 0, 0, 0),
+    ascii('WEBP'),
+    ascii('VP8 '),
+    bytes(0, 0, 0, 0),
+    // Frame tag and the start code, then the two 14-bit size fields.
+    bytes(0x00, 0x00, 0x00, 0x9d, 0x01, 0x2a),
+    bytes(width & 0xff, (width >> 8) & 0x3f, height & 0xff, (height >> 8) & 0x3f),
+    new Uint8Array(64),
+  );
+}
+
+/** AVIF's dimensions live in a nested box this module deliberately does not
+ *  walk, so the fixture only has to be long enough to be a real file. */
+const avifBytes = () =>
+  concat(bytes(0, 0, 0, 0x20), ascii('ftyp'), ascii('avif'), new Uint8Array(200));
+
 describe('inspectImageBytes', () => {
   it('accepts a JPEG by its SOI marker', () => {
-    const result = inspectImageBytes(padded(bytes(0xff, 0xd8, 0xff, 0xe0)));
+    const result = inspectImageBytes(jpegBytes());
     expect(result).toMatchObject({ ok: true, format: 'jpeg', extension: 'jpg' });
   });
 
   it('accepts a PNG by its full signature', () => {
-    const png = padded(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a));
-    expect(inspectImageBytes(png)).toMatchObject({ ok: true, format: 'png' });
+    expect(inspectImageBytes(pngBytes())).toMatchObject({ ok: true, format: 'png' });
   });
 
   it('accepts a WebP by its RIFF form type, not just by RIFF', () => {
-    const webp = padded(concat(ascii('RIFF'), bytes(0, 0, 0, 0), ascii('WEBP')));
-    expect(inspectImageBytes(webp)).toMatchObject({ ok: true, format: 'webp' });
+    expect(inspectImageBytes(webpBytes())).toMatchObject({ ok: true, format: 'webp' });
 
     // A RIFF container that is not WebP (a WAV, say) must not sneak through.
     const wav = padded(concat(ascii('RIFF'), bytes(0, 0, 0, 0), ascii('WAVE')));
@@ -52,8 +120,7 @@ describe('inspectImageBytes', () => {
   });
 
   it('accepts AVIF by its ftyp brand', () => {
-    const avif = padded(concat(bytes(0, 0, 0, 0x20), ascii('ftyp'), ascii('avif')));
-    expect(inspectImageBytes(avif)).toMatchObject({ ok: true, format: 'avif' });
+    expect(inspectImageBytes(avifBytes())).toMatchObject({ ok: true, format: 'avif' });
 
     // Another ISO-BMFF brand — an MP4 — is not an image.
     const mp4 = padded(concat(bytes(0, 0, 0, 0x20), ascii('ftyp'), ascii('isom')));
@@ -135,5 +202,84 @@ describe('storageObjectPath', () => {
     expect(storageObjectPath({ slug: '؟؟؟', extension: 'webp', random: 'q1' })).toBe(
       'product/q1.webp',
     );
+  });
+});
+
+/**
+ * A signature is three bytes, and three bytes was all it took.
+ *
+ * A file containing exactly `FF D8 FF` was accepted as a JPEG, stored in the
+ * bucket and attached to a product, where it rendered as a broken image. The
+ * signature says what a file CLAIMS to be; the header's dimensions say whether
+ * there is a picture in it.
+ */
+describe('a signature is not a picture', () => {
+  it('refuses three bytes that merely start like a JPEG', () => {
+    // The exact case the audit found.
+    const result = inspectImageBytes(new Uint8Array([0xff, 0xd8, 0xff]));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('uploadCorruptImage');
+  });
+
+  it('refuses a JPEG signature followed by padding and no frame', () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, ...new Array(500).fill(0)]);
+    const result = inspectImageBytes(bytes);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('uploadCorruptImage');
+  });
+
+  it('refuses a PNG signature with no IHDR behind it', () => {
+    const bytes = new Uint8Array([
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a,
+      ...new Array(100).fill(0),
+    ]);
+    const result = inspectImageBytes(bytes);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('uploadCorruptImage');
+  });
+
+  it('accepts a real JPEG header and reports its size', () => {
+    const result = inspectImageBytes(jpegBytes(1200, 1500));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.format).toBe('jpeg');
+      expect(result.dimensions).toEqual({ width: 1200, height: 1500 });
+    }
+  });
+
+  it('accepts a real PNG header and reports its size', () => {
+    const result = inspectImageBytes(pngBytes(800, 600));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.dimensions).toEqual({ width: 800, height: 600 });
+  });
+
+  it('refuses a picture too small to be a photograph', () => {
+    // A 1×1 tracking pixel is a valid PNG and not a product photograph.
+    const result = inspectImageBytes(pngBytes(1, 1));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('uploadCorruptImage');
+  });
+
+  it('refuses a decompression bomb by its declared pixel count', () => {
+    // 60,000 × 60,000 is 3.6 gigapixels in a header of twenty-odd bytes.
+    const result = inspectImageBytes(pngBytes(60_000, 60_000));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('uploadTooLarge');
+  });
+
+  it('still refuses a renamed SVG before any of this', () => {
+    // The original rule, unchanged: the reason must stay specific, because
+    // "unsupported file" sends the owner back with the same file.
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const result = inspectImageBytes(svg);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('imageSvgRefused');
   });
 });

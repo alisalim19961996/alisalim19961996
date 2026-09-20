@@ -966,6 +966,28 @@ parts in `lib/domain/product.ts`. One transaction per save; a product whose
 variants were written but whose specifications were not would render an empty
 spec table with nothing to say it failed.
 
+- **The product page renders only the specifications its TYPE still declares.**
+  Unlinking an attribute hides the form field and keeps the stored value on
+  purpose, so re-linking is lossless — but the page read every stored value, so
+  an unlinked specification went on showing with no way to edit or remove it.
+  The type's current links come back in the same query and filter the rows;
+  nothing is deleted.
+- **Publishing asks more than saving a draft does.** `setProductPublished`
+  flipped a boolean with no check at all, so a product with no active variant —
+  nothing to add to a cart, no price to print — went live from the list with one
+  click and rendered a card whose button did nothing. `publishBlockers()` is
+  pure and answers for both paths. It deliberately says nothing about STOCK: MPS
+  sells on status (§13.2), so an out-of-stock or preorder product is a perfectly
+  good published one. It says nothing about a zero price either — the
+  `variant_price_positive` CHECK refuses that row long before publishing is
+  considered, and an integration test proves it by trying, which is what keeps
+  an unreachable rule out of the code.
+- **An empty number input is MISSING, not zero.** `z.coerce.number()` runs
+  `Number(value)` and `Number('')` is 0, so clearing the price box made the
+  variant free and clearing the warranty box made it a zero-month warranty —
+  both saved silently, because the result is a valid number. Blank is turned
+  into `undefined` first, so a default applies where there is one and `required`
+  fires where there is not. A deliberate 0 still means 0.
 - **Specifications are routed by their own definition.** `parseAttributeValue`
   decides which of the five typed columns a value lands in, from the
   `AttributeDefinition.type`. A key the chosen product type does not declare is

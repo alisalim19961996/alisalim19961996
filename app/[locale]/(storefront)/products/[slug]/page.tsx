@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Check, ChevronLeft, Minus, ShieldCheck } from 'lucide-react';
+import { Check, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { ProductGallery } from '@/features/product/components/product-gallery';
 import { ProductPurchase } from '@/features/product/components/product-purchase';
@@ -19,6 +19,11 @@ import { publicEnv } from '@/config/env';
 import type { Locale } from '@/i18n/routing';
 import { routing } from '@/i18n/routing';
 import { jsonLdScript } from '@/lib/seo';
+import {
+  KeyFeatureList,
+  PointList,
+  Section,
+} from '@/features/product/components/product-content';
 
 /**
  * Product detail.
@@ -94,6 +99,15 @@ export default async function ProductPage({
   const pros = isAr ? product.prosAr : product.prosEn;
   const cons = isAr ? product.consAr : product.consEn;
   const whoIsItFor = isAr ? product.whoIsItForAr : product.whoIsItForEn;
+  /*
+    Three things the dashboard has always saved and the page never showed: the
+    key features, the warranty's own note, and "things to know". They belong
+    beside the buy decision rather than at the bottom — a warranty note that
+    qualifies the months is useless below the specifications table.
+  */
+  const keyFeatures = isAr ? product.keyFeaturesAr : product.keyFeaturesEn;
+  const warrantyNote = isAr ? product.warrantyNoteAr : product.warrantyNoteEn;
+  const thingsToKnow = isAr ? product.thingsToKnowAr : product.thingsToKnowEn;
   const brandName = isAr ? product.brand.nameAr : product.brand.nameEn;
   const categoryName = isAr ? product.category.nameAr : product.category.nameEn;
 
@@ -172,6 +186,8 @@ export default async function ProductPage({
               <WishlistButton productId={product.id} variant="labelled" />
             </div>
 
+            <KeyFeatureList features={keyFeatures} />
+
             <dl className="mt-8 grid gap-3 rounded-card border border-border bg-surface p-4 text-sm sm:grid-cols-2">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="size-4 shrink-0 text-success" />
@@ -180,6 +196,13 @@ export default async function ProductPage({
                   <dd className="font-medium text-ink">
                     {t('warrantyMonths', { count: product.warrantyMonths })}
                   </dd>
+                  {/* The product's own note qualifies the months, so it sits
+                      under them rather than in a section nobody scrolls to. */}
+                  {warrantyNote && (
+                    <dd className="mt-0.5 text-xs leading-relaxed text-muted">
+                      {warrantyNote}
+                    </dd>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
@@ -213,6 +236,14 @@ export default async function ProductPage({
             {whoIsItFor && (
               <Section title={t('whoIsItFor')}>
                 <p className="text-[15px] leading-relaxed text-muted">{whoIsItFor}</p>
+              </Section>
+            )}
+
+            {thingsToKnow && (
+              <Section title={t('thingsToKnow')}>
+                <p className="text-[15px] leading-relaxed whitespace-pre-line text-muted">
+                  {thingsToKnow}
+                </p>
               </Section>
             )}
           </div>
@@ -266,45 +297,6 @@ export default async function ProductPage({
         )}
       </div>
     </>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className="mb-4 text-lg font-bold text-ink">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function PointList({
-  title,
-  points,
-  tone,
-}: {
-  title: string;
-  points: string[];
-  tone: 'pro' | 'con';
-}) {
-  if (points.length === 0) return null;
-  const Icon = tone === 'pro' ? Check : Minus;
-
-  return (
-    <div>
-      <h3 className="mb-2.5 text-sm font-semibold text-ink">{title}</h3>
-      <ul className="space-y-2">
-        {points.map((point) => (
-          <li key={point} className="flex gap-2.5 text-sm leading-relaxed text-muted">
-            <Icon
-              className={`mt-0.5 size-4 shrink-0 ${tone === 'pro' ? 'text-success' : 'text-warning'}`}
-              aria-hidden="true"
-            />
-            {point}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

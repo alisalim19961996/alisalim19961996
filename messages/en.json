@@ -562,6 +562,7 @@
     "uploadTooLarge": "That image is larger than 8 MB.",
     "uploadEmptyFile": "That file is empty.",
     "uploadUnsupportedFormat": "Unsupported file type. Use JPG, PNG, WebP or AVIF.",
+    "uploadCorruptImage": "That file does not contain a usable picture. Export it again, or use another image.",
     "identity": "Identity",
     "appearance": "Appearance",
     "visibility": "Visibility",
@@ -748,7 +749,12 @@
     "confirmDeleteReview": "Delete permanently? This cannot be undone.",
     "reviewNotFound": "That review is gone — it may have been deleted.",
     "verifiedPurchase": "Verified purchase",
-    "pageOf": "Page {page} of {total}"
+    "pageOf": "Page {page} of {total}",
+    "notPublishable": "This product cannot be published as it stands.",
+    "publishNeedsNames": "An Arabic and an English name are needed before publishing.",
+    "publishNeedsSlug": "A valid slug is needed before publishing.",
+    "publishNeedsType": "A product type is needed before publishing.",
+    "publishNeedsVariant": "At least one active variant is needed before publishing."
   },
   "brands": {
     "title": "Brands",

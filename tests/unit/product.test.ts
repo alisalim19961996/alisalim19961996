@@ -10,6 +10,7 @@ import {
   slugify,
   suggestSku,
 } from '@/lib/domain/product';
+import { productFormSchema } from '@/schemas/product';
 
 /**
  * The dashboard's product form is generated from the attribute tables, so
@@ -260,5 +261,81 @@ describe('suggestSku', () => {
     const sku = suggestSku('a'.repeat(63), ['black']);
     expect(sku.length).toBeLessThanOrEqual(64);
     expect(sku.endsWith('-')).toBe(false);
+  });
+});
+
+/**
+ * An empty input is missing, not zero.
+ *
+ * `z.coerce.number()` runs `Number(value)` and `Number('')` is 0, so clearing
+ * the price box made the variant free and clearing the warranty box made it a
+ * zero-month warranty. Both saved without a word: the value is a valid number,
+ * and nothing distinguishes "the owner deleted this" from "the owner typed 0".
+ */
+describe('a cleared number field', () => {
+  const base = {
+    slug: 'blank-test',
+    nameAr: 'اختبار',
+    nameEn: 'Blank test',
+    productTypeId: 't',
+    brandId: 'b',
+    categoryId: 'c',
+    attributes: {},
+    options: [],
+    images: [],
+    videos: [],
+    variants: [
+      {
+        sku: 'BLANK-1',
+        priceIqd: '250000',
+        optionValues: [],
+        // No options, so the variant carries its own label.
+        labelAr: 'أساسي',
+        labelEn: 'Standard',
+        status: 'IN_STOCK',
+        isActive: true,
+      },
+    ],
+  };
+
+  it('refuses an empty price rather than making the variant free', () => {
+    const parsed = productFormSchema.safeParse({
+      ...base,
+      variants: [{ ...base.variants[0], priceIqd: '' }],
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0]?.path).toEqual(['variants', 0, 'priceIqd']);
+    }
+  });
+
+  it('refuses a price of only whitespace, which is what a half-cleared box leaves', () => {
+    const parsed = productFormSchema.safeParse({
+      ...base,
+      variants: [{ ...base.variants[0], priceIqd: '   ' }],
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('still accepts a deliberate zero, because free is a real price', () => {
+    const parsed = productFormSchema.safeParse({
+      ...base,
+      variants: [{ ...base.variants[0], priceIqd: '0' }],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.variants[0]?.priceIqd).toBe(0);
+  });
+
+  it('falls back to the default warranty when the box is cleared', () => {
+    const cleared = productFormSchema.safeParse({ ...base, warrantyMonths: '' });
+    expect(cleared.success).toBe(true);
+    if (cleared.success) expect(cleared.data.warrantyMonths).toBe(12);
+  });
+
+  it('keeps a deliberate zero-month warranty, which is a real answer', () => {
+    const zero = productFormSchema.safeParse({ ...base, warrantyMonths: '0' });
+    expect(zero.success).toBe(true);
+    if (zero.success) expect(zero.data.warrantyMonths).toBe(0);
   });
 });

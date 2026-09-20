@@ -44,6 +44,7 @@ const {
 const { getProductFormReference } = await import('@/server/queries/admin-products');
 const { getAdminCategories } = await import('@/server/queries/admin-taxonomy');
 const { createProduct } = await import('@/server/services/admin-products');
+const { buildSpecGroups, getProductBySlug } = await import('@/server/queries/product');
 const {
   attributeFormSchema,
   brandFormSchema,
@@ -234,6 +235,8 @@ describe('a product type invented from the dashboard', () => {
   let screenId = '';
   let panelId = '';
   let typeId = '';
+  let productSlug = '';
+  let productId = '';
 
   it('creates the specifications it will need', async () => {
     const screen = await saveAttribute(
@@ -339,6 +342,7 @@ describe('a product type invented from the dashboard', () => {
     made.categories.add(categoryRow.id);
 
     const slug = ns('thinkpad');
+    productSlug = slug;
     const product = await createProduct(
       productFormSchema.parse({
         slug,
@@ -366,6 +370,7 @@ describe('a product type invented from the dashboard', () => {
       }),
     );
     made.products.add(product.id);
+    productId = product.id;
 
     const values = await db.productAttributeValue.findMany({
       where: { productId: product.id },
@@ -384,6 +389,62 @@ describe('a product type invented from the dashboard', () => {
     // a dropdown a moment ago.
     expect(Number(screen?.valueDecimal)).toBe(14.5);
     expect(panel?.optionId).toBeTruthy();
+  });
+
+  it('stops showing a specification once it is unlinked, without losing it', async () => {
+    /*
+      `ProductTypeAttribute` carries no history — the stored value lives on
+      `ProductAttributeValue`, which points at the DEFINITION — so unlinking is
+      meant to hide the field and keep the data, and re-linking brings it back
+      (§12). The product PAGE was reading every stored value regardless, so an
+      unlinked specification went on showing with no way to edit or remove it.
+    */
+    const before = await getProductBySlug(productSlug);
+    expect(before).not.toBeNull();
+    expect(buildSpecGroups(before!, 'ar').flatMap((group) => group.rows)).toHaveLength(
+      2,
+    );
+
+    await saveProductType(
+      productType({
+        key: LAPTOP_KEY,
+        nameAr: 'لابتوب',
+        nameEn: 'Laptop',
+        attributes: [{ definitionId: panelId, isRequired: false, sortOrder: 0 }],
+      }),
+      typeId,
+    );
+
+    // The row is untouched: unlinking hides, it does not delete.
+    expect(
+      await db.productAttributeValue.count({ where: { productId } }),
+      'unlinking deleted a stored value',
+    ).toBe(2);
+
+    const hidden = await getProductBySlug(productSlug);
+    expect(
+      buildSpecGroups(hidden!, 'ar').flatMap((group) => group.rows),
+      'an unlinked specification is still rendered on the product page',
+    ).toHaveLength(1);
+
+    // Re-linking restores it, which is the property the unlink rule protects.
+    await saveProductType(
+      productType({
+        key: LAPTOP_KEY,
+        nameAr: 'لابتوب',
+        nameEn: 'Laptop',
+        attributes: [
+          { definitionId: panelId, isRequired: false, sortOrder: 0 },
+          { definitionId: screenId, isRequired: true, sortOrder: 1 },
+        ],
+      }),
+      typeId,
+    );
+
+    const restored = await getProductBySlug(productSlug);
+    expect(
+      buildSpecGroups(restored!, 'ar').flatMap((group) => group.rows),
+    ).toHaveLength(2);
   });
 
   it('refuses to change the value type once values are stored', async () => {

@@ -20,6 +20,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/integration/**/*.test.ts'],
+    // Refuses to run against a database that is not named as disposable,
+    // before any suite opens a connection. See tests/integration/guard-database.ts.
+    globalSetup: ['./tests/integration/guard-database.ts'],
     // These share one database, so they must not run against each other.
     fileParallelism: false,
     // A transaction contending on a row lock is slower than a pure function.

@@ -562,6 +562,7 @@
     "uploadTooLarge": "الصورة أكبر من ٨ ميغابايت.",
     "uploadEmptyFile": "الملف فارغ.",
     "uploadUnsupportedFormat": "نوع الملف مو مدعوم. استعمل JPG أو PNG أو WebP أو AVIF.",
+    "uploadCorruptImage": "الملف ما بيه صورة سليمة. جرّب تصدّرها مرة ثانية أو استعمل صورة غيرها.",
     "identity": "الهوية",
     "appearance": "المظهر",
     "visibility": "الظهور",
@@ -748,7 +749,12 @@
     "confirmDeleteReview": "احذفه نهائيًا؟ ما يرجع.",
     "reviewNotFound": "ما لكينا هذا الرأي. يمكن انحذف.",
     "verifiedPurchase": "شراء مؤكّد",
-    "pageOf": "صفحة {page} من {total}"
+    "pageOf": "صفحة {page} من {total}",
+    "notPublishable": "ما نكدر ننشر المنتج بهذي الحالة.",
+    "publishNeedsNames": "لازم اسم بالعربي والإنجليزي قبل النشر.",
+    "publishNeedsSlug": "لازم رابط (slug) صالح قبل النشر.",
+    "publishNeedsType": "لازم تختار نوع المنتج قبل النشر.",
+    "publishNeedsVariant": "لازم نسخة وحدة فعّالة على الأقل قبل النشر."
   },
   "brands": {
     "title": "البراندات",

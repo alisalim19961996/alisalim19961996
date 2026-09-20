@@ -8,6 +8,7 @@ import {
   buildVariantLabel,
   cheapestActivePrice,
   parseAttributeValue,
+  publishBlockers,
 } from '@/lib/domain/product';
 import { extractYoutubeId } from '@/lib/video';
 import type { ProductFormInput } from '@/schemas/product';
@@ -33,7 +34,9 @@ export type ProductAdminErrorCode =
   | 'unknownAttribute'
   | 'invalidAttribute'
   | 'invalidVideoUrl'
-  | 'productHasOrders';
+  | 'productHasOrders'
+  /** Publishing was refused; `field` carries the first blocker's key. */
+  | 'notPublishable';
 
 export class ProductAdminError extends Error {
   constructor(
@@ -578,9 +581,42 @@ export async function setProductPublished(
 
   const product = await db.product.findUnique({
     where: { id },
-    select: { publishedAt: true },
+    select: {
+      publishedAt: true,
+      nameAr: true,
+      nameEn: true,
+      slugEn: true,
+      productTypeId: true,
+      variants: { select: { isActive: true } },
+    },
   });
   if (!product) throw new ProductAdminError('no such product', 'notFound');
+
+  /*
+    Publishing asks more of a product than saving a draft does, and this path
+    asked nothing: it flipped the boolean. A product with no active variant has
+    nothing to add to a cart and no price to print, so the catalogue rendered a
+    card whose button did nothing.
+
+    Unpublishing is never blocked — taking something off the shop floor has to
+    work whatever state it is in.
+  */
+  if (isPublished) {
+    const blockers = publishBlockers({
+      nameAr: product.nameAr,
+      nameEn: product.nameEn,
+      slug: product.slugEn,
+      productTypeId: product.productTypeId,
+      variants: product.variants,
+    });
+    if (blockers.length > 0) {
+      throw new ProductAdminError(
+        `cannot publish: ${blockers.join(', ')}`,
+        'notPublishable',
+        blockers[0],
+      );
+    }
+  }
 
   await db.product.update({
     where: { id },

@@ -275,3 +275,53 @@ export function suggestSku(base: string, values: readonly string[]): string {
  * `@theme`.
  */
 export const DEFAULT_SWATCH_HEX = '#cccccc';
+
+// ---------------------------------------------------------------------------
+
+/**
+ * What stops a product going on the shop floor.
+ *
+ * Draft validation and publish validation are different questions and the form
+ * only ever asked the first: `setProductPublished` flipped a boolean with no
+ * check at all, so a product with no active variant — nothing to add to a cart,
+ * no price to show — could be published from the list with one click, and the
+ * catalogue would render a card whose button did nothing.
+ *
+ * Deliberately NOT a stock check. MPS sells on status (§13.2): an out-of-stock
+ * or preorder product is a perfectly good published product, and requiring
+ * availability here would be the quantity-first model this project refuses.
+ *
+ * Pure, so the same rule can answer for the form and for the one-click toggle.
+ * Returns message keys under `admin`, in the order the owner should fix them.
+ */
+export interface PublishCandidate {
+  nameAr: string;
+  nameEn: string;
+  slug: string;
+  productTypeId: string;
+  variants: readonly { isActive: boolean }[];
+}
+
+export function publishBlockers(product: PublishCandidate): string[] {
+  const blockers: string[] = [];
+
+  if (!product.nameAr.trim() || !product.nameEn.trim()) {
+    blockers.push('publishNeedsNames');
+  }
+  if (!isValidSlug(product.slug)) blockers.push('publishNeedsSlug');
+  if (!product.productTypeId) blockers.push('publishNeedsType');
+
+  /*
+    An active variant, and nothing about its price.
+
+    A zero price was the other candidate here and it is not reachable: the
+    `variant_price_positive` CHECK constraint refuses the row before this ever
+    runs, which an integration test confirms by trying. A blocker that cannot
+    fire is a rule nobody can trust — §13.16's "a constant with no consumer is
+    the same bug, waiting".
+  */
+  const sellable = product.variants.filter((variant) => variant.isActive);
+  if (sellable.length === 0) blockers.push('publishNeedsVariant');
+
+  return blockers;
+}

@@ -31,6 +31,8 @@ export async function getProductBySlug(slug: string) {
       taglineEn: true,
       overviewAr: true,
       overviewEn: true,
+      keyFeaturesAr: true,
+      keyFeaturesEn: true,
       prosAr: true,
       prosEn: true,
       consAr: true,
@@ -52,7 +54,24 @@ export async function getProductBySlug(slug: string) {
         select: { slug: true, nameAr: true, nameEn: true, accentColor: true },
       },
       category: { select: { slug: true, nameAr: true, nameEn: true } },
-      productType: { select: { key: true, nameAr: true, nameEn: true } },
+      productType: {
+        select: {
+          key: true,
+          nameAr: true,
+          nameEn: true,
+          /*
+            Which specifications this type still DECLARES.
+
+            Unlinking an attribute from a product type hides the field in the
+            admin form and deliberately keeps the stored value (§12), so the
+            row survives — and the product page was reading every stored value
+            regardless, printing specifications the type no longer asks for.
+            Filtering here rather than deleting the rows keeps re-linking
+            lossless, which is the property the unlink rule exists to protect.
+          */
+          attributes: { select: { definitionId: true } },
+        },
+      },
       images: {
         select: { id: true, url: true, altAr: true, altEn: true, isDemo: true },
         orderBy: { sortOrder: 'asc' },
@@ -105,6 +124,7 @@ export async function getProductBySlug(slug: string) {
       },
       attributeValues: {
         select: {
+          definitionId: true,
           valueInt: true,
           valueDecimal: true,
           valueText: true,
@@ -130,7 +150,14 @@ export async function getProductBySlug(slug: string) {
 }
 
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>;
-type AttributeValueRow = ProductDetail['attributeValues'][number];
+/**
+ * What formatting a value needs, and no more.
+ *
+ * `definitionId` is omitted deliberately: the comparison query selects the same
+ * value columns without it, and tying this to the product page's exact select
+ * would make every field that page adds a compile error over there.
+ */
+type AttributeValueRow = Omit<ProductDetail['attributeValues'][number], 'definitionId'>;
 
 export interface SpecRow {
   key: string;
@@ -183,12 +210,27 @@ export function formatAttributeValue(
  * disappear with them.
  */
 export function buildSpecGroups(
-  product: Pick<ProductDetail, 'attributeValues'>,
+  product: Pick<ProductDetail, 'attributeValues' | 'productType'>,
   locale: Locale,
 ): SpecGroup[] {
   const groups = new Map<string, SpecGroup & { order: number; rowOrder: number[] }>();
 
+  /*
+    Only the specifications this product's TYPE still declares.
+
+    Unlinking an attribute hides the field in the admin form and keeps the
+    stored value on purpose, so re-linking is lossless (§12) — but the page was
+    rendering every stored value, so an unlinked specification went on showing
+    with no way to edit or remove it. Filtering rather than deleting keeps the
+    data; the row simply stops being part of what this type describes.
+  */
+  const declared = new Set(
+    product.productType.attributes.map((link) => link.definitionId),
+  );
+
   for (const row of product.attributeValues) {
+    if (!declared.has(row.definitionId)) continue;
+
     const value = formatAttributeValue(row, locale);
     if (!value) continue;
 

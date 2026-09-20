@@ -24,12 +24,33 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => (value ? value : null));
 
+/**
+ * An empty input is MISSING, not zero.
+ *
+ * `z.coerce.number()` runs `Number(value)`, and `Number('')` is 0 — so clearing
+ * a price field made the variant free, and clearing the warranty box made it a
+ * zero-month warranty. Both are silent: the form saves, the number is a valid
+ * number, and nothing says the owner deleted a value rather than setting one.
+ *
+ * Turning blank into `undefined` first lets `.default()` apply where there is
+ * one and `required` fire where there is not. Whitespace counts as blank,
+ * because a space is what a half-cleared input leaves behind.
+ */
+function blankIsMissing<Schema extends z.ZodType>(schema: Schema) {
+  return z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    schema,
+  );
+}
+
 /** Whole dinars. A price is never a float anywhere in MPS (CLAUDE.md §13.1). */
-const priceIqd = z.coerce
-  .number()
-  .int('notWholeDinars')
-  .min(0, 'negativeAmount')
-  .max(1_000_000_000, 'amountTooLarge');
+const priceIqd = blankIsMissing(
+  z.coerce
+    .number({ error: required })
+    .int('notWholeDinars')
+    .min(0, 'negativeAmount')
+    .max(1_000_000_000, 'amountTooLarge'),
+);
 
 /**
  * Where a product image may live.
@@ -139,7 +160,10 @@ export const productFormSchema = z
     isBestSeller: z.boolean().default(false),
 
     // -- Warranty ----------------------------------------------------------
-    warrantyMonths: z.coerce.number().int().min(0).max(120).default(12),
+    // The default lives INSIDE the preprocess: `.default()` looks at the raw
+    // input, which is `''` and not undefined, so a default wrapped around the
+    // outside never fires and the field fails as NaN instead.
+    warrantyMonths: blankIsMissing(z.coerce.number().int().min(0).max(120).default(12)),
     warrantyNoteAr: optionalText(2000),
     warrantyNoteEn: optionalText(2000),
 

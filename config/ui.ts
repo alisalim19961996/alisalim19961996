@@ -37,4 +37,13 @@ export const MOBILE_BUY_BAR_OFFSET = 520;
  * How far a related-product price may sit from the current one, as a fraction.
  * 0.4 means "within 40% either way" — close enough to be a genuine alternative.
  */
+/**
+ * Key features printed beside the buy controls.
+ *
+ * Four, because this sits above the fold on a phone and the rest of the
+ * decision — the price, the picker, the button — has to stay reachable. The
+ * full list is not truncated anywhere else; there is nowhere else it appears.
+ */
+export const KEY_FEATURES_SHOWN = 4;
+
 export const RELATED_PRICE_SPREAD = 0.4;
