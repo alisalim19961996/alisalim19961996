@@ -174,6 +174,7 @@ export default async function ProductPage({
                 options={product.options}
                 variants={pickerVariants}
                 name={name}
+                slug={product.slugEn}
                 governorates={GOVERNORATE_VALUES}
                 warranty={
                   <div className="flex items-start gap-2.5">

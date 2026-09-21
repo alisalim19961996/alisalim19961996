@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef, useState, useTransition } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Truck, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ProductPrice } from '@/features/product/components/product-price';
 import { formatIqd } from '@/lib/money';
+import { storeEvent } from '@/lib/domain/analytics';
+import { track } from '@/features/analytics/track';
 import type { Locale } from '@/i18n/routing';
 import {
   placeOrderAction,
@@ -69,6 +71,9 @@ export function CheckoutForm({
     placeOrderAction,
     { status: 'idle' },
   );
+  // A transition of its own, because an action invoked by hand must be
+  // dispatched inside one — `isSubmitting` above still reports the action.
+  const [, startSubmitting] = useTransition();
 
   const [governorate, setGovernorate] = useState(defaults?.governorate ?? '');
   const [quote, setQuote] = useState<DeliveryQuoteResult | null>(initialQuote);
@@ -84,6 +89,23 @@ export function CheckoutForm({
    * else's is useless (lib/domain/checkout-request.ts).
    */
   const [checkoutRequestId] = useState(() => crypto.randomUUID());
+
+  /*
+    Reaching this form IS beginning checkout, so it is reported on arrival
+    rather than on the first keystroke. The value is the subtotal the server
+    computed from the cart — delivery is not known yet and a coupon has not
+    been applied, so adding either would be inventing a figure.
+
+    No items: this component is handed a subtotal, not a basket, and widening
+    its props to feed a report would put an analytics shape into the checkout's
+    interface. The purchase event carries the lines.
+  */
+  const begun = useRef(false);
+  useEffect(() => {
+    if (begun.current) return;
+    begun.current = true;
+    track(storeEvent('begin_checkout', [], { valueIqd: subtotalIqd }));
+  }, [subtotalIqd]);
 
   /**
    * Which quote request is the newest.
@@ -179,9 +201,30 @@ export function CheckoutForm({
     setCouponInput('');
   };
 
+  /**
+   * Submitted by hand, not by handing the action to `<form action>`.
+   *
+   * React resets a form once an action passed that way returns — every
+   * uncontrolled field back to its default, and a `<select>` back to its
+   * placeholder option, which React does not then correct because its own
+   * state never changed. One mistyped digit in the phone therefore emptied
+   * all six fields, and the governorate picker went blank while the summary
+   * beside it still showed Baghdad's delivery fee.
+   *
+   * Calling the action with the FormData skips the reset entirely. Nothing is
+   * lost by it: this form already needs JavaScript to function at all, because
+   * the submit button stays disabled until the server has quoted delivery for
+   * the chosen governorate.
+   */
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startSubmitting(() => formAction(data));
+  };
+
   return (
     <form
-      action={formAction}
+      onSubmit={submit}
       className="grid gap-10 lg:grid-cols-[1fr_22rem] lg:items-start"
     >
       {/*

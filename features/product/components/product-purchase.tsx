@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+import { storeEvent } from '@/lib/domain/analytics';
+import { track } from '@/features/analytics/track';
+import { CART_CHANGED_EVENT } from '@/features/cart/cart-events';
 import { DeliveryEstimate } from './delivery-estimate';
 import { MobileBuyBar } from './mobile-buy-bar';
 import {
@@ -29,6 +33,7 @@ export function ProductPurchase({
   options,
   variants,
   name,
+  slug,
   governorates,
   warranty,
 }: {
@@ -36,12 +41,51 @@ export function ProductPurchase({
   variants: PickerVariant[];
   /** For the bar's one line of context, since it scrolls past the heading. */
   name: string;
+  /** The product's public identifier, and the only id any event carries. */
+  slug: string;
   governorates: readonly string[];
   /** Rendered here so warranty and delivery sit together, beside the price. */
   warranty: React.ReactNode;
 }) {
   const selection = useVariantSelection(options, variants);
   const { selected, purchasable } = selection;
+
+  /*
+    The two events this page is the right place to report.
+
+    `view_item` once, on arrival, at the price the visitor is actually looking
+    at. `add_to_cart` from the cart-changed signal rather than by threading an
+    item payload down through the picker and the bar to the button: this
+    component is rendered only on the product page, and the only thing that
+    announces a cart change from here is one of its own add buttons. That also
+    means the two controls cannot report different products, which is the bug
+    this component was created to prevent in the first place.
+
+    Neither call reaches a network unless the owner has connected a tag
+    manager — see lib/domain/analytics.ts.
+  */
+  const viewed = useRef(false);
+  const price = selected?.priceIqd ?? 0;
+
+  useEffect(() => {
+    if (viewed.current || !selected) return;
+    viewed.current = true;
+    track(
+      storeEvent('view_item', [{ item_id: slug, item_name: name, price, quantity: 1 }]),
+    );
+  }, [selected, slug, name, price]);
+
+  useEffect(() => {
+    const report = () =>
+      track(
+        storeEvent('add_to_cart', [
+          { item_id: slug, item_name: name, price, quantity: 1 },
+        ]),
+      );
+
+    window.addEventListener(CART_CHANGED_EVENT, report);
+    return () => window.removeEventListener(CART_CHANGED_EVENT, report);
+  }, [slug, name, price]);
 
   return (
     <>

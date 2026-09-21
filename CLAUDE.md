@@ -722,8 +722,10 @@ and the fifth card is `hidden xl:flex`, so the four-column range never shows a
 lonely card. The square frame was tried first and rejected — `1 / 1` crops the
 tops off the phones.
 Filters are a sidebar at `lg`, a bottom drawer below it. Every page must have
-**zero horizontal overflow** at 390px and 1440px — verified with Playwright, not
-assumed.
+**zero horizontal overflow** at 360, 390, 768, 1366, 1440 and 1920px —
+verified with Playwright, not assumed. 360 is the narrowest Android still
+common in Iraq and is where an overflow appears first: a layout that fits 390
+can still push past 360.
 
 **Motion**: 150–250ms, ease-out, `prefers-reduced-motion` respected.
 
@@ -1370,16 +1372,60 @@ than a migration.
   touch a select that was already correct. Checkout is dynamic for the cart
   anyway, so this costs no static page.
 
-**A rejected checkout keeps what was typed.** React resets an uncontrolled form
-once its action returns, so one mistyped digit in the phone emptied all six
-fields and the customer started again — on the single most expensive form on
-the site, after they had already chosen what to buy. The action echoes the
-submitted strings back in `CheckoutState.values` and every field reads its
-default from them. Deliberately the strings **as typed**, not the parsed ones:
-a phone the normaliser rejected has no parsed form, and showing somebody a
-corrected value they did not write is worse than showing them their own
-mistake. `tests/e2e/checkout-recovery.spec.ts` is the only witness — nothing on
-the server was wrong, so no unit or integration test could see it.
+**A rejected checkout keeps what was typed, and the form is submitted by
+hand to make that possible.** React resets a form once an action passed to
+`<form action>` returns: every uncontrolled field back to its default, and a
+`<select>` back to its placeholder option — which React then does not correct,
+because its own state never changed. So one mistyped digit in the phone emptied
+all six fields and left the governorate picker blank while the summary beside
+it still showed Baghdad's delivery fee. On the most expensive form on the site,
+after the customer had already chosen what to buy.
+
+`onSubmit` calls the action with the FormData instead, which skips the reset
+entirely. Nothing is lost: this form already needs JavaScript, because the
+submit button stays disabled until the server has quoted delivery for the
+chosen governorate. The action also echoes the submitted strings back in
+`CheckoutState.values` and every field seeds its default from them — belt and
+braces, and the right behaviour if the component ever remounts. Deliberately
+the strings **as typed**, not the parsed ones: a phone the normaliser rejected
+has no parsed form, and showing somebody a corrected value they did not write
+is worse than showing them their own mistake.
+
+`tests/e2e/checkout-recovery.spec.ts` is the only witness — nothing on the
+server was wrong, so no unit or integration test could see it. It failed twice
+before it passed: once against the shipped code, and once against a
+`defaultValue` on the select, which a reset cannot restore because a select's
+default is the `selected` attribute on an option, not a property React
+re-applies.
+
+**Counting what happens** — `lib/domain/analytics.ts` for the shape,
+`features/analytics/` for the push. MPS ships **no analytics provider**: no
+script tag, no third-party request, no identifier. Choosing a vendor is the
+owner's decision and a privacy posture, and this exists so the decision is one
+snippet rather than a project.
+
+- **Four moments, named as GA4 names them** — `view_item`, `add_to_cart`,
+  `begin_checkout`, `purchase` — pushed to `window.dataLayer`, which is the
+  one vendor-neutral thing in the field: an array. Nothing reads it until the
+  owner pastes in a tag manager, and `track()` swallows every error, because a
+  tag that throws must not be able to take the checkout button down with it.
+- **No personal data, ever.** An event carries slugs, SKUs, quantities and
+  whole dinars. Not a name, not a phone, not an address — those belong to the
+  order, behind a guard, and a value in a browser-readable queue has left the
+  building.
+- **A purchase is counted once.** The confirmation page is a real URL a
+  customer reloads and comes back to. It reports only when `?placed=1` says
+  this is the first sight of it — the same flag that decides the greeting —
+  and `trackPurchaseOnce` keys on the order number in `sessionStorage` as a
+  second guard, because the query survives a reload.
+- **`add_to_cart` rides the cart-changed event** rather than threading an item
+  payload down through the picker and the bar to the button. `ProductPurchase`
+  is rendered only on a product page and is the only thing that announces a
+  change from there — which also means the two add controls cannot report
+  different products, the exact bug that component exists to prevent.
+- **The purchase total comes from the server**, not from summing the lines:
+  a total is subtotal − discount + delivery, and summing lines would report a
+  discount the store never took as revenue. A unit test says so.
 
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
@@ -1709,6 +1755,35 @@ Three things were found by the usual method:
   correct, so the suite signs in once per account and restores those cookies
   afterwards — a real session, kept in the database, not a pretend one.
 
+**Phase 7 — the implementation plan's two halves**: a code and security
+audit (C01–C26) and a design review (UI/HOME/CAT/PDP/FLOW/ADM/OPS), worked in
+lettered groups and recorded item by item in `MPS_IMPLEMENTATION_STATUS.md` —
+every row naming the files that changed and evidence somebody else can re-run,
+or saying plainly that it is an owner input rather than a code gap.
+
+What it cost, in the order the money was at risk:
+
+- **An order number cookie that was a working credential** for every guest
+  order, replaced by a hashed grant (§12).
+- **A cart token namespace collision** that handed a visitor somebody else's
+  cart if they typed `user:<id>` into their own cookie (§12).
+- **An empty delivery-fee box that meant free delivery** on every order after
+  it, because `Number('')` is 0 (§15).
+- **A checkout that emptied all six fields on a rejected submit**, because
+  React resets a form once an action returns (§12).
+- **159 Tailwind 4 token spellings the browser dropped without an error** —
+  every corner, both shadows and every checkbox (§10).
+- **A "best sellers" rail backed by a checkbox** rather than by what customers
+  bought (§12).
+- **Two cache-invalidation conventions that invalidated nothing** and reported
+  success (§5).
+- **Five trigram indexes `prisma migrate dev` had silently dropped** two
+  migrations before anyone looked (§6).
+
+Each was proved by putting the old code back and watching the right test go
+red. One test was deleted rather than kept, because it passed against the
+broken code every time (§17).
+
 ### Partially complete
 
 - **Demo imagery** — generated device silhouettes
@@ -1804,7 +1879,7 @@ a business decision for the owner, not a rename.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **478 tests**: 437 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **553 tests**: 509 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1821,10 +1896,10 @@ the wall, the comparison — what a `?ids=` value from the address bar is
 allowed to mean, and the alignment of values to columns, which is a bug a
 reader would believe rather than notice — and the rating arithmetic, where the
 interesting case is that a product with no reviews has NO average rather than
-0.0) plus 39
+0.0) plus 44
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **114 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **161 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1871,7 +1946,7 @@ under test exists to prevent, reached by the test for it. `afterEach` narrows
 the window to one test, and `pnpm db:seed` is the recovery, because its upsert
 sets `admin@mps.local`'s role every time.
 
-`pnpm test:e2e` — **27 Playwright tests** in `tests/e2e/`, driving the BUILT
+`pnpm test:e2e` — **40 Playwright tests** in `tests/e2e/`, driving the BUILT
 site in a real browser: buying a phone and tracking it, an unavailable variant
 that cannot be added, a stranger who cannot open somebody else's order, a
 tracking form that answers identically for a wrong phone and a number that was
@@ -2371,6 +2446,23 @@ landmarks, heading order, accessible names, alt text, horizontal overflow — is
 clean across eleven pages in both languages. It is not a full audit: contrast
 ratios, focus order and keyboard traps have not been measured, and screen
 readers have not been used.
+
+**The implementation plan of 15 September is executed in full**, and
+`MPS_IMPLEMENTATION_STATUS.md` is the record: every identifier it names carries
+a status, the files that changed, and evidence somebody else can re-run. Four
+rows say **owner input** rather than done, and say so plainly instead of being
+quietly marked complete — a tested database restore (there is no production
+database to restore to from here), field Core Web Vitals (which need real
+visits on a real domain), an Open Graph image for the pages that are not
+products (a brand decision, not code), and connecting an analytics provider to
+the events that are now being pushed.
+
+What this round added that the store did not have: a customer who can correct
+their own name and phone and keep one delivery address that fills checkout in;
+a checkout that does not throw away six fields over one mistyped digit; a
+dashboard that says which of its thirteen sections you are standing in; one
+date formatter instead of eleven; and four analytics event points connected to
+nothing, so connecting something is a snippet rather than a project.
 
 **Owner inputs still needed before launch** — this list is a reminder, not the
 authority. `.env` lives on the owner's machine and is never in the repository,

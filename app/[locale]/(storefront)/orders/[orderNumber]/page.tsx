@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { OrderDetail } from '@/features/order/components/order-detail';
+import { PurchaseReport } from '@/features/analytics/purchase-report';
 import { findOwnedOrder } from '@/server/queries/order';
 import { ORDER_GRANT_COOKIE } from '@/server/services/order';
 import { getCurrentUser } from '@/server/auth/guards';
@@ -114,6 +115,25 @@ export default async function OrderPage({
 
   return (
     <div className="container-page py-8 sm:py-12">
+      {/*
+        The sale, reported once. Only on the first sight of the page — a
+        customer coming back to check their order is not a second purchase —
+        and the component keys on the order number as well, because the query
+        survives a reload.
+      */}
+      {justPlaced && (
+        <PurchaseReport
+          orderNumber={order.orderNumber}
+          totalIqd={order.totalIqd}
+          items={order.lines.map((line) => ({
+            item_id: line.sku,
+            item_name: line.name,
+            price: line.unitPriceIqd,
+            quantity: line.quantity,
+          }))}
+        />
+      )}
+
       <div
         className={cn(
           'flex flex-col items-center rounded-panel border px-6 py-8 text-center',

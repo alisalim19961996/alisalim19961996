@@ -19,6 +19,24 @@ import {
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
 
+/**
+ * The five widths the plan names, narrowest first.
+ *
+ * 360 is the narrowest Android still in common use in Iraq and is where an
+ * overflow shows up first — a layout that fits 390 can still push 6px past 360.
+ * 1920 is the other end: a container that stops growing is correct, a element
+ * that escapes it is not. 768 is the tablet break, where the catalogue goes
+ * from two columns to three and the filter drawer becomes a sidebar.
+ */
+const WIDTHS = [
+  { width: 360, height: 800 },
+  PHONE,
+  { width: 768, height: 1024 },
+  { width: 1366, height: 768 },
+  DESKTOP,
+  { width: 1920, height: 1080 },
+];
+
 test.describe('typography', () => {
   /*
     The Arabic store was drawing its Arabic in **Arial**, and no screenshot
@@ -152,7 +170,7 @@ test.describe('on a phone', () => {
  */
 const PAGES = ['/ar', '/ar/products', '/ar/cart', '/ar/track', '/en', '/en/products'];
 
-for (const width of [PHONE, DESKTOP]) {
+for (const width of WIDTHS) {
   test(`no page scrolls sideways at ${width.width}px`, async ({ page }) => {
     await page.setViewportSize(width);
 
