@@ -64,6 +64,12 @@ export function revalidateCart(): void {
   everyLocale('/checkout');
 }
 
+/** The customer's own screens, after they change their own details. */
+export function revalidateAccount(): void {
+  everyLocale('/account');
+  everyLocale('/account/orders');
+}
+
 /** The signed-in customer's saved products. */
 export function revalidateWishlist(): void {
   everyLocale('/wishlist');

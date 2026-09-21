@@ -7,6 +7,11 @@ import { OrderHistory } from '@/features/order/components/order-history';
 import { getCurrentUser } from '@/server/auth/guards';
 import { getMyOrders } from '@/server/queries/order';
 import { formatIraqiPhone } from '@/lib/phone';
+import { ProfileForm } from '@/features/account/components/profile-form';
+import { AddressForm } from '@/features/account/components/address-form';
+import { getMyDeliveryAddress } from '@/server/queries/account';
+import { GOVERNORATE_VALUES } from '@/schemas/address';
+import { MapPin } from 'lucide-react';
 import type { Locale } from '@/i18n/routing';
 
 export async function generateMetadata({
@@ -43,7 +48,10 @@ export default async function AccountPage({
   if (!user) return redirect({ href: '/sign-in?next=account', locale });
 
   const t = await getTranslations('account');
-  const { rows, total } = await getMyOrders(1);
+  const [{ rows, total }, address] = await Promise.all([
+    getMyOrders(1),
+    getMyDeliveryAddress(),
+  ]);
 
   return (
     <div className="container-page py-8 sm:py-12">
@@ -63,23 +71,22 @@ export default async function AccountPage({
             <User className="size-4 text-muted" aria-hidden />
             {t('details')}
           </h2>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted">{t('name')}</dt>
-              <dd className="text-ink">{user.name}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">{t('email')}</dt>
-              <dd className="truncate text-ink numeric">{user.email}</dd>
-            </div>
-            {user.phone && (
-              <div>
-                <dt className="text-xs text-muted">{t('phone')}</dt>
-                <dd className="text-ink numeric">{formatIraqiPhone(user.phone)}</dd>
-              </div>
-            )}
+          {/*
+            The email is shown and not editable, and the hint says why: it is
+            the sign-in identity, so moving it needs a confirmation to the OLD
+            address — which needs mail, which is not configured (§7). A field
+            that quietly refuses is worse than a line that explains.
+          */}
+          <dl className="mt-4 text-sm">
+            <dt className="text-xs text-muted">{t('email')}</dt>
+            <dd className="truncate text-ink numeric">{user.email}</dd>
           </dl>
-          <p className="mt-4 text-xs text-muted">{t('detailsHint')}</p>
+          <p className="mt-1 text-xs text-muted">{t('emailHint')}</p>
+
+          <ProfileForm
+            defaultName={user.name}
+            defaultPhone={user.phone ? formatIraqiPhone(user.phone) : ''}
+          />
         </section>
 
         <section className="lg:col-span-2">
@@ -102,6 +109,35 @@ export default async function AccountPage({
           <div className="mt-4">
             <OrderHistory rows={rows} locale={locale} />
           </div>
+        </section>
+
+        <section className="rounded-card border border-border bg-surface p-6 lg:col-span-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <MapPin className="size-4 text-muted" aria-hidden />
+            {t('savedAddress')}
+          </h2>
+          {/*
+            A convenience, not a record. Checkout still snapshots whatever was
+            typed onto the order itself, so saving a new address here never
+            rewrites where last month's order was delivered.
+          */}
+          <p className="mt-1 text-xs text-muted">{t('savedAddressHint')}</p>
+
+          <AddressForm
+            governorates={GOVERNORATE_VALUES}
+            defaults={
+              address
+                ? {
+                    fullName: address.fullName,
+                    phone: formatIraqiPhone(address.phone),
+                    governorate: address.governorate,
+                    city: address.city,
+                    addressLine: address.addressLine,
+                    notes: address.notes ?? '',
+                  }
+                : null
+            }
+          />
         </section>
       </div>
     </div>

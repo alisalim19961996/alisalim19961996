@@ -33,6 +33,15 @@ export interface CheckoutState {
   fieldErrors?: Record<string, string>;
   /** Message key under `checkout`, for failures that are not field-specific. */
   errorKey?: string;
+  /**
+   * What was submitted, echoed back so the form can refill itself.
+   *
+   * React resets an uncontrolled form once the action returns, so without this
+   * one mistyped digit emptied all six fields and the customer started over.
+   * Nothing here is read by the server on the next attempt — it is the same
+   * text coming back to the same browser.
+   */
+  values?: Record<string, string>;
 }
 
 export type CouponQuoteResult =
@@ -104,6 +113,23 @@ export async function placeOrderAction(
   const rawLocale = String(formData.get('locale') ?? '');
   const locale: Locale = isLocale(rawLocale) ? rawLocale : 'ar';
 
+  // The raw strings, kept for the trip back. Deliberately the values as typed,
+  // not the parsed ones: a phone the normaliser rejected has no parsed form,
+  // and showing the customer a corrected value they did not write is worse
+  // than showing them their own mistake.
+  const values: Record<string, string> = {};
+  for (const field of [
+    'fullName',
+    'phone',
+    'governorate',
+    'city',
+    'addressLine',
+    'notes',
+  ] as const) {
+    const raw = formData.get(field);
+    if (typeof raw === 'string') values[field] = raw;
+  }
+
   const parsed = checkoutSchema.safeParse({
     fullName: formData.get('fullName'),
     phone: formData.get('phone'),
@@ -122,11 +148,11 @@ export async function placeOrderAction(
         fieldErrors[field] = issue.message;
       }
     }
-    return { status: 'error', fieldErrors };
+    return { status: 'error', fieldErrors, values };
   }
 
   const cart = await findCart();
-  if (!cart) return { status: 'error', errorKey: 'emptyCart' };
+  if (!cart) return { status: 'error', errorKey: 'emptyCart', values };
 
   let orderNumber: string;
   let grant: string;
@@ -151,10 +177,10 @@ export async function placeOrderAction(
         error.failure.code === 'couponRejected'
           ? error.failure.reason
           : error.failure.code;
-      return { status: 'error', errorKey };
+      return { status: 'error', errorKey, values };
     }
     console.error('[checkout] placing order failed', error);
-    return { status: 'error', errorKey: 'orderFailed' };
+    return { status: 'error', errorKey: 'orderFailed', values };
   }
 
   // The grant, not the order number: the number is a reference anybody can

@@ -831,7 +831,6 @@
     "title": "My account",
     "greeting": "Hello {name}",
     "details": "Your details",
-    "detailsHint": "To change your details, get in touch.",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
@@ -842,7 +841,15 @@
     "itemCount": "{count, plural, =0 {No items} one {1 item} other {# items}}",
     "noOrders": "You have not ordered anything yet.",
     "startShopping": "Start shopping",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "emailHint": "Your email is your sign-in identity; changing it needs a confirmation to the old address. Get in touch if you need it changed.",
+    "phoneHint": "For example: 07701234567",
+    "saveDetails": "Save changes",
+    "detailsSaved": "Saved",
+    "savedAddress": "Saved delivery address",
+    "savedAddressHint": "Fills in your checkout. Changing it never alters an order you already placed.",
+    "saveAddress": "Save address",
+    "addressSaved": "Address saved"
   },
   "wishlist": {
     "title": "Wishlist",

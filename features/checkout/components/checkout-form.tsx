@@ -29,12 +29,35 @@ import {
  * using the same function that will price the order, so the number on screen
  * is the number charged.
  */
+export interface CheckoutDefaults {
+  fullName: string;
+  phone: string;
+  governorate: string;
+  city: string;
+  addressLine: string;
+  notes: string;
+}
+
 export function CheckoutForm({
   governorates,
   subtotalIqd,
+  defaults,
+  initialQuote,
 }: {
   governorates: readonly string[];
   subtotalIqd: number;
+  /**
+   * The signed-in customer's saved address, or null. Filled in rather than
+   * offered behind a button: a returning customer who has to click "use my
+   * address" before typing has been asked a question with one answer.
+   */
+  defaults: CheckoutDefaults | null;
+  /**
+   * The delivery quote for `defaults.governorate`, computed on the server so
+   * a prefilled form is submittable on arrival. Without it the button stays
+   * disabled until the customer touches a select they never needed to touch.
+   */
+  initialQuote: DeliveryQuoteResult | null;
 }) {
   const t = useTranslations('checkout');
   const tValidation = useTranslations('validation');
@@ -47,8 +70,8 @@ export function CheckoutForm({
     { status: 'idle' },
   );
 
-  const [governorate, setGovernorate] = useState('');
-  const [quote, setQuote] = useState<DeliveryQuoteResult | null>(null);
+  const [governorate, setGovernorate] = useState(defaults?.governorate ?? '');
+  const [quote, setQuote] = useState<DeliveryQuoteResult | null>(initialQuote);
 
   /**
    * One id per checkout page, so a double submission is one order.
@@ -106,6 +129,18 @@ export function CheckoutForm({
   };
 
   const fieldError = (name: string) => state.fieldErrors?.[name];
+
+  /**
+   * What the customer last typed, or their saved address, or nothing.
+   *
+   * React resets an uncontrolled form once its action returns, so a single
+   * mistyped digit in the phone used to empty all six fields and the customer
+   * started again. The action echoes the submitted values back for exactly
+   * this, and they take precedence over the saved address — a correction the
+   * customer made by hand must not be reverted to what was on file.
+   */
+  const initial = (field: keyof CheckoutDefaults) =>
+    state.values?.[field] ?? defaults?.[field] ?? '';
   const discountIqd = coupon?.discountIqd ?? 0;
   const total = quote ? subtotalIqd - discountIqd + quote.feeIqd : null;
 
@@ -162,6 +197,7 @@ export function CheckoutForm({
         <Section title={t('contactSection')}>
           <Field
             name="fullName"
+            defaultValue={initial('fullName')}
             label={t('fullName')}
             placeholder={t('fullNamePlaceholder')}
             error={fieldError('fullName')}
@@ -171,6 +207,7 @@ export function CheckoutForm({
           />
           <Field
             name="phone"
+            defaultValue={initial('phone')}
             label={t('phone')}
             placeholder={t('phonePlaceholder')}
             hint={t('phoneHint')}
@@ -222,6 +259,7 @@ export function CheckoutForm({
 
           <Field
             name="city"
+            defaultValue={initial('city')}
             label={t('city')}
             placeholder={t('cityPlaceholder')}
             error={fieldError('city')}
@@ -239,6 +277,7 @@ export function CheckoutForm({
               name="addressLine"
               required
               rows={3}
+              defaultValue={initial('addressLine')}
               placeholder={t('addressLinePlaceholder')}
               autoComplete="street-address"
               aria-invalid={Boolean(fieldError('addressLine'))}
@@ -265,6 +304,7 @@ export function CheckoutForm({
               id="notes"
               name="notes"
               rows={2}
+              defaultValue={initial('notes')}
               placeholder={t('notesPlaceholder')}
               className="w-full rounded-control border border-border-field bg-surface px-3 py-2.5 text-sm text-ink transition-colors placeholder:text-subtle hover:border-border-strong focus-visible:border-primary"
             />

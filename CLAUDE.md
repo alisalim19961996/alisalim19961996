@@ -623,6 +623,11 @@ not an administrator, and the customer's own history renders the same badge.
 Only PENDING is brand-coloured, because it is the only one that means "act
 now".
 
+**Account** — `features/account/`: `ProfileForm` (name and phone; the email is
+printed beside it and is not a field), `AddressForm` (the saved delivery
+address, labelled from the `checkout` namespace because it asks checkout's own
+six questions).
+
 **Auth** — `features/auth/`: `SignInForm`, `SignUpForm`, `ForgotPasswordForm`,
 `ResetPasswordForm`, `GoogleSignInButton` (rendered only
 when Google is configured; the mark lives in `public/brand/google.svg` because
@@ -1309,6 +1314,59 @@ and `server/queries/review.ts` for both reads.
   wastes it on a shop where most products have no reviews. Revisit when most
   of them do.
 
+**The customer edits two fields, and the list is the decision.**
+`server/services/account.ts` writes exactly `name` and `phone`, and
+`schemas/account.ts` has nowhere to put anything else — not a role, not an
+`isActive`, not an email. A schema that only admits the two safe fields is a
+stronger guarantee than a service that remembers to ignore the rest.
+
+- **Email is shown and not editable, and the page says why.** It is the
+  sign-in identity, so moving it needs a confirmation sent to the OLD address
+  — which needs mail, which is not configured (§7). A field that silently
+  refuses reads as broken; a line that explains does not.
+- **The phone goes through the same normaliser checkout uses.** `optionalIraqiPhone`
+  stores E.164 and the form prints it back formatted, so a number saved here and
+  a number typed at checkout are the same value in the same column.
+- **Nothing about the account is cached across locales by accident.**
+  `revalidateAccount()` builds `/ar/account` and `/en/account` literally, like
+  every other purge in `server/revalidate.ts` (§5).
+
+**The saved address is one row, and checkout starts filled in.** `Address` had
+sat in the schema since Phase 1 with nothing writing to it, so a returning
+customer retyped their own street every purchase. `saveDeliveryAddress` takes
+the row under a lock on the OWNER before reading it — a find-then-create is how
+two tabs leave a customer with two addresses and no way to tell which one
+checkout will offer. One, not a book: everybody here pays cash at one door, and
+a picker with a single entry asks a question with one answer. `isDefault` and
+the table's own primary key stay, so a second address later is a screen rather
+than a migration.
+
+- **The fields live in `schemas/address.ts`**, which checkout composes into
+  `checkoutSchema` and the account uses as `savedAddressSchema` (§13.16). Two
+  copies is how "المدينة" becomes required on one screen and optional on the
+  other. `landmark` is on the table and deliberately in neither: checkout does
+  not ask for it, so a form collecting it would be asking for data nothing
+  renders.
+- **Saving here never rewrites an order.** Checkout snapshots the address onto
+  the order as it always has, because an order has to keep saying where it
+  actually went after the customer moves house.
+- **The prefilled form is submittable on arrival.** The delivery quote for the
+  saved governorate is computed on the server and passed in, because the submit
+  button stays disabled until a quote exists — otherwise the customer has to
+  touch a select that was already correct. Checkout is dynamic for the cart
+  anyway, so this costs no static page.
+
+**A rejected checkout keeps what was typed.** React resets an uncontrolled form
+once its action returns, so one mistyped digit in the phone emptied all six
+fields and the customer started again — on the single most expensive form on
+the site, after they had already chosen what to buy. The action echoes the
+submitted strings back in `CheckoutState.values` and every field reads its
+default from them. Deliberately the strings **as typed**, not the parsed ones:
+a phone the normaliser rejected has no parsed form, and showing somebody a
+corrected value they did not write is worse than showing them their own
+mistake. `tests/e2e/checkout-recovery.spec.ts` is the only witness — nothing on
+the server was wrong, so no unit or integration test could see it.
+
 **Handing out access** — `server/services/admin-users.ts`, with the rules in
 `lib/domain/user-roles.ts`.
 
@@ -1676,7 +1734,7 @@ a business decision for the owner, not a rename.
 | A coupon's per-user limit does not bind a guest  | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
 | `Offer` is schema-only                           | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
 | Attribute _groups_ are still seed-only           | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
-| No address book or profile editing               | The account shows details and orders; changing them means getting in touch                                                              | Phase 5.5                                                   |
+| One saved address, not an address book           | A customer keeps a single delivery address and cannot change the email they sign in with                                               | A second address when somebody asks; email needs mail (§7)  |
 | Staff cannot be invited, only promoted           | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
 | Demo admin password is still the weak default    | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
