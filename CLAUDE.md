@@ -741,7 +741,7 @@ can still push past 360.
 - **Prices, SKUs and phone numbers render in Latin digits inside `.numeric`**
   in both locales — that is how Iraqi commerce is written, and bidi would
   otherwise reorder them.
-- **All UI text lives in `messages/*.json`.** Currently **829 keys, identical
+- **All UI text lives in `messages/*.json`.** Currently **867 keys, identical
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
@@ -1796,7 +1796,8 @@ broken code every time (§17).
 
 ### Not started
 
-Recommendations and analytics. **Phase 6 is
+Recommendations. Analytics has its four event points and no provider, which is
+the owner's call to make (§12). **Phase 6 is
 complete** — e2e, the security review and the performance pass are all done
 (§14); the cache layer was refused on measurement (§15). The accessibility
 pass has been done once — see §19 for exactly what it did and did not check.
@@ -1869,7 +1870,8 @@ a business decision for the owner, not a rename.
 - Comments explain **why**, not what. Document the decision and the failure it
   prevents.
 - Server Components by default; `'use client'` only for genuine interaction.
-  Currently 14 client files to 26 server files.
+  Currently 56 client files out of 150 under `app/`, `components/` and
+  `features/`.
 - No `as never` / `as any` to silence the compiler. Dynamic hrefs are typed
   template literals.
 - Never mark a script's edit "done" without asserting the change actually
@@ -1924,7 +1926,7 @@ product, because `OrderItem` carries no productId of its own — so the tests
 are mostly about who may NOT write one: a stranger's delivered order, a guest
 order, an order that has not arrived yet, and a second review of the same
 product; plus the rating columns moving on approval and back on rejection, and
-the storefront read never returning anything unapproved). Six of the 114 need no database at
+the storefront read never returning anything unapproved). Six of the 161 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
