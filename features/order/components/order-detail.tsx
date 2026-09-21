@@ -11,6 +11,7 @@ import { formatIraqiPhone } from '@/lib/phone';
 import { ProductPrice } from '@/features/product/components/product-price';
 import type { OrderView } from '@/server/queries/order';
 import type { Locale } from '@/i18n/routing';
+import { dateTimeFormatter } from '@/lib/datetime';
 
 /**
  * One order, rendered the same way on the confirmation page and on public
@@ -38,10 +39,7 @@ export async function OrderDetail({
   const isTerminalFailure = isFailedOutcome(order.status);
   const reachedIndex = progressIndex(order.status);
 
-  const placedAt = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB',
-    { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Baghdad' },
-  ).format(order.placedAt);
+  const placedAt = dateTimeFormatter(locale, 'medium').format(order.placedAt);
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_22rem] lg:items-start">

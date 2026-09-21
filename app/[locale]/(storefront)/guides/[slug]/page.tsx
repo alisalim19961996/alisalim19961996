@@ -7,6 +7,7 @@ import { buildAlternates, jsonLdScript } from '@/lib/seo';
 import { publicEnv } from '@/config/env';
 import { getGuide, getGuideSlugs } from '@/server/queries/blog';
 import { routing, type Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 /**
  * One buying guide.
@@ -65,9 +66,7 @@ export default async function GuidePage({
   // visitor which articles the owner has not finished yet.
   if (!guide) notFound();
 
-  const dateFormat = new Intl.DateTimeFormat(locale === 'ar' ? 'ar-IQ' : 'en-GB', {
-    dateStyle: 'long',
-  });
+  const dateFormat = dateFormatter(locale, 'long');
 
   const jsonLd = {
     '@context': 'https://schema.org',

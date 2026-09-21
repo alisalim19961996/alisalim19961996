@@ -14,6 +14,7 @@ import {
 import { getAdminProducts } from '@/server/queries/admin-products';
 import { adminProductFilterSchema } from '@/schemas/product';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -47,10 +48,7 @@ export default async function AdminProductsPage({
   const filters = adminProductFilterSchema.parse(rawParams);
   const { rows, total, page, pageCount, counts } = await getAdminProducts(filters);
 
-  const dateFormat = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB',
-    { dateStyle: 'short', timeZone: 'Asia/Baghdad' },
-  );
+  const dateFormat = dateFormatter(locale);
 
   const tabs = [
     { status: undefined, label: t('allProducts'), count: counts.all },

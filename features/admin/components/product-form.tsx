@@ -34,6 +34,7 @@ import { slugify } from '@/lib/domain/product';
 import type { ProductFormReference } from '@/server/queries/admin-products';
 import type { ProductFormValues } from '@/server/queries/admin-products';
 import type { Locale } from '@/i18n/routing';
+import { useUnsavedWarning } from '@/components/ui/use-unsaved-warning';
 
 /**
  * Add or edit a product.
@@ -177,6 +178,17 @@ export function ProductForm({
   const [result, setResult] = useState<SaveProductActionResult>({ ok: false });
   const [pending, startTransition] = useTransition();
 
+  /**
+   * What was on screen when the form opened, and again after each save.
+   *
+   * Serialised rather than held as an object so the comparison is one string
+   * equality instead of a deep walk of a form that contains a variant matrix.
+   * State, not a ref: a ref read during render is exactly the bug
+   * `react-hooks` refuses, and this one changes twice in a session.
+   */
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(values));
+  useUnsavedWarning(JSON.stringify(values) !== savedSnapshot);
+
   const isEdit = product !== null;
   const patch = (next: Partial<FormState>) =>
     setValues((current) => ({ ...current, ...next }));
@@ -230,10 +242,15 @@ export function ProductForm({
     };
 
     startTransition(async () => {
-      const saved = await saveProductAction(product?.id ?? null, payload);
-      setResult(saved);
-      if (saved.ok && !isEdit && saved.productId) {
-        router.push(`/admin/products/${saved.productId}`);
+      const result = await saveProductAction(product?.id ?? null, payload);
+      setResult(result);
+      if (result.ok) {
+        // The baseline moves to what was actually accepted, so the warning
+        // stops firing for work that is now in the database.
+        setSavedSnapshot(JSON.stringify(values));
+      }
+      if (result.ok && !isEdit && result.productId) {
+        router.push(`/admin/products/${result.productId}`);
       }
     });
   };

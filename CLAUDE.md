@@ -602,7 +602,12 @@ variants they generate), `ProductMediaEditor`, `ProductPublishToggle` /
 `ProductDeleteButton` / `ProductRowDelete` (delete straight from the list; a
 sold product renders as a disabled marker carrying the reason rather than an
 absent control, so a row that cannot be deleted does not read as a missing
-feature — the service refuses it again regardless), `AdminShell` (plain by design —
+feature — the service refuses it again regardless), `AdminNav` (the
+thirteen sections, and the dashboard's only other client component: a layout
+cannot read the current path on the server, and thirteen links with nothing
+marking the one you are standing on answer "where am I?" with silence —
+`aria-current` for a screen reader, a background for everybody else, neither
+sufficient alone), `AdminShell` (plain by design —
 density beats atmosphere for someone processing forty orders a day),
 `AdminRecordForm` (the frame all five single-record forms sit in — submit,
 save state, translated errors, and a delete control that shows the reason it is
@@ -738,6 +743,15 @@ assumed.
   in both files.** Parity is enforced by inspection before every commit; a key
   added to one file must be added to the other.
 - Arabic copy is written natively, never machine-translated from English.
+- **Every date goes through `lib/datetime.ts`** — `dateFormatter()` and
+  `dateTimeFormatter()`, which carry `timeZone: 'Asia/Baghdad'` and Latin
+  digits in both languages. Eleven components built their own
+  `Intl.DateTimeFormat` and five did it differently: no timezone, so the day
+  came from whatever the server was set to, and `ar-IQ` without `-u-nu-latn`,
+  so half the dashboard printed ٢٠٢٦ and half printed 2026. Neither is visible
+  on a machine already set to Baghdad, which is how five copies survived
+  review. A guardrail fails on any `Intl.DateTimeFormat` outside that module.
+
 - `setRequestLocale(locale)` must be called in **every** layout and page that
   renders translated content, or the whole subtree opts out of static
   rendering.
@@ -1716,6 +1730,25 @@ pass has been done once — see §19 for exactly what it did and did not check.
 
 ## 15. Known issues and technical debt
 
+**An empty fee box was free delivery, on every order after it.**
+`z.coerce.number()` runs `Number('')`, which is 0, and 0 dinars of delivery is
+free delivery. The delivery screen shows a blank fee for every governorate with
+no custom rate yet — so pressing save on one of those rows to change only the
+days made delivery there free, silently, because zero is a perfectly valid
+amount. `blankIsMissing` now lives in `schemas/blank.ts` (it was buried in
+`schemas/product.ts`, guarding prices only) and wraps the delivery fee, both
+ends of the day range, and the store-wide default fee: blank is `required`, a
+typed 0 still means free. The screen shows the default it falls back to as the
+input's **placeholder**, so the refusal reads as an instruction. Seven unit
+tests; three of them fail the moment the wrapper comes off.
+
+**A delivery row that has been edited says so.** Nineteen rows that look
+identical whether or not they hold unsaved work is how a fee gets changed,
+forgotten, and discovered on an order. Per-row saving stays — a single "save
+everything" would make one fee a nineteen-row write and let one bad value block
+the other eighteen — and the save button is disabled until the row actually
+differs from the database.
+
 **Deactivating a `DeliveryRate` has never meant "we do not deliver here."**
 `quoteDeliveryFor` looks for an ACTIVE rate and falls back to the default fee
 when it finds none, so unticking a governorate changes its price and nothing
@@ -1734,7 +1767,7 @@ a business decision for the owner, not a rename.
 | A coupon's per-user limit does not bind a guest  | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
 | `Offer` is schema-only                           | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
 | Attribute _groups_ are still seed-only           | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
-| One saved address, not an address book           | A customer keeps a single delivery address and cannot change the email they sign in with                                               | A second address when somebody asks; email needs mail (§7)  |
+| One saved address, not an address book           | A customer keeps a single delivery address and cannot change the email they sign in with                                                | A second address when somebody asks; email needs mail (§7)  |
 | Staff cannot be invited, only promoted           | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
 | Demo admin password is still the weak default    | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
 | `server/db/seed-data/products.ts` is ~1050 lines | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
@@ -1743,7 +1776,7 @@ a business decision for the owner, not a rename.
 | No "highest rated" sort                          | One five-star review would outrank fifty averaging 4.8                                                                                  | Needs a weighted average, which needs reviews (§12)         |
 | Compare ticks are per browser                    | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
 | Mail is built but unconfigured                   | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
-| `as unknown` × 1, `eslint-disable` × 2           | All documented and justified                                                                                                            | Keep                                                        |
+| `as unknown` × 1, `eslint-disable` × 3           | All documented and justified                                                                                                            | Keep                                                        |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -1935,6 +1968,7 @@ not a false hit.
 | No cookie sets `secure` from `NODE_ENV`                    | A cookie the browser discards on http, with no error      |
 | No Arabic string literals in an e2e spec                   | A test asserting a second copy of the owner's own copy    |
 | Every trigram index a migration creates still stands       | `prisma migrate dev` dropping an index it cannot see      |
+| No `Intl.DateTimeFormat` outside `lib/datetime.ts`         | A date in the server's timezone, and Arabic-Indic digits  |
 
 `eslint.config.mjs` duplicates the layer-boundary rules on purpose: the test is
 the gate that blocks a push, the lint rule is the red squiggle that stops the

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { blankIsMissing } from '@/schemas/blank';
 import { StockStatus } from '@prisma/client';
 import { isValidSlug } from '@/lib/domain/product';
 
@@ -23,25 +24,6 @@ const optionalText = (max: number) =>
   text(max)
     .optional()
     .transform((value) => (value ? value : null));
-
-/**
- * An empty input is MISSING, not zero.
- *
- * `z.coerce.number()` runs `Number(value)`, and `Number('')` is 0 — so clearing
- * a price field made the variant free, and clearing the warranty box made it a
- * zero-month warranty. Both are silent: the form saves, the number is a valid
- * number, and nothing says the owner deleted a value rather than setting one.
- *
- * Turning blank into `undefined` first lets `.default()` apply where there is
- * one and `required` fire where there is not. Whitespace counts as blank,
- * because a space is what a half-cleared input leaves behind.
- */
-function blankIsMissing<Schema extends z.ZodType>(schema: Schema) {
-  return z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    schema,
-  );
-}
 
 /** Whole dinars. A price is never a float anywhere in MPS (CLAUDE.md §13.1). */
 const priceIqd = blankIsMissing(

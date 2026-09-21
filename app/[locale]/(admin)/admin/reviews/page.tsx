@@ -6,6 +6,7 @@ import { StarRating } from '@/features/review/components/star-rating';
 import { ReviewModeration } from '@/features/admin/components/review-moderation';
 import { getAdminReviews, type ReviewTab } from '@/server/queries/admin-reviews';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -48,9 +49,7 @@ export default async function AdminReviewsPage({
   const list = await getAdminReviews(tab, Number(rawParams['page']) || 1);
   const isAr = locale === 'ar';
 
-  const dateFormat = new Intl.DateTimeFormat(isAr ? 'ar-IQ' : 'en-GB', {
-    dateStyle: 'medium',
-  });
+  const dateFormat = dateFormatter(locale, 'medium');
 
   const tabs = [
     {

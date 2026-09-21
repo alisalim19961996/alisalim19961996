@@ -4,6 +4,7 @@ import { StarRating } from './star-rating';
 import { ReviewComposer } from './review-composer';
 import type { ProductReview, ReviewSummary } from '@/server/queries/review';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 /**
  * Everything about a product's reviews, on its page.
@@ -31,14 +32,7 @@ export async function ReviewSection({
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('review');
 
-  const formatter = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-US',
-    {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    },
-  );
+  const formatter = dateFormatter(locale, 'long');
 
   return (
     <section className="mt-12 border-t border-border pt-8">

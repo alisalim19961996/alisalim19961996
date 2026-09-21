@@ -805,6 +805,41 @@ describe('cookies decide `secure` from the URL, not NODE_ENV', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('every date is formatted in one place', () => {
+  /**
+   * Eleven components built their own `Intl.DateTimeFormat`, and five of them
+   * did it differently: no `timeZone`, so the day came from whatever the
+   * server was set to, and `ar-IQ` without `-u-nu-latn`, so half the dashboard
+   * printed ٢٠٢٦ while the other half printed 2026.
+   *
+   * Neither difference is visible on a machine already set to Baghdad, which
+   * is exactly how five copies survived review. `lib/datetime.ts` owns both
+   * decisions now and is unit-tested for them.
+   */
+  it('builds no DateTimeFormat outside lib/datetime.ts', () => {
+    const offences: string[] = [];
+
+    for (const file of uiFiles) {
+      for (const { line, text } of readCode(file)) {
+        if (
+          /new\s+Intl\.DateTimeFormat|toLocaleDateString|toLocaleTimeString/.test(text)
+        ) {
+          offences.push(`${relative('.', file)}:${line}`);
+        }
+      }
+    }
+
+    expect(
+      offences,
+      'Use dateFormatter() or dateTimeFormatter() from lib/datetime.ts. They ' +
+        'carry timeZone: Asia/Baghdad and Latin digits in both languages — a ' +
+        'formatter without them prints the wrong day and the wrong numerals.',
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('hand-written SQL survives the next migration', () => {
   /**
    * The trigram indexes catalogue search runs on are created in hand-written

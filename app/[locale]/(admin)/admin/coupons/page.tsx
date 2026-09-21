@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatIqd } from '@/lib/money';
 import { getAdminCoupons } from '@/server/queries/admin-coupons';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -35,9 +36,7 @@ export default async function AdminCouponsPage({
   const t = await getTranslations('admin');
   const coupons = await getAdminCoupons();
 
-  const dateFormat = new Intl.DateTimeFormat(locale === 'ar' ? 'ar-IQ' : 'en-GB', {
-    dateStyle: 'medium',
-  });
+  const dateFormat = dateFormatter(locale, 'medium');
 
   return (
     <div className="space-y-6">

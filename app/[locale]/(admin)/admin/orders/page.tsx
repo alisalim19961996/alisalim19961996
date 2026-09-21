@@ -11,6 +11,7 @@ import { orderFilterSchema } from '@/schemas/admin';
 import { ORDER_PROGRESS } from '@/lib/domain/order-state';
 import { formatIraqiPhone } from '@/lib/phone';
 import type { Locale } from '@/i18n/routing';
+import { dateTimeFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -49,10 +50,7 @@ export default async function AdminOrdersPage({
   const filters = orderFilterSchema.parse(rawParams);
   const { rows, total, page, pageCount, counts } = await getAdminOrders(filters);
 
-  const dateFormat = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB',
-    { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Baghdad' },
-  );
+  const dateFormat = dateTimeFormatter(locale);
 
   const tabs = [
     { status: undefined, label: t('allOrders'), count: counts.ALL ?? 0 },

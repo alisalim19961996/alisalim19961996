@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { OrderStatus, Role } from '@prisma/client';
 import { GOVERNORATE_VALUES } from './checkout';
 import { normalizeOrderNumber } from '@/lib/domain/order-number';
+import { blankIsMissing } from '@/schemas/blank';
 
 /**
  * Admin input.
@@ -12,14 +13,24 @@ import { normalizeOrderNumber } from '@/lib/domain/order-number';
  * it is everywhere else.
  */
 
-/** Whole dinars, non-negative. Rejects a decimal rather than rounding it. */
-const wholeIqd = z.coerce
-  .number()
-  .int('notWholeDinars')
-  .min(0, 'negativeAmount')
-  // Well above any real Iraqi price, but low enough that a mistyped figure
-  // with three extra zeros is caught rather than saved.
-  .max(1_000_000_000, 'amountTooLarge');
+/**
+ * Whole dinars, non-negative. Rejects a decimal rather than rounding it.
+ *
+ * Wrapped in `blankIsMissing`, and that wrapper is the whole point here: an
+ * empty box coerces to 0, and 0 dinars is free delivery. A governorate row
+ * starts blank until somebody gives it a fee, so pressing save on it to change
+ * only the days used to make delivery there free — on every order after it,
+ * silently, because zero is a valid amount.
+ */
+const wholeIqd = blankIsMissing(
+  z.coerce
+    .number({ error: 'required' })
+    .int('notWholeDinars')
+    .min(0, 'negativeAmount')
+    // Well above any real Iraqi price, but low enough that a mistyped figure
+    // with three extra zeros is caught rather than saved.
+    .max(1_000_000_000, 'amountTooLarge'),
+);
 
 const orderNumber = z
   .string()
@@ -55,8 +66,14 @@ export const deliveryRateSchema = z
   .object({
     governorate: z.enum(GOVERNORATE_VALUES as [string, ...string[]]),
     feeIqd: wholeIqd,
-    etaMinDays: z.coerce.number().int().min(0).max(60),
-    etaMaxDays: z.coerce.number().int().min(0).max(60),
+    // Blank is missing here too: a cleared range would otherwise be saved as
+    // "0-0 days", which the storefront prints as a delivery promise.
+    etaMinDays: blankIsMissing(
+      z.coerce.number({ error: 'required' }).int('notWhole').min(0).max(60),
+    ),
+    etaMaxDays: blankIsMissing(
+      z.coerce.number({ error: 'required' }).int('notWhole').min(0).max(60),
+    ),
     isActive: z.coerce.boolean().default(true),
   })
   .refine((data) => data.etaMaxDays >= data.etaMinDays, {

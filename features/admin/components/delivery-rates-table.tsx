@@ -34,6 +34,10 @@ export interface DeliveryRateRow {
  * it falls back to is shown rather than left to be discovered on an order.
  * Switching a governorate off entirely would be a new column and a new refusal
  * at checkout — a business decision, not a rename.
+ *
+ * A row that has been edited and not saved says so. Nineteen rows that all
+ * look identical whether or not they hold unsaved work is how a fee gets
+ * changed, forgotten, and discovered on an order.
  */
 export function DeliveryRatesTable({
   governorates,
@@ -84,6 +88,8 @@ export function DeliveryRatesTable({
               governorate={governorate}
               label={tGov(governorate)}
               rate={byGovernorate.get(governorate)}
+              defaultDeliveryIqd={defaultDeliveryIqd}
+              locale={locale}
             />
           ))}
         </tbody>
@@ -96,10 +102,14 @@ function RateRow({
   governorate,
   label,
   rate,
+  defaultDeliveryIqd,
+  locale,
 }: {
   governorate: string;
   label: string;
   rate?: DeliveryRateRow;
+  defaultDeliveryIqd: number;
+  locale: Locale;
 }) {
   const t = useTranslations('admin');
 
@@ -107,6 +117,20 @@ function RateRow({
   const [etaMinDays, setEtaMinDays] = useState(String(rate?.etaMinDays ?? 1));
   const [etaMaxDays, setEtaMaxDays] = useState(String(rate?.etaMaxDays ?? 3));
   const [isActive, setIsActive] = useState(rate?.isActive ?? true);
+
+  /**
+   * What is on screen against what is in the database.
+   *
+   * Compared as strings because that is what the inputs hold; the saved values
+   * are stringified the same way they were when the state was seeded, so a row
+   * nobody touched is never dirty and a row edited back to its original value
+   * correctly stops being.
+   */
+  const dirty =
+    feeIqd !== String(rate?.feeIqd ?? '') ||
+    etaMinDays !== String(rate?.etaMinDays ?? 1) ||
+    etaMaxDays !== String(rate?.etaMaxDays ?? 3) ||
+    isActive !== (rate?.isActive ?? true);
 
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -137,12 +161,20 @@ function RateRow({
       <td className="px-4 py-2.5">
         <span className="text-ink">{label}</span>
         {!rate && <p className="text-xs text-subtle">{t('usesDefaultFee')}</p>}
+        {dirty && <p className="text-xs font-medium text-warning">{t('unsavedRow')}</p>}
       </td>
       <td className="px-4 py-2.5">
         <Input
           value={feeIqd}
           onChange={(event) => setFeeIqd(event.target.value)}
           inputMode="numeric"
+          /*
+            The default is the placeholder, not the value: an empty box is
+            refused by the server rather than saved as free delivery, and
+            showing what the row falls back to is what makes the refusal
+            obvious instead of mysterious.
+          */
+          placeholder={formatIqd(defaultDeliveryIqd, locale)}
           aria-label={`${t('deliveryFee')} — ${label}`}
           className="h-9 w-28 numeric"
         />
@@ -180,7 +212,7 @@ function RateRow({
           type="button"
           size="sm"
           variant="outline"
-          disabled={pending}
+          disabled={pending || !dirty}
           onClick={save}
         >
           {pending ? (

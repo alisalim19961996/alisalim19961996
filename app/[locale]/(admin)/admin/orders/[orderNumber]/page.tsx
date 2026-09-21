@@ -10,6 +10,7 @@ import { getAdminOrder } from '@/server/queries/admin';
 import { normalizeOrderNumber } from '@/lib/domain/order-number';
 import { formatIraqiPhone, toWhatsappNumber } from '@/lib/phone';
 import type { Locale } from '@/i18n/routing';
+import { dateTimeFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -39,10 +40,7 @@ export default async function AdminOrderPage({
   const order = orderNumber ? await getAdminOrder(orderNumber, locale) : null;
   if (!order) notFound();
 
-  const dateTime = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB',
-    { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Baghdad' },
-  );
+  const dateTime = dateTimeFormatter(locale, 'medium');
 
   // Iraqi commerce runs on WhatsApp; a staff member confirming an order wants
   // one tap, not a copy-paste. Null for a number that is not Iraqi mobile.

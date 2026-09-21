@@ -6,6 +6,7 @@ import { OrderStatusBadge } from './order-status-badge';
 import { formatIqd } from '@/lib/money';
 import type { AccountOrderRow } from '@/server/queries/order';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 /**
  * A customer's orders, as rows.
@@ -27,10 +28,7 @@ export async function OrderHistory({
   const t = await getTranslations('account');
   const tOrder = await getTranslations('order');
 
-  const date = new Intl.DateTimeFormat(locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB', {
-    dateStyle: 'medium',
-    timeZone: 'Asia/Baghdad',
-  });
+  const date = dateFormatter(locale, 'medium');
 
   if (rows.length === 0) {
     return (

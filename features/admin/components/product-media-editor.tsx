@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ImageIcon, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, RepeatableRow } from './form-fields';
 import { ImageUploadButton } from './image-upload-button';
@@ -120,6 +120,7 @@ export function ProductMediaEditor({
               removeLabel={t('remove')}
               onRemove={() => onImagesChange(images.filter((_, i) => i !== index))}
             >
+              <ImagePreview url={image.url} isMain={index === 0} />
               <Field
                 name={`image-${index}-url`}
                 label={index === 0 ? t('mainImagePath') : t('imagePath')}
@@ -234,6 +235,47 @@ export function ProductMediaEditor({
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * What the owner is about to publish, at thumbnail size.
+ *
+ * A path box alone answers "is this the right photograph?" with a string.
+ * The first image is the one every card and every search result shows, so it
+ * carries a badge as well — its position in the list is the rule, and a rule
+ * you have to know is not a rule the screen has told you.
+ *
+ * A plain `<img>`, not `next/image`: this URL is whatever was typed, and
+ * `next/image` throws on a host that is not in `remotePatterns` — which would
+ * take the whole form down over a mistyped domain. A broken thumbnail is the
+ * correct answer to a broken path.
+ */
+function ImagePreview({ url, isMain }: { url: string; isMain: boolean }) {
+  const t = useTranslations('admin');
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-control border border-border bg-canvas">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt=""
+            aria-hidden
+            className="size-full object-contain"
+            loading="lazy"
+          />
+        ) : (
+          <ImageIcon className="size-5 text-subtle" aria-hidden />
+        )}
+      </div>
+      {isMain && (
+        <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">
+          {t('mainImage')}
+        </span>
+      )}
     </div>
   );
 }

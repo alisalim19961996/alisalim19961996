@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { getAdminBlogPosts } from '@/server/queries/admin-blog';
 import { BlogPublishToggle } from '@/features/admin/components/blog-row-actions';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -44,9 +45,7 @@ export default async function AdminBlogPage({
     page: Number(rawParams['page']) || 1,
   });
 
-  const dateFormat = new Intl.DateTimeFormat(locale === 'ar' ? 'ar-IQ' : 'en-GB', {
-    dateStyle: 'medium',
-  });
+  const dateFormat = dateFormatter(locale, 'medium');
 
   const tabs = [
     { label: t('allProducts'), href: '/admin/blog' as const, active: !status },

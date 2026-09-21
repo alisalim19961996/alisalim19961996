@@ -766,7 +766,9 @@
     "publishNeedsNames": "An Arabic and an English name are needed before publishing.",
     "publishNeedsSlug": "A valid slug is needed before publishing.",
     "publishNeedsType": "A product type is needed before publishing.",
-    "publishNeedsVariant": "At least one active variant is needed before publishing."
+    "publishNeedsVariant": "At least one active variant is needed before publishing.",
+    "unsavedRow": "Unsaved",
+    "mainImage": "Main image"
   },
   "brands": {
     "title": "Brands",

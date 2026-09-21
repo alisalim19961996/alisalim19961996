@@ -126,7 +126,7 @@ describe('the saved delivery address', () => {
     expect(rows[0]?.isDefault).toBe(true);
   });
 
-  it('reads back only the signed-in customer\'s address', async () => {
+  it("reads back only the signed-in customer's address", async () => {
     signIn(owner);
     const mine = await getMyDeliveryAddress();
     expect(mine?.city).toBe('المنصور');

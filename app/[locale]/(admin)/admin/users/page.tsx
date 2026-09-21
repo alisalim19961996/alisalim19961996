@@ -14,6 +14,7 @@ import { getCurrentUser, isAdmin } from '@/server/auth/guards';
 import { ASSIGNABLE_ROLES, type UserRole } from '@/lib/domain/user-roles';
 import { formatIraqiPhone } from '@/lib/phone';
 import type { Locale } from '@/i18n/routing';
+import { dateFormatter } from '@/lib/datetime';
 
 export async function generateMetadata({
   params,
@@ -88,10 +89,7 @@ export default async function AdminUsersPage({
     ASSIGNABLE_ROLES.map((value) => [value, t(`role_${value}`)]),
   );
 
-  const dateFormat = new Intl.DateTimeFormat(
-    locale === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-GB',
-    { dateStyle: 'short', timeZone: 'Asia/Baghdad' },
-  );
+  const dateFormat = dateFormatter(locale);
 
   /** Why a control is off, or undefined when it is available. */
   const roleBlockedBecause = (row: (typeof rows)[number]) => {

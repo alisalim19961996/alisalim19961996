@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { blankIsMissing } from '@/schemas/blank';
 import { DiscountType } from '@prisma/client';
 
 /**
@@ -38,7 +39,11 @@ export const couponFormSchema = z
       .union([z.literal(''), z.coerce.number().int('notWhole').min(1).max(1_000_000)])
       .optional()
       .transform((value) => (value === '' || value == null ? null : value)),
-    perUserLimit: z.coerce.number().int('notWhole').min(1).max(1_000).default(1),
+    // Blank applies the default rather than failing "must be at least 1":
+    // clearing the box means "I did not set this", not "I set it to nothing".
+    perUserLimit: blankIsMissing(
+      z.coerce.number().int('notWhole').min(1).max(1_000).default(1),
+    ),
     startsAt: z.union([z.iso.datetime({ local: true }), z.iso.date()]),
     endsAt: z.union([z.iso.datetime({ local: true }), z.iso.date()]),
     isActive: z.coerce.boolean().default(true),
