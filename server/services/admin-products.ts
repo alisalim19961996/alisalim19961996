@@ -12,6 +12,10 @@ import {
 } from '@/lib/domain/product';
 import { extractYoutubeId } from '@/lib/video';
 import type { ProductFormInput } from '@/schemas/product';
+import {
+  deleteStorageObjects,
+  listProductObjects,
+} from '@/server/services/admin-storage';
 
 /**
  * Writing the catalogue.
@@ -643,6 +647,7 @@ export async function deleteProduct(id: string): Promise<void> {
     where: { id },
     select: {
       id: true,
+      slugEn: true,
       variants: { select: { _count: { select: { orderItems: true } } } },
     },
   });
@@ -655,4 +660,50 @@ export async function deleteProduct(id: string): Promise<void> {
 
   // Images, videos, options, variants and inventory all cascade from here.
   await db.product.delete({ where: { id } });
+
+  await sweepProductStorage(product.slugEn);
+}
+
+/**
+ * Take the product's photographs off the storage bill.
+ *
+ * Deleting the row cascades the `ProductImage` rows and left every uploaded
+ * object exactly where it was — invisible, permanent, and paid for monthly.
+ * The folder is swept rather than the image rows being read, because an image
+ * the owner uploaded and then removed from the form before saving was never a
+ * row at all, and that is the commoner leak of the two.
+ *
+ * Three properties matter more than the sweeping itself:
+ *
+ * - **It runs after the delete has committed**, and its failure is swallowed.
+ *   The product is gone either way; turning a storage hiccup into a failed
+ *   delete would leave the owner pressing a button that half worked, and the
+ *   objects are no worse off than they were before this function existed.
+ * - **It never removes an object another product still points at.** A slug
+ *   freed by a rename can be taken by a new product, so a folder is not proof
+ *   of ownership. Every candidate is checked against `ProductImage.url`
+ *   first — the deleted product's own rows are gone by now, so anything that
+ *   still matches belongs to somebody else and is left alone.
+ * - **It deletes by exact key**, never by prefix (see `deleteStorageObjects`).
+ */
+async function sweepProductStorage(slug: string): Promise<void> {
+  try {
+    const objects = await listProductObjects(slug);
+    if (objects.length === 0) return;
+
+    const stillUsed = await db.productImage.findMany({
+      where: { url: { in: objects.map((object) => object.url) } },
+      select: { url: true },
+    });
+    const keep = new Set(stillUsed.map((row) => row.url));
+
+    const removable = objects
+      .filter((object) => !keep.has(object.url))
+      .map((object) => object.path);
+
+    await deleteStorageObjects(removable);
+  } catch (error) {
+    // Deliberately not rethrown: see the note above.
+    console.error('[admin-products] sweeping product storage failed', error);
+  }
 }

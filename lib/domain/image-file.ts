@@ -301,7 +301,20 @@ export function storageObjectPath(input: {
   extension: string;
   random: string;
 }): string {
-  const slug = input.slug.replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'product';
   const random = input.random.replace(/[^a-z0-9]/gi, '').toLowerCase();
-  return `${slug}/${random}.${input.extension}`;
+  return `${storageFolderFor(input.slug)}/${random}.${input.extension}`;
+}
+
+/**
+ * The folder a product's photographs live in.
+ *
+ * Its own function because two things have to agree on it: the upload that
+ * writes an object, and the sweep that removes them when the product is
+ * deleted. A sweep that sanitised the slug even slightly differently would
+ * look at an empty folder and report a clean run while the objects stayed on
+ * the bill — which is the failure mode of every "delete the leftovers" job
+ * ever written (§13.16).
+ */
+export function storageFolderFor(slug: string): string {
+  return slug.replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'product';
 }

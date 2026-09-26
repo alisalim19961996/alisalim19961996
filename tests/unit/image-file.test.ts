@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectImageBytes,
   MAX_IMAGE_BYTES,
+  storageFolderFor,
   storageObjectPath,
 } from '@/lib/domain/image-file';
 
@@ -202,6 +203,36 @@ describe('storageObjectPath', () => {
     expect(storageObjectPath({ slug: '؟؟؟', extension: 'webp', random: 'q1' })).toBe(
       'product/q1.webp',
     );
+  });
+});
+
+/**
+ * The upload and the sweep have to name the same folder.
+ *
+ * Deleting a product now removes its objects from the bucket, and a sweep that
+ * sanitised the slug even slightly differently from the upload would look at
+ * an empty folder, delete nothing, and report success while the objects stayed
+ * on the bill. So the folder is one function and this asserts the agreement
+ * rather than trusting two copies to stay in step.
+ */
+describe('the upload folder and the sweep folder are the same folder', () => {
+  const SLUGS = ['galaxy-s24', '../../etc', '؟؟؟', 'Galaxy_S24!!', 'a-b-c'];
+
+  it.each(SLUGS)('agree for %s', (slug) => {
+    const path = storageObjectPath({ slug, extension: 'jpg', random: 'abc' });
+    expect(path.startsWith(`${storageFolderFor(slug)}/`)).toBe(true);
+  });
+
+  it('never returns an empty folder, whatever the slug was', () => {
+    for (const slug of [...SLUGS, '', '   ', '/././']) {
+      expect(storageFolderFor(slug)).not.toBe('');
+      expect(storageFolderFor(slug)).not.toContain('/');
+    }
+  });
+
+  it('gives two products with similar slugs two different folders', () => {
+    // A sweep that matched on a bare prefix would take `samsung-a55` with it.
+    expect(storageFolderFor('samsung')).not.toBe(storageFolderFor('samsung-a55'));
   });
 });
 

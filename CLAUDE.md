@@ -1081,6 +1081,30 @@ spec table with nothing to say it failed.
   cut past invoices loose from the row they were sold from; the snapshot keeps
   them rendering, which is exactly what makes the damage invisible.
   Unpublishing is the reversible answer, and the error says so.
+- **A real delete takes the photographs off the storage bill.** The row
+  cascaded and every uploaded object stayed in the bucket — invisible,
+  permanent, and paid for monthly. `sweepProductStorage` lists the product's
+  folder and removes what is left, and three properties matter more than the
+  sweeping:
+  - **It runs after the delete has committed and its failure is swallowed.**
+    The product is gone either way; turning a storage hiccup into a failed
+    delete leaves the owner pressing a button that half worked, and the
+    objects are no worse off than before the sweep existed.
+  - **It never removes an object another product still points at.** A slug
+    freed by a rename can be taken by a new product, so a folder is not proof
+    of ownership: every candidate is checked against `ProductImage.url` first,
+    and the deleted product's own rows are gone by then, so a match belongs to
+    somebody else. An integration test creates exactly that overlap; removing
+    the check fails it.
+  - **It deletes by exact key, never by prefix.** Supabase will take a prefix
+    there, and a prefix is one truncated string away from emptying the bucket.
+  - **The folder is one function**, `storageFolderFor()`, shared by the upload
+    that writes an object and the sweep that removes it. A sweep that
+    sanitised the slug even slightly differently would look at an empty folder
+    and report a clean run (§13.16).
+  - **With no storage configured it does nothing**, because then the form asks
+    for a path under `public/` and those are files the owner put in the
+    repository by hand.
 - **A unique-constraint violation names its own field.** Which field _is_ the
   message, and only the constraint name distinguishes slug from SKU. Reading it
   is `server/db/diagnose.ts`'s job, because Prisma reports it in two different
@@ -1838,7 +1862,7 @@ a business decision for the owner, not a rename.
 | e2e covers the flows, not the filters            | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
 | Rate limiting is in process                      | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
 | No cache layer, deliberately                     | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
-| Uploaded images are never deleted from storage   | An image removed from a product leaves its object                                                                                       | Sweep by prefix when a product is deleted                   |
+| An image dropped from a product outlives it      | Deleting a product now sweeps its folder; **editing** a product and removing one image still leaves that object in the bucket           | Compare the image rows before and after a save, if it grows |
 | No image resizing or thumbnails on upload        | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
 | A coupon's per-user limit does not bind a guest  | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
 | `Offer` is schema-only                           | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
@@ -1881,7 +1905,7 @@ a business decision for the owner, not a rename.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **553 tests**: 509 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **560 tests**: 516 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1901,7 +1925,7 @@ interesting case is that a product with no reviews has NO average rather than
 0.0) plus 44
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **161 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **166 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1926,7 +1950,7 @@ product, because `OrderItem` carries no productId of its own — so the tests
 are mostly about who may NOT write one: a stranger's delivered order, a guest
 order, an order that has not arrived yet, and a second review of the same
 product; plus the rating columns moving on approval and back on rejection, and
-the storefront read never returning anything unapproved). Six of the 161 need no database at
+the storefront read never returning anything unapproved). Six of the 166 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by
