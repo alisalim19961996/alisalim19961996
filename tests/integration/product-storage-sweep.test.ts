@@ -17,9 +17,11 @@ import { Role } from '@prisma/client';
  */
 
 // Set before the modules are imported: `config/env` reads process.env once, at
-// import. A test host and a fake key, so even a bug that got past the stubbed
-// fetch could only address a domain that does not exist.
-process.env.SUPABASE_URL = 'https://sweep.test';
+// import. A host that does not exist and a fake key, so even a bug that got
+// past the stubbed fetch could only address nothing. It has to be shaped like
+// a Supabase host because `schemas/product.ts` refuses an image URL that is
+// not one — which is itself a control worth not weakening for a test.
+process.env.SUPABASE_URL = 'https://sweeptest.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'sb_secret_test_key_for_the_sweep';
 process.env.SUPABASE_STORAGE_BUCKET = 'product-images';
 
@@ -38,10 +40,14 @@ vi.mock('@/server/auth/guards', () => ({
 }));
 
 const { db } = await import('@/server/db/client');
-const { deleteProduct } = await import('@/server/services/admin-products');
+const { createProduct, deleteProduct, updateProduct } =
+  await import('@/server/services/admin-products');
+const { productFormSchema } = await import('@/schemas/product');
 
 const SUFFIX = Math.random().toString(36).slice(2, 8);
 const made: string[] = [];
+/** A product type of our own, declaring no specifications, so a minimal form validates. */
+const own = { productTypeId: '', brandId: '', categoryId: '' };
 
 /** What the stubbed bucket holds, keyed by folder. */
 const bucket = new Map<string, string[]>();
@@ -49,7 +55,7 @@ const bucket = new Map<string, string[]>();
 let deleted: string[] = [];
 
 const publicUrl = (path: string) =>
-  `https://sweep.test/storage/v1/object/public/product-images/${path}`;
+  `https://sweeptest.supabase.co/storage/v1/object/public/product-images/${path}`;
 
 function stubStorage() {
   vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
@@ -113,9 +119,55 @@ async function makeProduct(slug: string, imageUrls: string[]) {
   return product;
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   stubStorage();
+
+  const [productType, brand, category] = await Promise.all([
+    db.productType.create({
+      data: { key: `sweep-${SUFFIX}`, nameAr: 'نوع', nameEn: 'Sweep type' },
+      select: { id: true },
+    }),
+    db.brand.create({
+      data: { slug: `sweep-${SUFFIX}`, nameAr: 'ماركة', nameEn: 'Sweep brand' },
+      select: { id: true },
+    }),
+    db.category.create({
+      data: { slug: `sweep-${SUFFIX}`, nameAr: 'قسم', nameEn: 'Sweep category' },
+      select: { id: true },
+    }),
+  ]);
+  own.productTypeId = productType.id;
+  own.brandId = brand.id;
+  own.categoryId = category.id;
 });
+
+/** Parsed through the real schema, so the test exercises what the action does. */
+function form(slug: string, images: string[]) {
+  const parsed = productFormSchema.safeParse({
+    slug,
+    nameAr: 'جهاز',
+    nameEn: 'Device',
+    ...own,
+    isPublished: false,
+    attributes: {},
+    options: [],
+    variants: [
+      {
+        sku: slug.toUpperCase(),
+        priceIqd: 250_000,
+        optionValues: [],
+        labelAr: 'قياسي',
+        labelEn: 'Standard',
+      },
+    ],
+    images: images.map((url) => ({ url, altAr: 'صورة', altEn: 'image' })),
+    videos: [],
+  });
+  if (!parsed.success) {
+    throw new Error(`fixture is invalid: ${JSON.stringify(parsed.error.issues)}`);
+  }
+  return parsed.data;
+}
 
 afterEach(() => {
   bucket.clear();
@@ -125,7 +177,59 @@ afterEach(() => {
 afterAll(async () => {
   vi.unstubAllGlobals();
   await db.product.deleteMany({ where: { id: { in: made } } });
+  await db.productType.deleteMany({ where: { key: `sweep-${SUFFIX}` } });
+  await db.brand.deleteMany({ where: { slug: `sweep-${SUFFIX}` } });
+  await db.category.deleteMany({ where: { slug: `sweep-${SUFFIX}` } });
   await db.$disconnect();
+});
+
+/**
+ * The commoner leak, and the one the owner meets weekly: open a product,
+ * remove a photograph, save. The row went; the object stayed.
+ */
+describe('saving a product removes the images it dropped', () => {
+  it('deletes the object the product no longer points at, and keeps the rest', async () => {
+    const slug = `sweep-edit-${SUFFIX}`;
+    const kept = publicUrl(`${slug}/kept.jpg`);
+    const dropped = publicUrl(`${slug}/dropped.jpg`);
+
+    const created = await createProduct(form(slug, [kept, dropped]));
+    made.push(created.id);
+    expect(deleted).toEqual([]);
+
+    await updateProduct(created.id, form(slug, [kept]));
+
+    expect(deleted).toEqual([`${slug}/dropped.jpg`]);
+  });
+
+  it('deletes nothing when the images did not change', async () => {
+    const slug = `sweep-noop-${SUFFIX}`;
+    const url = publicUrl(`${slug}/same.jpg`);
+
+    const created = await createProduct(form(slug, [url]));
+    made.push(created.id);
+
+    await updateProduct(created.id, form(slug, [url]));
+
+    // writeMedia deletes and recreates every row on each save, so "the row is
+    // gone" is true of an unchanged image too — the URL, not the row, is what
+    // decides.
+    expect(deleted).toEqual([]);
+  });
+
+  it('leaves a local path alone, however it was dropped', async () => {
+    const slug = `sweep-local-${SUFFIX}`;
+    const local = '/demo/products/tecno-spark.jpg';
+
+    const created = await createProduct(form(slug, [local]));
+    made.push(created.id);
+
+    await updateProduct(created.id, form(slug, []));
+
+    // That file is in the repository, put there by the owner. MPS has no
+    // business deleting it and no bucket key to delete it with.
+    expect(deleted).toEqual([]);
+  });
 });
 
 describe('deleting a product sweeps its folder', () => {

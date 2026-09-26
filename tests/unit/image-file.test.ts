@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectImageBytes,
   MAX_IMAGE_BYTES,
+  objectPathFromPublicUrl,
   storageFolderFor,
   storageObjectPath,
 } from '@/lib/domain/image-file';
@@ -312,5 +313,63 @@ describe('a signature is not a picture', () => {
     const result = inspectImageBytes(svg);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('imageSvgRefused');
+  });
+});
+
+/**
+ * Which URLs name an object MPS may delete.
+ *
+ * Null is the half that matters. A product's image can be a local path under
+ * `public/` — the whole no-storage-configured path — or a link somebody typed
+ * by hand pointing anywhere at all. Guessing a key for one of those would be
+ * asking Supabase to delete something on the strength of a string that never
+ * came from it.
+ */
+describe('objectPathFromPublicUrl', () => {
+  const PREFIX = 'https://x.supabase.co/storage/v1/object/public/product-images/';
+
+  it('reads back the key an upload wrote', () => {
+    const path = storageObjectPath({
+      slug: 'galaxy-s24',
+      extension: 'jpg',
+      random: 'a1b2c3',
+    });
+    // The round trip is the property the sweep depends on: list gives a URL,
+    // delete needs the key, and they have to be the same object.
+    expect(objectPathFromPublicUrl(`${PREFIX}${path}`, PREFIX)).toBe(path);
+  });
+
+  it('refuses a local path, which is what an unconfigured store uses', () => {
+    expect(objectPathFromPublicUrl('/demo/products/tecno.jpg', PREFIX)).toBeNull();
+  });
+
+  it('refuses another host, however much it looks like ours', () => {
+    expect(
+      objectPathFromPublicUrl(
+        'https://evil.example/storage/v1/object/public/product-images/a/b.jpg',
+        PREFIX,
+      ),
+    ).toBeNull();
+  });
+
+  it('refuses another bucket in the same project', () => {
+    expect(
+      objectPathFromPublicUrl(
+        'https://x.supabase.co/storage/v1/object/public/invoices/a/b.pdf',
+        PREFIX,
+      ),
+    ).toBeNull();
+  });
+
+  it('refuses anything that is not one folder and one file', () => {
+    for (const tail of ['', 'loose.jpg', 'a/b/c.jpg', '../b.jpg', 'a/.jpg', 'a/b']) {
+      expect(objectPathFromPublicUrl(`${PREFIX}${tail}`, PREFIX)).toBeNull();
+    }
+  });
+
+  it('refuses a query string, which an upload never produces', () => {
+    // A signed or cache-busted link would otherwise map to a key with the
+    // query glued on, and deleting it would silently do nothing.
+    expect(objectPathFromPublicUrl(`${PREFIX}a/b.jpg?token=x`, PREFIX)).toBeNull();
   });
 });

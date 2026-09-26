@@ -1081,25 +1081,31 @@ spec table with nothing to say it failed.
   cut past invoices loose from the row they were sold from; the snapshot keeps
   them rendering, which is exactly what makes the damage invisible.
   Unpublishing is the reversible answer, and the error says so.
-- **A real delete takes the photographs off the storage bill.** The row
-  cascaded and every uploaded object stayed in the bucket — invisible,
-  permanent, and paid for monthly. `sweepProductStorage` lists the product's
-  folder and removes what is left, and three properties matter more than the
-  sweeping:
-  - **It runs after the delete has committed and its failure is swallowed.**
-    The product is gone either way; turning a storage hiccup into a failed
-    delete leaves the owner pressing a button that half worked, and the
+- **An uploaded photograph stops being paid for when nothing points at it.**
+  Every object used to stay in the bucket for ever: a deleted product's rows
+  cascaded away beneath them, and an image dropped from a product on the way
+  to a save was never a row to begin with. Two paths feed one decision now —
+  `deleteProduct` lists the product's whole FOLDER, `updateProduct` offers the
+  URLs the product held before the save — and `removeUnreferencedImages` is
+  the only thing that decides. Four properties matter more than the sweeping:
+  - **It runs after the write has committed and its failure is swallowed.**
+    The product is saved or gone either way; turning a storage hiccup into a
+    failed save leaves the owner pressing a button that half worked, and the
     objects are no worse off than before the sweep existed.
-  - **It never removes an object another product still points at.** A slug
-    freed by a rename can be taken by a new product, so a folder is not proof
-    of ownership: every candidate is checked against `ProductImage.url` first,
-    and the deleted product's own rows are gone by then, so a match belongs to
-    somebody else. An integration test creates exactly that overlap; removing
-    the check fails it.
+  - **It never removes an object anything still points at.** A slug freed by a
+    rename can be taken by a new product, so a folder is not proof of
+    ownership, and the same URL can sit on two products. Every candidate is
+    checked against `ProductImage` after the write, so a match belongs to
+    somebody and stays. An integration test builds exactly that overlap;
+    emptying the keep-set fails it.
   - **It deletes by exact key, never by prefix.** Supabase will take a prefix
     there, and a prefix is one truncated string away from emptying the bucket.
+    A URL that is not an object in our bucket — a local path under `public/`,
+    a link typed by hand, another bucket, anything carrying a query string —
+    maps to no key and is skipped rather than guessed at
+    (`objectPathFromPublicUrl`, unit tested on all of those).
   - **The folder is one function**, `storageFolderFor()`, shared by the upload
-    that writes an object and the sweep that removes it. A sweep that
+    that writes an object and the sweep that lists them. A sweep that
     sanitised the slug even slightly differently would look at an empty folder
     and report a clean run (§13.16).
   - **With no storage configured it does nothing**, because then the form asks
@@ -1857,26 +1863,26 @@ else. The tick was labelled "active", which reads as the opposite; it says
 governorate off entirely would be a new column and a new refusal at checkout —
 a business decision for the owner, not a rename.
 
-| Item                                             | Impact                                                                                                                                  | Plan                                                        |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| e2e covers the flows, not the filters            | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears      |
-| Rate limiting is in process                      | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance          |
-| No cache layer, deliberately                     | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response      |
-| An image dropped from a product outlives it      | Deleting a product now sweeps its folder; **editing** a product and removing one image still leaves that object in the bucket           | Compare the image rows before and after a save, if it grows |
-| No image resizing or thumbnails on upload        | An 8 MB photo is served at 8 MB to `next/image`                                                                                         | `next/image` optimises on the fly; revisit at scale         |
-| A coupon's per-user limit does not bind a guest  | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost                       | Deliberate — see §12                                        |
-| `Offer` is schema-only                           | A campaign `comparePriceIqd` cannot express has nowhere to live                                                                         | Deliberate — a second pricing mechanism (§12)               |
-| Attribute _groups_ are still seed-only           | A new specification can be ungrouped or reuse an existing group                                                                         | Rare enough to wait; the form offers the groups that exist  |
-| One saved address, not an address book           | A customer keeps a single delivery address and cannot change the email they sign in with                                                | A second address when somebody asks; email needs mail (§7)  |
-| Staff cannot be invited, only promoted           | Someone must register first; an admin never types another person's password                                                             | Deliberate — see §12                                        |
-| Demo admin password is still the weak default    | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one                                                  | Owner deferred it knowingly; revisit before any deployment  |
-| `server/db/seed-data/products.ts` is ~1050 lines | Data, not logic, but unwieldy                                                                                                           | Split to JSON if it grows                                   |
-| A save lost to an instant navigation             | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing                           | Inherent to optimistic UI — see §12                         |
-| No rating on a product card                      | A line rendered only for products that have a rating makes cards different heights — the bug `check:layout` exists for                  | Revisit when most products have reviews (§12)               |
-| No "highest rated" sort                          | One five-star review would outrank fifty averaging 4.8                                                                                  | Needs a weighted average, which needs reviews (§12)         |
-| Compare ticks are per browser                    | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does  | Deliberate — see §12                                        |
-| Mail is built but unconfigured                   | "Forgot your password?" says so instead of promising an email; email verification stays off                                             | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
-| `as unknown` × 1, `eslint-disable` × 3           | All documented and justified                                                                                                            | Keep                                                        |
+| Item                                  | Impact                                                                                                                                  | Plan                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| e2e covers the flows, not the filters | Buying, order privacy, the dashboard and the layout claims are driven; catalogue filters and the variant picker's dimming still are not | Extend `tests/e2e/` when a filter bug actually appears |
+| Rate limiting is in process           | The tracking limiter does not survive a restart or span a second instance                                                               | A counter table the day there is a second instance     |
+| No cache layer, deliberately          | The catalogue runs 12 queries in 4.8 ms of a 34 ms response — measured, on 16 products                                                  | Revisit when database time passes ~40% of the response |
+
+| No image resizing or thumbnails on upload | An 8 MB photo is served at 8 MB to `next/image` | `next/image` optimises on the fly; revisit at scale |
+| A coupon's per-user limit does not bind a guest | `CouponUsage` identifies by `userId` and a guest checkout has none; the global `usageLimit` still bounds the cost | Deliberate — see §12 |
+| `Offer` is schema-only | A campaign `comparePriceIqd` cannot express has nowhere to live | Deliberate — a second pricing mechanism (§12) |
+| Attribute _groups_ are still seed-only | A new specification can be ungrouped or reuse an existing group | Rare enough to wait; the form offers the groups that exist |
+| One saved address, not an address book | A customer keeps a single delivery address and cannot change the email they sign in with | A second address when somebody asks; email needs mail (§7) |
+| Staff cannot be invited, only promoted | Someone must register first; an admin never types another person's password | Deliberate — see §12 |
+| Demo admin password is still the weak default | Dev only — `db:seed` refuses in production, but the dashboard it opens is the real one | Owner deferred it knowingly; revisit before any deployment |
+| `server/db/seed-data/products.ts` is ~1050 lines | Data, not logic, but unwieldy | Split to JSON if it grows |
+| A save lost to an instant navigation | The heart flips optimistically; clicking and leaving in the same moment cancels the request and saves nothing | Inherent to optimistic UI — see §12 |
+| No rating on a product card | A line rendered only for products that have a rating makes cards different heights — the bug `check:layout` exists for | Revisit when most products have reviews (§12) |
+| No "highest rated" sort | One five-star review would outrank fifty averaging 4.8 | Needs a weighted average, which needs reviews (§12) |
+| Compare ticks are per browser | They live in `localStorage`, so a selection does not follow the customer to their phone; the finished comparison is a link, which does | Deliberate — see §12 |
+| Mail is built but unconfigured | "Forgot your password?" says so instead of promising an email; email verification stays off | The owner adds `RESEND_API_KEY` + `MAIL_FROM` (`pnpm keys`) |
+| `as unknown` × 1, `eslint-disable` × 3 | All documented and justified | Keep |
 
 **Zero `any`. Zero type suppressions.**
 
@@ -1905,7 +1911,7 @@ a business decision for the owner, not a rename.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **560 tests**: 516 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **566 tests**: 522 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1925,7 +1931,7 @@ interesting case is that a product with no reviews has NO average rather than
 0.0) plus 44
 architecture guardrail cases in `tests/architecture.test.ts`.
 
-`pnpm test:integration` — **166 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
+`pnpm test:integration` — **169 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
 product type invented through the services with its own decimal and enum
 specifications, the product form's reference data growing to match, the value
 type locking once values exist, an option row keeping its id across a rename,
@@ -1950,7 +1956,7 @@ product, because `OrderItem` carries no productId of its own — so the tests
 are mostly about who may NOT write one: a stranger's delivered order, a guest
 order, an order that has not arrived yet, and a second review of the same
 product; plus the rating columns moving on approval and back on rejection, and
-the storefront read never returning anything unapproved). Six of the 166 need no database at
+the storefront read never returning anything unapproved). Six of the 169 need no database at
 all — the Resend sender, with `fetch` replaced, asserting what MPS posts rather
 than what Resend does with it; they live here only because this config is where
 `server-only` is stubbed. Run by

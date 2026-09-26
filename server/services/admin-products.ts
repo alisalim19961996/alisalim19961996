@@ -13,7 +13,7 @@ import {
 import { extractYoutubeId } from '@/lib/video';
 import type { ProductFormInput } from '@/schemas/product';
 import {
-  deleteStorageObjects,
+  deleteStoredImages,
   listProductObjects,
 } from '@/server/services/admin-storage';
 
@@ -568,7 +568,23 @@ export async function updateProduct(
   input: ProductFormInput,
 ): Promise<SaveProductResult> {
   await requireStaff();
-  return saveProduct(input, id);
+
+  /*
+    What the product pointed at before the save.
+
+    Read here rather than diffed against `input`, because the comparison that
+    decides a deletion is made against the DATABASE afterwards: two staff
+    saving the same product at once would otherwise have one of them delete an
+    image the other had just put back.
+  */
+  const before = await db.productImage.findMany({
+    where: { productId: id },
+    select: { url: true },
+  });
+
+  const result = await saveProduct(input, id);
+  await removeUnreferencedImages(before.map((image) => image.url));
+  return result;
 }
 
 /**
@@ -669,41 +685,50 @@ export async function deleteProduct(id: string): Promise<void> {
  *
  * Deleting the row cascades the `ProductImage` rows and left every uploaded
  * object exactly where it was — invisible, permanent, and paid for monthly.
- * The folder is swept rather than the image rows being read, because an image
- * the owner uploaded and then removed from the form before saving was never a
- * row at all, and that is the commoner leak of the two.
+ * The whole FOLDER is swept rather than the image rows being read, because an
+ * image the owner uploaded and then removed from the form before saving was
+ * never a row at all, and that is the commoner leak of the two.
  *
- * Three properties matter more than the sweeping itself:
- *
- * - **It runs after the delete has committed**, and its failure is swallowed.
- *   The product is gone either way; turning a storage hiccup into a failed
- *   delete would leave the owner pressing a button that half worked, and the
- *   objects are no worse off than they were before this function existed.
- * - **It never removes an object another product still points at.** A slug
- *   freed by a rename can be taken by a new product, so a folder is not proof
- *   of ownership. Every candidate is checked against `ProductImage.url`
- *   first — the deleted product's own rows are gone by now, so anything that
- *   still matches belongs to somebody else and is left alone.
- * - **It deletes by exact key**, never by prefix (see `deleteStorageObjects`).
+ * It runs after the delete has committed, and `removeUnreferencedImages`
+ * swallows its failure: the product is gone either way, and turning a storage
+ * hiccup into a failed delete would leave the owner pressing a button that
+ * half worked.
  */
 async function sweepProductStorage(slug: string): Promise<void> {
   try {
-    const objects = await listProductObjects(slug);
-    if (objects.length === 0) return;
+    await removeUnreferencedImages(await listProductObjects(slug));
+  } catch (error) {
+    console.error('[admin-products] listing product storage failed', error);
+  }
+}
 
+/**
+ * Delete stored images that nothing points at any more.
+ *
+ * The one place that decides an object may go, for both callers — the product
+ * that was deleted and the image dropped from a product that was saved.
+ *
+ * **Nothing another row still references is touched.** A slug freed by a
+ * rename can be taken by a new product, so a folder is not proof of ownership,
+ * and the same URL can legitimately appear on two products. By the time this
+ * runs the write has committed, so anything `ProductImage` still holds belongs
+ * to somebody and stays.
+ *
+ * Failure is logged and swallowed. This is tidying after a write that already
+ * succeeded; the objects are no worse off than they were before it existed.
+ */
+async function removeUnreferencedImages(urls: readonly string[]): Promise<void> {
+  if (urls.length === 0) return;
+
+  try {
     const stillUsed = await db.productImage.findMany({
-      where: { url: { in: objects.map((object) => object.url) } },
+      where: { url: { in: [...urls] } },
       select: { url: true },
     });
-    const keep = new Set(stillUsed.map((row) => row.url));
+    const keep = new Set(stillUsed.map((image) => image.url));
 
-    const removable = objects
-      .filter((object) => !keep.has(object.url))
-      .map((object) => object.path);
-
-    await deleteStorageObjects(removable);
+    await deleteStoredImages(urls.filter((url) => !keep.has(url)));
   } catch (error) {
-    // Deliberately not rethrown: see the note above.
-    console.error('[admin-products] sweeping product storage failed', error);
+    console.error('[admin-products] removing unused images failed', error);
   }
 }

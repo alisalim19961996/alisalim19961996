@@ -318,3 +318,27 @@ export function storageObjectPath(input: {
 export function storageFolderFor(slug: string): string {
   return slug.replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'product';
 }
+
+/**
+ * The object key behind a public URL, or null when the URL is not one of ours.
+ *
+ * Null is the important half. A product's image can be a local path under
+ * `public/` — that is the whole no-storage-configured path — or a URL somebody
+ * typed by hand pointing anywhere at all. Neither is an object in our bucket,
+ * and a sweep that guessed a key for one would be asking Supabase to delete
+ * something on the strength of a string that never came from it.
+ *
+ * `prefix` is the bucket's public base, ending in a slash. The remainder has
+ * to be exactly the shape an upload writes — one folder, one file, nothing
+ * that could climb — or this returns null and the object is left where it is.
+ */
+export function objectPathFromPublicUrl(url: string, prefix: string): string | null {
+  if (!prefix.endsWith('/') || !url.startsWith(prefix)) return null;
+
+  const path = url.slice(prefix.length);
+  // A query string or fragment would make the key wrong, and both are things
+  // a hand-typed URL carries and an upload never does.
+  if (!/^[a-z0-9-]+\/[a-z0-9]+\.[a-z0-9]+$/i.test(path)) return null;
+
+  return path;
+}

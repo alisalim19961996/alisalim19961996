@@ -5,6 +5,7 @@ import { requireStaff } from '@/server/auth/guards';
 import { isUploadConfigured, storageEnv } from '@/config/env';
 import {
   inspectImageBytes,
+  objectPathFromPublicUrl,
   storageFolderFor,
   storageObjectPath,
   type ImageRejection,
@@ -53,10 +54,15 @@ function storageAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${key}`, apikey: key };
 }
 
+/** Supabase serves a public bucket's objects from under this prefix. */
+function publicPrefix(): string {
+  const bucket = storageEnv.SUPABASE_STORAGE_BUCKET;
+  return `${storageEnv.SUPABASE_URL}/storage/v1/object/public/${bucket}/`;
+}
+
 /** Supabase serves a public bucket's objects from this path, unauthenticated. */
 function publicUrlFor(objectPath: string): string {
-  const bucket = storageEnv.SUPABASE_STORAGE_BUCKET;
-  return `${storageEnv.SUPABASE_URL}/storage/v1/object/public/${bucket}/${objectPath}`;
+  return `${publicPrefix()}${objectPath}`;
 }
 
 export interface UploadedImage {
@@ -129,13 +135,6 @@ export async function uploadProductImage(input: {
   };
 }
 
-export interface StoredObject {
-  /** The key inside the bucket, which is what a delete takes. */
-  path: string;
-  /** The public URL, which is what a `ProductImage` row holds. */
-  url: string;
-}
-
 /**
  * How many objects one list request asks for.
  *
@@ -146,7 +145,11 @@ export interface StoredObject {
 const LIST_PAGE = 100;
 
 /**
- * Everything stored under one product's folder.
+ * The public URL of everything stored under one product's folder.
+ *
+ * URLs rather than keys, because a URL is what a `ProductImage` row holds and
+ * therefore what "is anything still using this?" can be asked about. The key
+ * is derived back from it when the time comes to delete.
  *
  * Returns an empty list when storage is not configured, because then there is
  * nothing of ours out there: the form asks for a path under `public/` instead,
@@ -157,13 +160,13 @@ const LIST_PAGE = 100;
  * means — for a product delete it means "leave the objects", which is exactly
  * where they were already.
  */
-export async function listProductObjects(slug: string): Promise<StoredObject[]> {
+export async function listProductObjects(slug: string): Promise<string[]> {
   await requireStaff();
   if (!isUploadConfigured) return [];
 
   const folder = storageFolderFor(slug);
   const bucket = storageEnv.SUPABASE_STORAGE_BUCKET;
-  const found: StoredObject[] = [];
+  const found: string[] = [];
 
   for (let offset = 0; ; offset += LIST_PAGE) {
     const response = await fetch(
@@ -191,8 +194,7 @@ export async function listProductObjects(slug: string): Promise<StoredObject[]> 
       // uploads are always flat inside the folder — so anything with an id and
       // no separator in its name is one of ours, and anything else is not.
       if (typeof name !== 'string' || id === null || name.includes('/')) continue;
-      const path = `${folder}/${name}`;
-      found.push({ path, url: publicUrlFor(path) });
+      found.push(publicUrlFor(`${folder}/${name}`));
     }
 
     if (page.length < LIST_PAGE) return found;
@@ -200,15 +202,28 @@ export async function listProductObjects(slug: string): Promise<StoredObject[]> 
 }
 
 /**
- * Remove objects from the bucket, by exact key.
+ * Remove stored images, named by the public URL a product row holds.
  *
- * By key and never by prefix: Supabase will happily take a prefix here, and a
- * prefix is one truncated string away from emptying the bucket. The caller
- * lists first, decides, and passes the paths it decided on.
+ * A URL that is not an object in our bucket is skipped, not guessed at: a
+ * local path under `public/` and a hand-typed link to somebody else's server
+ * both arrive here looking like images, and neither is ours to delete
+ * (`objectPathFromPublicUrl` is where that decision lives, and it is unit
+ * tested).
+ *
+ * The request names exact keys and never a prefix. Supabase will happily take
+ * a prefix here, and a prefix is one truncated string away from emptying the
+ * bucket.
  */
-export async function deleteStorageObjects(paths: readonly string[]): Promise<number> {
+export async function deleteStoredImages(urls: readonly string[]): Promise<number> {
   await requireStaff();
-  if (!isUploadConfigured || paths.length === 0) return 0;
+  if (!isUploadConfigured || urls.length === 0) return 0;
+
+  const prefix = publicPrefix();
+  const paths = urls
+    .map((url) => objectPathFromPublicUrl(url, prefix))
+    .filter((path): path is string => path !== null);
+
+  if (paths.length === 0) return 0;
 
   const bucket = storageEnv.SUPABASE_STORAGE_BUCKET;
   const response = await fetch(
@@ -216,7 +231,7 @@ export async function deleteStorageObjects(paths: readonly string[]): Promise<nu
     {
       method: 'DELETE',
       headers: { ...storageAuthHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prefixes: [...paths] }),
+      body: JSON.stringify({ prefixes: paths }),
     },
   );
 
