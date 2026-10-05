@@ -85,6 +85,10 @@ const nextConfig: NextConfig = {
           // cookie decides `secure` (§7). Read at build time, which is when
           // this config is evaluated — a deployment serves one origin.
           secure: (process.env.BETTER_AUTH_URL ?? '').startsWith('https://'),
+          // React needs eval() in development to rebuild cross-boundary call
+          // stacks, and says itself that it never uses it in production. This
+          // is the one question NODE_ENV is the right answer to (§18).
+          development: process.env.NODE_ENV !== 'production',
         }),
       },
     ];

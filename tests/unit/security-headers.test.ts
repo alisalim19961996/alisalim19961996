@@ -44,6 +44,47 @@ describe('contentSecurityPolicy', () => {
     expect(scripts.filter((source) => source.startsWith('http'))).toEqual([]);
   });
 
+  /**
+   * React in development uses `eval()` to rebuild a call stack across the
+   * server/client boundary, and logs an error on every page load when the
+   * policy refuses — a console error you learn to ignore is how a real one
+   * gets ignored too. React's own message promises it never does this in
+   * production, so the relaxation is development-only.
+   *
+   * The third assertion is the one worth having. A development-only branch in
+   * a security header is exactly where a second difference sneaks in and then
+   * ships, so the two policies are compared whole: they may differ by that one
+   * token and by nothing else.
+   */
+  describe('the development relaxation', () => {
+    const inDevelopment = contentSecurityPolicy({
+      storageHost: 'abc.supabase.co',
+      secure: true,
+      development: true,
+    });
+
+    it('allows eval while developing', () => {
+      expect(directive(inDevelopment, 'script-src')).toContain("'unsafe-eval'");
+    });
+
+    it('is absent unless it is asked for', () => {
+      // `development` is optional, so forgetting it must fail closed.
+      const byDefault = contentSecurityPolicy({ secure: true });
+      expect(directive(byDefault, 'script-src')).not.toContain("'unsafe-eval'");
+    });
+
+    it('changes nothing else about the policy', () => {
+      expect(inDevelopment.replace(" 'unsafe-eval'", '')).toBe(policy);
+    });
+
+    it('reaches the headers through securityHeaders too', () => {
+      const header = securityHeaders({ secure: false, development: true }).find(
+        (entry) => entry.key === 'Content-Security-Policy',
+      );
+      expect(header?.value).toContain("'unsafe-eval'");
+    });
+  });
+
   it.each([
     ['object-src', "'none'"],
     ['base-uri', "'self'"],

@@ -32,7 +32,8 @@ export interface SecurityHeader {
  *
  *  - `script-src` without `'unsafe-eval'` and with no remote origin: an
  *    injected `<script src="https://evil/">` does not load, and nothing can
- *    reach `eval`.
+ *    reach `eval`. The one place that is relaxed is `next dev`, for React's
+ *    dev-only stack reconstruction — see the `development` option.
  *  - `base-uri 'self'`: an injected `<base>` cannot silently repoint every
  *    relative URL on the page, including the ones the checkout form posts to.
  *  - `form-action 'self'`: a form cannot be aimed at another host. This store
@@ -51,7 +52,37 @@ export function contentSecurityPolicy(options: {
   storageHost?: string | undefined;
   /** Https deployments get `upgrade-insecure-requests`; http localhost must not. */
   secure: boolean;
+  /**
+   * `next dev` only, and it adds `'unsafe-eval'` — nothing else.
+   *
+   * React in DEVELOPMENT uses `eval()` to rebuild a call stack across the
+   * server/client boundary, which is how a Server Action's error points at
+   * the line that threw. Without it the browser logs
+   * "eval() is not supported in this environment" on every page load: the
+   * stacks get worse and the console fills with a message about a policy
+   * that is doing its job. A console error you are told to ignore is how a
+   * real one gets ignored too.
+   *
+   * React's own message says it: "React will never use eval() in production
+   * mode." So this widens the policy exactly where no customer is, and the
+   * shipped policy is byte-for-byte what it was — a unit test below asserts
+   * the two differ by this one token and nothing else.
+   *
+   * **NODE_ENV is the right source here and the wrong one for cookies.**
+   * §7 forbids deciding a cookie's `secure` from NODE_ENV, because the
+   * question there is "what scheme is this served over" and `pnpm start` on
+   * http://localhost answers "production". The question here is genuinely
+   * "is React in development mode", and NODE_ENV is precisely that flag.
+   */
+  development?: boolean;
 }): string {
+  const scriptSources = [
+    "'self'",
+    "'unsafe-inline'",
+    // Development only. See the `development` option above.
+    ...(options.development ? ["'unsafe-eval'"] : []),
+  ];
+
   const imgSources = [
     "'self'",
     // Next's blur placeholders are data: URIs; blob: is the upload preview.
@@ -65,7 +96,7 @@ export function contentSecurityPolicy(options: {
     "default-src 'self'",
     // See the note above: no nonce, and therefore no honest way to drop
     // 'unsafe-inline' without making every page dynamic.
-    "script-src 'self' 'unsafe-inline'",
+    `script-src ${scriptSources.join(' ')}`,
     // Tailwind ships a stylesheet, but `style={{…}}` props are inline styles
     // and there are four of them in the app.
     "style-src 'self' 'unsafe-inline'",
@@ -101,6 +132,7 @@ export function contentSecurityPolicy(options: {
 export function securityHeaders(options: {
   storageHost?: string | undefined;
   secure: boolean;
+  development?: boolean;
 }): SecurityHeader[] {
   return [
     { key: 'Content-Security-Policy', value: contentSecurityPolicy(options) },

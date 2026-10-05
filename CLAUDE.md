@@ -1911,7 +1911,7 @@ a business decision for the owner, not a rename.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **566 tests**: 522 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **570 tests**: 526 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -2349,6 +2349,27 @@ validators with `new Function` when it can and finds out by trying; without
 path. Every form still validates. `tests/e2e/security.spec.ts` names that one
 violation explicitly and fails on any other, so a script from a new origin or a
 blocked frame is still caught.
+
+**`'unsafe-eval'` is allowed in `next dev`, and nowhere else.** React in
+DEVELOPMENT uses `eval()` to rebuild a call stack across the server/client
+boundary — which is how a Server Action's error points at the line that threw.
+Refusing it logged `eval() is not supported in this environment` on every page
+load: worse stacks, and a console filling with a message about a header doing
+its job. A console error you are taught to ignore is how a real one gets
+ignored too. React's own message is the warrant: "React will never use eval()
+in production mode."
+
+`contentSecurityPolicy()` takes an explicit `development` flag rather than
+reading the environment itself, and `next.config.ts` passes
+`process.env.NODE_ENV !== 'production'`. **That is the one question NODE_ENV is
+the right answer to** — §7 forbids deciding a cookie's `secure` from it,
+because there the question is which scheme the site is served over and
+`pnpm start` on http://localhost answers "production". Here the question
+genuinely is "is React in development mode".
+
+The shipped policy is unchanged, and a unit test compares the two whole
+strings: they may differ by that one token and by nothing else. Proved by
+letting the development branch add a second source — the comparison named it.
 
 **Deployment notes**: `pnpm db:deploy` applies migrations (never `db:migrate` in
 production); `pnpm db:seed` refuses to run when `NODE_ENV=production`; use a
