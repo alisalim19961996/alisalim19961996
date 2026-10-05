@@ -94,6 +94,73 @@ describe('translations stay in step', () => {
     ).toEqual({ missingInEn: [], missingInAr: [] });
   });
 
+  /**
+   * Every message that names a value must be GIVEN that value.
+   *
+   * `about.title` is "عن {store}", and `generateMetadata` called `t('title')`
+   * with nothing — so the one string a search result shows reached the browser
+   * as `FORMATTING_ERROR: the intl string context variable "store" was not
+   * provided`. The parity and emptiness checks above both passed: the key
+   * existed in both locales and was not empty. Neither of them looks inside
+   * the string.
+   *
+   * The namespace is resolved per file, because a key alone is not a message:
+   * `useTranslations('about')` then `t('title')` is `about.title`. Only quoted
+   * literal keys are matched, so a computed key is skipped rather than guessed
+   * at — this under-reports and never cries wolf.
+   */
+  it('passes values to every message that names one', () => {
+    const value = (path: string): string | undefined => {
+      const found = path
+        .split('.')
+        .reduce<string | Messages | undefined>(
+          (node, part) =>
+            typeof node === 'object' && node !== null ? node[part] : undefined,
+          ar,
+        );
+      return typeof found === 'string' ? found : undefined;
+    };
+
+    const offences: string[] = [];
+
+    for (const file of uiFiles) {
+      const source = readFileSync(file, 'utf8');
+
+      // Which binding reads which namespace, in this file.
+      const namespaces = new Map<string, string>();
+      const bindings =
+        /const\s+(\w+)\s*=\s*(?:await\s+)?(?:getTranslations|useTranslations)\(\s*(?:\{[^}]*namespace:\s*)?['"]([\w.]+)['"]/g;
+      for (const [, binding, namespace] of source.matchAll(bindings)) {
+        // Both groups are required by the pattern, so a match has them;
+        // `noUncheckedIndexedAccess` cannot know that from the regex.
+        if (binding && namespace) namespaces.set(binding, namespace);
+      }
+
+      for (const [binding, namespace] of namespaces) {
+        // `t('key')` closed immediately — no second argument.
+        const calls = new RegExp(`\\b${binding}\\(\\s*['"]([\\w.]+)['"]\\s*\\)`, 'g');
+        for (const match of source.matchAll(calls)) {
+          const key = match[1];
+          if (!key) continue;
+          const message = value(`${namespace}.${key}`);
+          if (message === undefined || !/\{[\w\s,]+\}/.test(message)) continue;
+          const line = source.slice(0, match.index).split('\n').length;
+          offences.push(
+            `${relative('.', file)}:${line} → ${namespace}.${key} needs ${
+              message.match(/\{[\w\s,]+\}/)?.[0] ?? 'a value'
+            }`,
+          );
+        }
+      }
+    }
+
+    expect(
+      offences,
+      'A message with a placeholder renders as a FORMATTING_ERROR when the ' +
+        'call passes no values. Pass them: t(key, { store }).',
+    ).toEqual([]);
+  });
+
   it('has no empty strings', () => {
     const empties: string[] = [];
     const scan = (obj: Messages, locale: string, prefix = '') => {

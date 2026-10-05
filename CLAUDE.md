@@ -1190,6 +1190,17 @@ in code that belongs to the owner.**
   delivery, delivery to every governorate, prices in dinars. No claim about
   experience, volume or reputation (§13.12). The governorate count is read from
   the enum, so it cannot drift from what checkout offers.
+- **The store's own name goes through `storeDisplayName()`**, because one page
+  needs the same answer twice and got it wrong. `about.title` is `"عن {store}"`
+  and `generateMetadata` called `t('title')` with nothing, so the one string a
+  search result shows reached the browser as a FORMATTING_ERROR. Both
+  translation guardrails passed — the key was in both locales and was not
+  empty; neither of them looks inside the string. There is a third one now.
+  The helper is pure and holds the two decisions that must match between the
+  `<title>` and the heading: which locale's column, and what to print while the
+  `SiteSetting` row is still empty. `getPublicSiteSettings()` is wrapped in
+  React's `cache()` so metadata and body resolve to one read — deduplication
+  per render pass, not the cache layer §15 refused.
 
 **Writing the guides** — `server/services/admin-blog.ts` and
 `server/queries/blog.ts`, with the format in `lib/domain/blog.ts`.
@@ -1911,7 +1922,7 @@ a business decision for the owner, not a rename.
 
 ## 17. Testing and enforcement
 
-`pnpm test` — **570 tests**: 526 unit tests in `tests/unit/` (money, Iraqi
+`pnpm test` — **571 tests**: 526 unit tests in `tests/unit/` (money, Iraqi
 phones, Arabic search, order transitions, availability in both modes, YouTube
 parsing, catalogue param parsing, cart and delivery arithmetic, order numbers,
 product slugs, per-type attribute coercion, variant labels, option
@@ -1928,7 +1939,7 @@ the wall, the comparison — what a `?ids=` value from the address bar is
 allowed to mean, and the alignment of values to columns, which is a bug a
 reader would believe rather than notice — and the rating arithmetic, where the
 interesting case is that a product with no reviews has NO average rather than
-0.0) plus 44
+0.0) plus 45
 architecture guardrail cases in `tests/architecture.test.ts`.
 
 `pnpm test:integration` — **169 tests** (order placement, concurrency, the admin order lifecycle — release on cancel, consume on delivery, payment settlement — and the catalogue: a brand-new product type saved by the same service, typed values landing in the right columns, variant ids surviving an edit, a sold variant deactivated rather than deleted, and deletion refused once a product appears in an order; and the taxonomy: a
@@ -2053,6 +2064,7 @@ not a false hit.
 | ---------------------------------------------------------- | --------------------------------------------------------- |
 | Translation keys identical in `ar.json` / `en.json`        | A raw `nav.offers` shown to half the customers            |
 | No empty translation strings                               | A label that renders as nothing                           |
+| Every message with a placeholder is passed one             | `"عن {store}"` reaching a `<title>` as a FORMATTING_ERROR |
 | No `ml-`/`mr-`/`pl-`/`pr-`/`left-`/`right-`                | Arabic laid out mirrored, silently                        |
 | No hex colours in UI files                                 | A second, slightly different red                          |
 | No `aspect-[4/5]` literals                                 | A ratio that cannot be changed centrally                  |

@@ -4,6 +4,7 @@ import { BadgeCheck, Banknote, Truck } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { buildAlternates } from '@/lib/seo';
 import { getPublicSiteSettings } from '@/server/queries/site';
+import { storeDisplayName } from '@/lib/domain/site';
 import { GOVERNORATE_VALUES } from '@/schemas/checkout';
 import type { Locale } from '@/i18n/routing';
 
@@ -14,9 +15,16 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'about' });
+
+  // Both of these messages name the store, and neither was given it: the
+  // title reached the browser as "عن {store}" — a formatting error in the
+  // one string a search result shows. The settings read is deduplicated with
+  // the page's own by `cache()`, so this costs no second query.
+  const store = storeDisplayName(await getPublicSiteSettings(), locale);
+
   return {
-    title: t('title'),
-    description: t('lead'),
+    title: t('title', { store }),
+    description: t('lead', { store }),
     alternates: buildAlternates('/about', locale),
   };
 }
@@ -42,8 +50,7 @@ export default async function AboutPage({
   const t = await getTranslations('about');
   const settings = await getPublicSiteSettings();
 
-  const storeName =
-    (locale === 'ar' ? settings?.storeNameAr : settings?.storeNameEn) ?? 'MPS';
+  const storeName = storeDisplayName(settings, locale);
 
   const points = [
     {

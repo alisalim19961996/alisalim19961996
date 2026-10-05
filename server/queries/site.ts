@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { db } from '@/server/db/client';
 
 /**
@@ -29,22 +30,34 @@ export interface PublicSiteSettings {
   warrantyNoteEn: string | null;
 }
 
-export async function getPublicSiteSettings(): Promise<PublicSiteSettings | null> {
-  return db.siteSetting.findFirst({
-    select: {
-      storeNameAr: true,
-      storeNameEn: true,
-      contactPhone: true,
-      whatsappNumber: true,
-      contactEmail: true,
-      facebookUrl: true,
-      instagramUrl: true,
-      tiktokUrl: true,
-      warrantyNoteAr: true,
-      warrantyNoteEn: true,
-    },
-  });
-}
+/**
+ * Wrapped in `cache()` because one page reads it twice.
+ *
+ * `/about` and `/contact` need the store's name in `generateMetadata` AND in
+ * the page body, and those are two separate functions that cannot share a
+ * local. Without this, fixing the metadata would have doubled the query on
+ * every one of those pages. `cache()` is per render pass, so metadata and body
+ * resolve to one read, and a later request still sees a fresh row — this is
+ * deduplication, not the cache layer §15 refused.
+ */
+export const getPublicSiteSettings = cache(
+  async function getPublicSiteSettings(): Promise<PublicSiteSettings | null> {
+    return db.siteSetting.findFirst({
+      select: {
+        storeNameAr: true,
+        storeNameEn: true,
+        contactPhone: true,
+        whatsappNumber: true,
+        contactEmail: true,
+        facebookUrl: true,
+        instagramUrl: true,
+        tiktokUrl: true,
+        warrantyNoteAr: true,
+        warrantyNoteEn: true,
+      },
+    });
+  },
+);
 
 /** The lowest and highest published price, for the buying guide's bands. */
 export async function getPriceRange(): Promise<{ min: number; max: number } | null> {
