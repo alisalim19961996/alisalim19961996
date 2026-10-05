@@ -10,7 +10,7 @@ PostgreSQL commerce core.
 ## Requirements
 
 - Node.js ≥ 22.12
-- PostgreSQL 16
+- PostgreSQL 17
 - pnpm
 
 > **بالعربي:** دليل التشغيل في `docs/run-locally-ar.md`، إعداد VS Code في

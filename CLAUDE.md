@@ -56,7 +56,12 @@ reason, which §18 has already paid for twice.
 | vitest                  | 4.1.11          | Not 5 — outside `better-auth`'s peer range           |
 | pnpm                    | 11.15.1         | Pinned via `packageManager`                          |
 
-Runtime: Node ≥ 22.12, PostgreSQL 16.
+Runtime: Node ≥ 22.12, **PostgreSQL 17**. Raised from 16 to match the
+owner's Supabase project, which runs 17.6: developing and testing one major
+version below what production runs is a difference nobody sees until it
+matters. Nothing in this project reads differently on either — `pg_trgm`,
+`unaccent`, advisory locks, `FOR UPDATE` and the CHECK constraints are
+identical — which is exactly why the drift could sit there unnoticed.
 
 ---
 
@@ -2097,7 +2102,7 @@ and confirming the intended message appeared.
 ### CI
 
 `.github/workflows/ci.yml` runs the whole of `pnpm check` on every push and
-pull request, against a throwaway PostgreSQL 16 service — `pnpm check` ends in
+pull request, against a throwaway PostgreSQL 17 service — `pnpm check` ends in
 `next build`, which pre-renders 32 product pages and therefore needs a real
 database. `pnpm install --frozen-lockfile` makes the lockfile a control rather
 than a suggestion, and the session secret is generated per run with

@@ -25,7 +25,7 @@ jobs:
       # and therefore needs a real database. A throwaway one, created fresh for
       # each run, is the honest way to prove the build works from nothing.
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_USER: mps
           POSTGRES_PASSWORD: mps_ci
